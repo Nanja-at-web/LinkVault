@@ -15,15 +15,29 @@ Community-Scripts-Dokumentation beschreibt dafuer zwei Teile:
 | Container | unprivileged LXC |
 | OS | Debian 13 |
 | CPU | 2 vCPU |
-| RAM | 4096 MB |
+| RAM | 1024 MB fuer aktuellen Python-MVP, spaeter 4096 MB mit Archivierung |
 | Disk | 16 GB |
 | Port | 3080 |
-| Datenbank | PostgreSQL lokal |
+| Datenbank | SQLite unter `/var/lib/linkvault`, PostgreSQL spaeter |
 | Reverse Proxy | optional, nicht erzwungen |
 
-Begruendung: LinkVault soll leichter als Linkwarden/Karakeep bleiben, braucht
-aber fuer Archivierung, Screenshot/PDF und Suche mehr Reserve als ein reiner
-Minimal-Bookmark-Manager.
+Begruendung: Der aktuelle Python-MVP soll leicht in einem Debian-LXC laufen.
+Fuer spaetere Archivierung, Screenshot/PDF und groessere Volltextsuche wird
+mehr RAM sinnvoll.
+
+## Aktueller Vorbereitungsstand
+
+Vor dem offiziellen community-scripts.org-Layout gibt es im Repo jetzt die
+noetige Dienst-Vorarbeit:
+
+- `deploy/linkvault.service`: systemd Unit fuer den Dienstbetrieb.
+- `deploy/linkvault.env.example`: Service-Konfiguration fuer Port und Datenpfad.
+- `scripts/install-debian.sh`: lokaler Debian-Installer fuer den Python-MVP.
+- `proxmox/linkvault-lxc-test.sh`: interner Smoke-Test in einem Debian-LXC.
+
+Das ist bewusst noch keine finale Einreichung. Der naechste Nachweis ist, dass
+der Debian-Installer wiederholbar in einem frischen LXC startet und
+`/healthz` erreichbar ist.
 
 ## `ct/linkvault.sh` Skizze
 
@@ -84,27 +98,26 @@ set -euo pipefail
 
 # 1. Basispakete
 # apt-get update
-# apt-get install -y curl ca-certificates postgresql
+# apt-get install -y python3 python3-venv curl ca-certificates
 
 # 2. Systemuser
 # useradd --system --home /opt/linkvault --shell /usr/sbin/nologin linkvault
 
 # 3. Verzeichnisse
-# install -d -o linkvault -g linkvault /opt/linkvault /var/lib/linkvault /var/log/linkvault
+# install -d -o linkvault -g linkvault /opt/linkvault /var/lib/linkvault
 
 # 4. Release laden
 # curl -fsSL "$RELEASE_URL" -o /tmp/linkvault.tar.gz
 # tar -xzf /tmp/linkvault.tar.gz -C /opt/linkvault --strip-components=1
 
-# 5. Datenbank anlegen
-# sudo -u postgres createuser linkvault
-# sudo -u postgres createdb -O linkvault linkvault
+# 5. SQLite-Datenpfad vorbereiten
+# /var/lib/linkvault/linkvault.sqlite3
 
 # 6. Konfiguration schreiben
 # /etc/linkvault/linkvault.env
 
 # 7. Migrationen
-# /opt/linkvault/linkvault migrate
+# Aktuell laufen SQLite-Migrationen beim Dienststart.
 
 # 8. systemd Service
 # systemctl enable --now linkvault
@@ -114,12 +127,7 @@ set -euo pipefail
 
 ```env
 LINKVAULT_ADDR=0.0.0.0:3080
-LINKVAULT_DATABASE_URL=postgres://linkvault@localhost/linkvault
 LINKVAULT_DATA_DIR=/var/lib/linkvault
-LINKVAULT_PUBLIC_URL=http://localhost:3080
-LINKVAULT_AI_ENABLED=false
-LINKVAULT_ARCHIVE_SCREENSHOTS=true
-LINKVAULT_ARCHIVE_PDF=true
 ```
 
 ## Community-Scripts Einreichung

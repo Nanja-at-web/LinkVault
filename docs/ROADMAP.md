@@ -13,7 +13,7 @@ Status-Legende:
 - [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
 - [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
 - [ ] Lokale Dev-Installation mit Docker Compose.
-- [~] Healthcheck und erste systemd Unit: Healthcheck vorhanden, systemd offen.
+- [x] Healthcheck, .env-Konfiguration, feste Service-Datenpfade und erste systemd Unit.
 
 ## Phase 1: Bookmark-Kern
 
@@ -53,8 +53,9 @@ Status-Legende:
 ## Phase 5: Proxmox-Installation
 
 - [ ] Release-Binary bauen.
-- [ ] Debian 13 Installationsskript.
-- [ ] `ct/linkvault.sh` und `install/linkvault-install.sh`.
+- [~] Debian 13 Installationsskript: lokaler Python-MVP-Installer vorhanden, Release-Installer offen.
+- [~] Internes Proxmox-LXC-Testskript: erster Container-Smoke-Test vorhanden, community-scripts Layout offen.
+- [ ] `ct/linkvault.sh` und `install/linkvault-install.sh` fuer community-scripts.org.
 - [ ] Update-Funktion.
 - [ ] Backup/Restore-Dokumentation.
 - [ ] Test auf Proxmox VE 8.4/9.x.

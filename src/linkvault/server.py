@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 import json
-import os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
+from .config import load_config
 from .store import BookmarkFilters, BookmarkStore
 
 
 def make_store() -> BookmarkStore:
-    data_path = Path(os.environ.get("LINKVAULT_DATA", "data/linkvault.sqlite3"))
-    return BookmarkStore(data_path)
+    return BookmarkStore(load_config().data_path)
 
 
 class LinkVaultHandler(BaseHTTPRequestHandler):
@@ -331,10 +329,10 @@ def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
 
 
 def main() -> None:
-    host = os.environ.get("LINKVAULT_HOST", "127.0.0.1")
-    port = int(os.environ.get("LINKVAULT_PORT", "3080"))
-    server = ThreadingHTTPServer((host, port), LinkVaultHandler)
-    print(f"LinkVault listening on http://{host}:{port}")
+    config = load_config()
+    server = ThreadingHTTPServer((config.host, config.port), LinkVaultHandler)
+    print(f"LinkVault listening on http://{config.host}:{config.port}")
+    print(f"LinkVault data path: {config.data_path}")
     server.serve_forever()
 
 

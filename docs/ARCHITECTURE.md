@@ -128,7 +128,17 @@ Default ist `delete_losers: false`: Verlierer werden zuerst als
 
 ## LXC-Betrieb
 
-Default-Ziel:
+Aktueller Python-MVP:
+
+- Debian 13 LXC
+- systemd Service `linkvault`
+- Konfiguration ueber `/etc/linkvault/linkvault.env`
+- App unter `/opt/linkvault`
+- Daten unter `/var/lib/linkvault/linkvault.sqlite3`
+- Logs ueber journald/stdout
+- Healthcheck ueber `/healthz`
+
+Spaeteres Default-Ziel:
 
 - Debian 13 LXC
 - 2 vCPU

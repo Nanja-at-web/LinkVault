@@ -34,6 +34,34 @@ PYTHONPATH=src python3 -m linkvault.server
 
 Danach ist die Mini-UI unter `http://127.0.0.1:3080` erreichbar.
 
+Konfiguration kann lokal ueber `.env` oder im Servicebetrieb ueber
+`/etc/linkvault/linkvault.env` gesetzt werden:
+
+```env
+LINKVAULT_ADDR=0.0.0.0:3080
+LINKVAULT_DATA_DIR=/var/lib/linkvault
+```
+
+`LINKVAULT_DATA` kann alternativ direkt auf eine SQLite-Datei zeigen. Ohne
+Konfiguration nutzt der lokale MVP `data/linkvault.sqlite3`.
+
+## Debian-Service
+
+Die erste Debian-Installation fuer Tests liegt in `scripts/install-debian.sh`.
+Sie installiert LinkVault in eine virtuelle Python-Umgebung unter
+`/opt/linkvault`, legt den Systemuser `linkvault` an, schreibt
+`/etc/linkvault/linkvault.env`, nutzt `/var/lib/linkvault` als Datenpfad und
+aktiviert `deploy/linkvault.service`.
+
+```bash
+sudo ./scripts/install-debian.sh
+curl http://127.0.0.1:3080/healthz
+```
+
+Fuer interne LXC-Tests gibt es `proxmox/linkvault-lxc-test.sh`. Das ist noch
+kein offizielles community-scripts.org-Skript, sondern der naechste
+Zwischenschritt fuer reproduzierbare Proxmox-LXC-Tests.
+
 Wichtige Endpunkte:
 
 - `GET /healthz`
