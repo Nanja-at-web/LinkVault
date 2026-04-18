@@ -6,7 +6,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from . import __version__
 from .store import BookmarkStore
@@ -22,12 +22,14 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         store = make_store()
-        path = urlparse(self.path).path
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path
 
         if path == "/healthz":
             self.send_json({"ok": True, "version": __version__})
         elif path == "/api/bookmarks":
-            self.send_json({"bookmarks": [bookmark.to_dict() for bookmark in store.list()]})
+            query = parse_qs(parsed_url.query).get("q", [""])[0]
+            self.send_json({"bookmarks": [bookmark.to_dict() for bookmark in store.list(query=query)], "query": query})
         elif path.startswith("/api/bookmarks/"):
             bookmark = store.get(path.rsplit("/", 1)[-1])
             if not bookmark:
@@ -169,6 +171,7 @@ def index_html() -> str:
   </form>
 
   <h2>Bookmarks</h2>
+  <label>Suche <input id="search" placeholder="Titel, URL, Domain, Tag, Collection"></label>
   <button id="refresh">Aktualisieren</button>
   <div id="bookmarks"></div>
 
@@ -181,7 +184,8 @@ def index_html() -> str:
     const dedupOutput = document.querySelector('#dedup-output');
 
     async function refreshBookmarks() {
-      const response = await fetch('/api/bookmarks');
+      const query = document.querySelector('#search').value.trim();
+      const response = await fetch(`/api/bookmarks?q=${encodeURIComponent(query)}`);
       const payload = await response.json();
       bookmarksEl.innerHTML = '';
       for (const bookmark of payload.bookmarks) {
@@ -191,6 +195,8 @@ def index_html() -> str:
           <strong>${escapeHtml(bookmark.title)}</strong>
           <div><a href="${escapeAttr(bookmark.url)}">${escapeHtml(bookmark.url)}</a></div>
           <div class="muted">${escapeHtml(bookmark.domain)} · tags: ${escapeHtml(bookmark.tags.join(', ') || '-')} · collections: ${escapeHtml(bookmark.collections.join(', ') || '-')}</div>
+          <div>${escapeHtml(bookmark.description || '')}</div>
+          <div class="muted">favicon: ${escapeHtml(bookmark.favicon_url || '-')}</div>
           <button data-action="favorite">${bookmark.favorite ? 'Favorit entfernen' : 'Favorit setzen'}</button>
           <button data-action="pin">${bookmark.pinned ? 'Pin entfernen' : 'Pin setzen'}</button>
           <button data-action="delete">Loeschen</button>
@@ -262,6 +268,7 @@ def index_html() -> str:
 
     document.querySelector('#refresh').addEventListener('click', refreshBookmarks);
     document.querySelector('#dry-run').addEventListener('click', refreshDryRun);
+    document.querySelector('#search').addEventListener('input', refreshBookmarks);
     refreshAll();
   </script>
 </body>

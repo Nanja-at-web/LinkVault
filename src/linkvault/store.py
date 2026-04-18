@@ -5,10 +5,11 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from .metadata import PageMetadata, fetch_url_metadata
 from .url_tools import normalize_url
 
 
@@ -20,6 +21,7 @@ class Bookmark:
     title: str
     description: str = ""
     domain: str = ""
+    favicon_url: str = ""
     tags: list[str] = field(default_factory=list)
     collections: list[str] = field(default_factory=list)
     favorite: bool = False
@@ -32,9 +34,13 @@ class Bookmark:
         return asdict(self)
 
 
+MetadataFetcher = Callable[[str], PageMetadata]
+
+
 class BookmarkStore:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, metadata_fetcher: MetadataFetcher | None = fetch_url_metadata) -> None:
         self.path = path
+        self.metadata_fetcher = metadata_fetcher
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.migrate()
 
@@ -54,6 +60,7 @@ class BookmarkStore:
                     title TEXT NOT NULL,
                     description TEXT NOT NULL DEFAULT '',
                     domain TEXT NOT NULL DEFAULT '',
+                    favicon_url TEXT NOT NULL DEFAULT '',
                     tags TEXT NOT NULL DEFAULT '',
                     collections TEXT NOT NULL DEFAULT '',
                     favorite INTEGER NOT NULL DEFAULT 0,
@@ -64,12 +71,38 @@ class BookmarkStore:
                 )
                 """
             )
+            ensure_column(connection, "bookmarks", "description", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "domain", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "favicon_url", "TEXT NOT NULL DEFAULT ''")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_normalized_url ON bookmarks(normalized_url)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_domain ON bookmarks(domain)")
 
-    def list(self) -> list[Bookmark]:
+    def list(self, query: str = "") -> list[Bookmark]:
+        if query.strip():
+            return self.search(query)
         with self.connect() as connection:
             rows = connection.execute("SELECT * FROM bookmarks ORDER BY created_at DESC, title ASC").fetchall()
+        return [bookmark_from_row(row) for row in rows]
+
+    def search(self, query: str) -> list[Bookmark]:
+        terms = [term for term in query.strip().split() if term]
+        if not terms:
+            return self.list()
+
+        clauses = []
+        values: list[str] = []
+        fields = ["title", "url", "description", "domain", "tags", "collections", "notes"]
+        for term in terms:
+            clauses.append("(" + " OR ".join(f"{field} LIKE ?" for field in fields) + ")")
+            values.extend([f"%{term}%"] * len(fields))
+
+        sql = f"""
+            SELECT * FROM bookmarks
+            WHERE {' AND '.join(clauses)}
+            ORDER BY favorite DESC, pinned DESC, updated_at DESC, title ASC
+        """
+        with self.connect() as connection:
+            rows = connection.execute(sql, values).fetchall()
         return [bookmark_from_row(row) for row in rows]
 
     def get(self, bookmark_id: str) -> Bookmark | None:
@@ -77,29 +110,31 @@ class BookmarkStore:
             row = connection.execute("SELECT * FROM bookmarks WHERE id = ?", (bookmark_id,)).fetchone()
         return bookmark_from_row(row) if row else None
 
-    def add(self, payload: dict[str, Any]) -> Bookmark:
+    def add(self, payload: dict[str, Any], *, enrich_metadata: bool = True) -> Bookmark:
         now = datetime.now(UTC).isoformat()
+        payload = self.with_metadata(payload, enrich_metadata=enrich_metadata)
         bookmark = bookmark_from_payload(payload, bookmark_id=uuid4().hex, created_at=now, updated_at=now)
         with self.connect() as connection:
             connection.execute(
                 """
                 INSERT INTO bookmarks (
-                    id, url, normalized_url, title, description, domain, tags, collections,
+                    id, url, normalized_url, title, description, domain, favicon_url, tags, collections,
                     favorite, pinned, notes, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 bookmark_to_record(bookmark),
             )
         return bookmark
 
-    def update(self, bookmark_id: str, payload: dict[str, Any]) -> Bookmark | None:
+    def update(self, bookmark_id: str, payload: dict[str, Any], *, enrich_metadata: bool = True) -> Bookmark | None:
         existing = self.get(bookmark_id)
         if not existing:
             return None
 
         merged = existing.to_dict()
         merged.update({key: value for key, value in payload.items() if value is not None})
+        merged = self.with_metadata(merged, enrich_metadata=enrich_metadata and "url" in payload)
         bookmark = bookmark_from_payload(
             merged,
             bookmark_id=bookmark_id,
@@ -110,7 +145,7 @@ class BookmarkStore:
             connection.execute(
                 """
                 UPDATE bookmarks
-                SET url = ?, normalized_url = ?, title = ?, description = ?, domain = ?,
+                SET url = ?, normalized_url = ?, title = ?, description = ?, domain = ?, favicon_url = ?,
                     tags = ?, collections = ?, favorite = ?, pinned = ?, notes = ?, updated_at = ?
                 WHERE id = ?
                 """,
@@ -120,6 +155,7 @@ class BookmarkStore:
                     bookmark.title,
                     bookmark.description,
                     bookmark.domain,
+                    bookmark.favicon_url,
                     encode_list(bookmark.tags),
                     encode_list(bookmark.collections),
                     int(bookmark.favorite),
@@ -130,6 +166,29 @@ class BookmarkStore:
                 ),
             )
         return bookmark
+
+    def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:
+        if not enrich_metadata or not self.metadata_fetcher:
+            return dict(payload)
+        url = str(payload.get("url", "")).strip()
+        if not url:
+            return dict(payload)
+
+        enriched = dict(payload)
+        try:
+            metadata = self.metadata_fetcher(url)
+        except Exception:
+            return enriched
+
+        if metadata.final_url:
+            enriched.setdefault("final_url", metadata.final_url)
+        if metadata.title and not str(enriched.get("title", "")).strip():
+            enriched["title"] = metadata.title
+        if metadata.description and not str(enriched.get("description", "")).strip():
+            enriched["description"] = metadata.description
+        if metadata.favicon_url and not str(enriched.get("favicon_url", "")).strip():
+            enriched["favicon_url"] = metadata.favicon_url
+        return enriched
 
     def delete(self, bookmark_id: str) -> bool:
         with self.connect() as connection:
@@ -222,6 +281,7 @@ def bookmark_from_payload(
         title=title or url,
         description=str(payload.get("description", "")),
         domain=domain_for_url(normalized_url),
+        favicon_url=str(payload.get("favicon_url", "")),
         tags=clean_list(payload.get("tags", [])),
         collections=clean_list(payload.get("collections", [])),
         favorite=to_bool(payload.get("favorite", False)),
@@ -240,6 +300,7 @@ def bookmark_from_row(row: sqlite3.Row) -> Bookmark:
         title=row["title"],
         description=row["description"],
         domain=row["domain"],
+        favicon_url=row["favicon_url"],
         tags=decode_list(row["tags"]),
         collections=decode_list(row["collections"]),
         favorite=bool(row["favorite"]),
@@ -258,6 +319,7 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
         bookmark.title,
         bookmark.description,
         bookmark.domain,
+        bookmark.favicon_url,
         encode_list(bookmark.tags),
         encode_list(bookmark.collections),
         int(bookmark.favorite),
@@ -292,6 +354,12 @@ def to_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.lower() in {"1", "true", "yes", "on"}
     return bool(value)
+
+
+def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def choose_winner(bookmarks: list[Bookmark]) -> Bookmark:

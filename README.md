@@ -24,8 +24,8 @@ Der Schwerpunkt liegt auf:
 ## Lokaler MVP-Prototyp
 
 Der erste Prototyp nutzt nur die Python-Standardbibliothek. Er speichert
-Bookmarks in SQLite, normalisiert URLs und zeigt exakte Dublettengruppen
-inklusive Merge-Dry-Run.
+Bookmarks in SQLite, holt beim Speichern Metadaten aus Webseiten, normalisiert
+URLs und zeigt exakte Dublettengruppen inklusive Merge-Dry-Run.
 
 ```bash
 PYTHONPATH=src python3 -m linkvault.server
@@ -37,6 +37,7 @@ Wichtige Endpunkte:
 
 - `GET /healthz`
 - `GET /api/bookmarks`
+- `GET /api/bookmarks?q=suchbegriff`
 - `POST /api/bookmarks`
 - `GET /api/bookmarks/{id}`
 - `PATCH /api/bookmarks/{id}`

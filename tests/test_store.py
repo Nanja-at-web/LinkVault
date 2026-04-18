@@ -2,13 +2,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from linkvault.metadata import PageMetadata
 from linkvault.store import BookmarkStore
 
 
 class StoreTest(unittest.TestCase):
     def test_dedup_groups_exact_normalized_url(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3")
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             first = store.add({"url": "https://example.com/a?utm_source=news", "title": "A"})
             second = store.add({"url": "https://example.com/a", "title": "A again", "favorite": True})
 
@@ -20,7 +21,7 @@ class StoreTest(unittest.TestCase):
 
     def test_update_and_delete_bookmark(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3")
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             bookmark = store.add({"url": "https://example.com", "title": "Example"})
 
             updated = store.update(bookmark.id, {"favorite": True, "tags": "docs, test"})
@@ -33,7 +34,7 @@ class StoreTest(unittest.TestCase):
 
     def test_import_browser_html_skips_duplicates_and_keeps_collection(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3")
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             html = """
             <!DOCTYPE NETSCAPE-Bookmark-file-1>
             <DL><p>
@@ -56,7 +57,7 @@ class StoreTest(unittest.TestCase):
 
     def test_dedup_dry_run_preserves_tags_collections_and_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3")
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             winner = store.add(
                 {
                     "url": "https://example.com/a",
@@ -87,6 +88,42 @@ class StoreTest(unittest.TestCase):
             self.assertTrue(plan["keep_favorite"])
             self.assertTrue(plan["keep_pinned"])
             self.assertFalse(plan["delete_losers"])
+
+    def test_metadata_fills_missing_title_description_and_favicon(self):
+        def fake_fetcher(url: str) -> PageMetadata:
+            return PageMetadata(
+                title="Fetched Title",
+                description="Fetched description",
+                favicon_url="https://example.com/favicon.ico",
+                final_url=url,
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=fake_fetcher)
+
+            bookmark = store.add({"url": "https://example.com/page"})
+
+            self.assertEqual(bookmark.title, "Fetched Title")
+            self.assertEqual(bookmark.description, "Fetched description")
+            self.assertEqual(bookmark.favicon_url, "https://example.com/favicon.ico")
+
+    def test_search_matches_title_description_domain_tags_and_collections(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            first = store.add(
+                {
+                    "url": "https://github.com/Nanja-at-web/LinkVault",
+                    "title": "LinkVault",
+                    "description": "Selfhosted bookmark manager",
+                    "tags": "github,selfhost",
+                    "collections": "Development",
+                }
+            )
+            store.add({"url": "https://example.com", "title": "Other"})
+
+            results = store.search("github selfhost")
+
+            self.assertEqual([bookmark.id for bookmark in results], [first.id])
 
 
 if __name__ == "__main__":

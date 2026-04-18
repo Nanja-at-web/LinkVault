@@ -19,9 +19,9 @@ Status-Legende:
 
 - [ ] Login und Single-User-Setup.
 - [~] Link anlegen, bearbeiten, loeschen.
-- [~] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
+- [x] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
 - [~] Tags, Collections, Favoriten und Pins.
-- [ ] Volltextsuche ueber Titel, URL, Beschreibung.
+- [~] Volltextsuche ueber Titel, URL, Beschreibung.
 - [~] Import aus Browser-Bookmark-HTML.
 
 ## Phase 2: Dubletten und Favoritenpflege
