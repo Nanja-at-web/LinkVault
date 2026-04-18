@@ -57,8 +57,8 @@ Status-Legende:
 - [~] Internes Proxmox-LXC-Testskript: erster Container-Smoke-Test vorhanden, community-scripts Layout offen.
 - [ ] `ct/linkvault.sh` und `install/linkvault-install.sh` fuer community-scripts.org.
 - [ ] Update-Funktion.
-- [ ] Backup/Restore-Dokumentation.
-- [ ] Test auf Proxmox VE 8.4/9.x.
+- [~] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden, LXC-Restore-Test offen.
+- [~] Test auf Proxmox VE 8.4/9.x: Testprozedur vorhanden, echter Proxmox-Lauf offen.
 
 ## Phase 6: Migrationen aus bestehenden Tools
 

@@ -19,6 +19,8 @@ Der Schwerpunkt liegt auf:
 - [Technische Architektur](docs/ARCHITECTURE.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
+- [Debian-LXC Installationstest](docs/DEBIAN_LXC_TEST.md)
+- [Backup und Restore](docs/BACKUP_RESTORE.md)
 - [MVP-Roadmap](docs/ROADMAP.md)
 
 ## Lokaler MVP-Prototyp
@@ -61,6 +63,13 @@ curl http://127.0.0.1:3080/healthz
 Fuer interne LXC-Tests gibt es `proxmox/linkvault-lxc-test.sh`. Das ist noch
 kein offizielles community-scripts.org-Skript, sondern der naechste
 Zwischenschritt fuer reproduzierbare Proxmox-LXC-Tests.
+
+Backup und Restore fuer den SQLite-MVP:
+
+```bash
+sudo ./scripts/backup-linkvault.sh
+sudo ./scripts/restore-linkvault.sh /var/backups/linkvault/linkvault-backup-YYYYmmdd-HHMMSS.tar.gz
+```
 
 Wichtige Endpunkte:
 

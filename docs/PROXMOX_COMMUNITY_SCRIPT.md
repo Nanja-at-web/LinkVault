@@ -33,7 +33,11 @@ noetige Dienst-Vorarbeit:
 - `deploy/linkvault.service`: systemd Unit fuer den Dienstbetrieb.
 - `deploy/linkvault.env.example`: Service-Konfiguration fuer Port und Datenpfad.
 - `scripts/install-debian.sh`: lokaler Debian-Installer fuer den Python-MVP.
+- `scripts/backup-linkvault.sh`: konsistentes SQLite-Backup im laufenden Betrieb.
+- `scripts/restore-linkvault.sh`: Restore mit Dienststopp und Vorher-Kopie.
 - `proxmox/linkvault-lxc-test.sh`: interner Smoke-Test in einem Debian-LXC.
+- `docs/DEBIAN_LXC_TEST.md`: reproduzierbare Testprozedur fuer frische LXC.
+- `docs/BACKUP_RESTORE.md`: Backup/Restore-Ablauf fuer den SQLite-MVP.
 
 Das ist bewusst noch keine finale Einreichung. Der naechste Nachweis ist, dass
 der Debian-Installer wiederholbar in einem frischen LXC startet und
@@ -141,6 +145,15 @@ Vor einer Einreichung braucht das Projekt:
 - systemd Unit
 - Backup-Hinweise fuer DB und `/var/lib/linkvault`
 - klare Lizenz
+
+## Aktueller Teststatus
+
+Am 18.04.2026 konnte der echte Debian-LXC-Test auf dem Entwicklungsrechner
+nicht ausgefuehrt werden, weil die Umgebung macOS/Darwin ist und keine
+Proxmox- oder LXC-Werkzeuge vorhanden sind. Die Shell-Skripte und die lokale
+Service-Konfiguration werden deshalb hier nur syntaktisch und mit temporaeren
+SQLite-Pfaden getestet. Der echte Nachweis bleibt ein Lauf in einem frischen
+Debian-LXC nach `docs/DEBIAN_LXC_TEST.md`.
 
 ## Hinweise aus aktueller Pruefung
 
