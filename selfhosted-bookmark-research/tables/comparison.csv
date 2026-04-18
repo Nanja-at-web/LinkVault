@@ -1,0 +1,7 @@
+project,dedup,favorites_pins,tags,lists_collections,sync,archiving,mobile,api,selfhost_ease,docker,lxc_community_scripts
+Karakeep,yes_url_check,yes,yes_ai,yes_manual_smart,strong,strong_local,yes,yes,medium,yes,yes
+linkding,yes_url_and_import,no,yes,yes_bundles,partial,yes_html_ia,partial_pwa,yes,very_high,yes,yes
+Linkwarden,unclear,yes,yes,yes_subcollections,strong,very_strong,partial_to_yes,yes,medium,yes,yes
+LinkAce,partial_import_skip,not_confirmed,yes,yes,partial,partial_wayback,no_confirmed,yes,medium,yes,not_confirmed
+Readeck,unclear,yes,yes_labels,yes_collections,partial,strong_local,android_yes,partial,high,yes,yes
+Shiori,unclear,unclear,unclear,unclear,partial,partial,unclear,api_signals,high,yes,not_confirmed

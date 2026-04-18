@@ -1,0 +1,9 @@
+- Website: https://community-scripts.org/
+- Docs: https://community-scripts.org/docs
+- Scripts index: https://community-scripts.org/scripts
+- Repo: https://github.com/community-scripts/ProxmoxVE
+- Mirror: https://git.community-scripts.org/community-scripts/ProxmoxVE
+- Karakeep script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/karakeep.sh
+- Linkwarden script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/linkwarden.sh
+- linkding script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/linkding.sh
+- Readeck script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/readeck.sh

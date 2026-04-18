@@ -1,0 +1,8 @@
+- Website: https://karakeep.app/
+- Docs: https://docs.karakeep.app/
+- Repo: https://github.com/karakeep-app/karakeep
+- API: https://docs.karakeep.app/api/karakeep-api/
+- Check URL: https://docs.karakeep.app/api/check-bookmark-url/
+- Update Bookmark: https://docs.karakeep.app/api/update-bookmark/
+- Advanced workflows: https://docs.karakeep.app/using-karakeep/advanced-workflows
+- Community-Script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/karakeep.sh

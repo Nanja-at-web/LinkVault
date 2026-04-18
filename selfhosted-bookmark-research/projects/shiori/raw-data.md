@@ -1,0 +1,5 @@
+- Repo: https://github.com/go-shiori/shiori
+- Releases: https://github.com/go-shiori/shiori/releases
+- Container package: https://github.com/orgs/go-shiori/packages/container/package/shiori
+- Browser extension: https://github.com/go-shiori/shiori-web-ext
+- Org: https://github.com/go-shiori

@@ -1,0 +1,7 @@
+- Website: https://readeck.org/en/
+- Repo: https://codeberg.org/readeck/readeck
+- pkg.go.dev: https://pkg.go.dev/codeberg.org/readeck/readeck
+- Android-App: https://github.com/jensomato/ReadeckApp
+- Community-Script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/readeck.sh
+- Review EN: https://gigazine.net/gsc_news/en/20260412-readeck
+- Review FR: https://korben.info/readeck-read-it-later-self-hosted.html

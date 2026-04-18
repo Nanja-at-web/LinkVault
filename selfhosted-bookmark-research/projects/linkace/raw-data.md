@@ -1,0 +1,8 @@
+- Docs: https://www.linkace.org/docs/
+- General: https://www.linkace.org/docs/v1/general/
+- Links: https://www.linkace.org/docs/v2/application/links/
+- Import: https://www.linkace.org/docs/v2/configuration/import/
+- Export: https://www.linkace.org/docs/v2/configuration/export/
+- SSO: https://www.linkace.org/docs/v2/configuration/sso-oauth-oidc/
+- CLI: https://www.linkace.org/docs/v2/cli/
+- Repo: https://github.com/Kovah/LinkAce

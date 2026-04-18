@@ -1,0 +1,12 @@
+erDiagram
+    USER ||--o{ BOOKMARK : owns
+    USER ||--o{ COLLECTION : creates
+    USER ||--o{ API_TOKEN : has
+    BOOKMARK }o--o{ TAG : tagged_with
+    BOOKMARK }o--o{ COLLECTION : belongs_to
+    BOOKMARK ||--o{ ARCHIVE_ASSET : has
+    BOOKMARK ||--o{ HIGHLIGHT : contains
+    BOOKMARK ||--o{ DUPLICATE_GROUP : member_of
+    COLLECTION ||--o{ COLLECTION : subcollection_of
+    DUPLICATE_GROUP ||--o{ BOOKMARK : groups
+    ARCHIVE_ASSET }o--|| USER : uploaded_by

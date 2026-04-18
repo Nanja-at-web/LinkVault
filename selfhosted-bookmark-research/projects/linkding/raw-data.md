@@ -1,0 +1,7 @@
+- Website: https://linkding.link/
+- API: https://linkding.link/api/
+- Archiving: https://linkding.link/archiving/
+- Auto-tagging: https://linkding.link/auto-tagging/
+- Repo: https://github.com/sissbruecker/linkding
+- Releases: https://github.com/sissbruecker/linkding/releases
+- Community-Script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/linkding.sh

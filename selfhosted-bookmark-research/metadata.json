@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-04-18T06:03:10.676219",
+  "bundle_name": "selfhosted-bookmark-research",
+  "tools": [
+    "Karakeep",
+    "linkding",
+    "Linkwarden",
+    "LinkAce",
+    "Readeck",
+    "Shiori",
+    "Proxmox Community Scripts"
+  ],
+  "notes": [
+    "ZIP built from the deep research report generated in the conversation.",
+    "Some sections remain conservative where official primary-source verification was incomplete."
+  ],
+  "source_count": 80
+}

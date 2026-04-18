@@ -1,0 +1,8 @@
+- Website: https://linkwarden.app/
+- Docs: https://docs.linkwarden.app/
+- Dashboard: https://docs.linkwarden.app/Usage/dashboard
+- Links: https://docs.linkwarden.app/Usage/links
+- SingleFile: https://docs.linkwarden.app/Usage/upload-from-singlefile
+- Repo: https://github.com/linkwarden/linkwarden
+- Releases: https://github.com/linkwarden/linkwarden/releases
+- Community-Script: https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/linkwarden.sh
