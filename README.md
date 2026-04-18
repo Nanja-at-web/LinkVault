@@ -24,7 +24,8 @@ Der Schwerpunkt liegt auf:
 ## Lokaler MVP-Prototyp
 
 Der erste Prototyp nutzt nur die Python-Standardbibliothek. Er speichert
-Bookmarks als JSON, normalisiert URLs und zeigt exakte Dublettengruppen.
+Bookmarks in SQLite, normalisiert URLs und zeigt exakte Dublettengruppen
+inklusive Merge-Dry-Run.
 
 ```bash
 PYTHONPATH=src python3 -m linkvault.server
@@ -37,7 +38,18 @@ Wichtige Endpunkte:
 - `GET /healthz`
 - `GET /api/bookmarks`
 - `POST /api/bookmarks`
+- `GET /api/bookmarks/{id}`
+- `PATCH /api/bookmarks/{id}`
+- `DELETE /api/bookmarks/{id}`
+- `POST /api/import/browser-html`
 - `GET /api/dedup`
+- `GET /api/dedup/dry-run`
+
+## Lizenz
+
+LinkVault steht unter AGPL-3.0-or-later. Das passt zum Ziel einer freien
+Selfhost-Web-App, bei der Verbesserungen auch bei Netzwerkbetrieb wieder der
+Community zugutekommen sollen.
 
 Tests:
 

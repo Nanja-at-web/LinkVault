@@ -1,66 +1,72 @@
 # MVP-Roadmap
 
+Status-Legende:
+
+- `[x]` erledigt
+- `[~]` teilweise erledigt
+- `[ ]` offen
+
 ## Phase 0: Fundament
 
-- Repository-Struktur festlegen.
-- Lizenz waehlen.
-- Backend-Stack final entscheiden.
-- Datenmodell als Migrationen anlegen.
-- Lokale Dev-Installation mit Docker Compose.
-- Healthcheck und erste systemd Unit.
+- [x] Repository-Struktur festlegen.
+- [x] Lizenz waehlen: AGPL-3.0-or-later.
+- [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
+- [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
+- [ ] Lokale Dev-Installation mit Docker Compose.
+- [~] Healthcheck und erste systemd Unit: Healthcheck vorhanden, systemd offen.
 
 ## Phase 1: Bookmark-Kern
 
-- Login und Single-User-Setup.
-- Link anlegen, bearbeiten, loeschen.
-- Metadaten laden: Titel, Beschreibung, Favicon, Domain.
-- Tags, Collections, Favoriten und Pins.
-- Volltextsuche ueber Titel, URL, Beschreibung.
-- Import aus Browser-Bookmark-HTML.
+- [ ] Login und Single-User-Setup.
+- [~] Link anlegen, bearbeiten, loeschen.
+- [~] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
+- [~] Tags, Collections, Favoriten und Pins.
+- [ ] Volltextsuche ueber Titel, URL, Beschreibung.
+- [~] Import aus Browser-Bookmark-HTML.
 
 ## Phase 2: Dubletten und Favoritenpflege
 
-- URL-Normalisierung.
-- Exakte Dublettenerkennung.
-- Dubletten-Dashboard.
-- Merge-Plan mit Dry-Run.
-- Undo fuer Merge.
-- Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
+- [x] URL-Normalisierung.
+- [x] Exakte Dublettenerkennung.
+- [~] Dubletten-Dashboard.
+- [~] Merge-Plan mit Dry-Run.
+- [ ] Undo fuer Merge.
+- [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 
 ## Phase 3: Archivierung
 
-- Reader-Extrakt.
-- Screenshot und PDF.
-- Single-HTML.
-- Archivstatus je Link.
-- Link Health Checks.
+- [ ] Reader-Extrakt.
+- [ ] Screenshot und PDF.
+- [ ] Single-HTML.
+- [ ] Archivstatus je Link.
+- [ ] Link Health Checks.
 
 ## Phase 4: Automatisierung
 
-- Regel-Engine.
-- Bulk-Editing.
-- Smart Collections.
-- AI-Tagging optional.
-- API-Keys und REST-API.
-- Webhooks.
+- [ ] Regel-Engine.
+- [ ] Bulk-Editing.
+- [ ] Smart Collections.
+- [ ] AI-Tagging optional.
+- [ ] API-Keys und REST-API.
+- [ ] Webhooks.
 
 ## Phase 5: Proxmox-Installation
 
-- Release-Binary bauen.
-- Debian 13 Installationsskript.
-- `ct/linkvault.sh` und `install/linkvault-install.sh`.
-- Update-Funktion.
-- Backup/Restore-Dokumentation.
-- Test auf Proxmox VE 8.4/9.x.
+- [ ] Release-Binary bauen.
+- [ ] Debian 13 Installationsskript.
+- [ ] `ct/linkvault.sh` und `install/linkvault-install.sh`.
+- [ ] Update-Funktion.
+- [ ] Backup/Restore-Dokumentation.
+- [ ] Test auf Proxmox VE 8.4/9.x.
 
 ## Phase 6: Migrationen aus bestehenden Tools
 
-- linkding Import via API/Export.
-- Linkwarden Import.
-- Karakeep Import.
-- LinkAce Import.
-- Readeck Import.
-- Shiori Import.
+- [ ] linkding Import via API/Export.
+- [ ] Linkwarden Import.
+- [ ] Karakeep Import.
+- [ ] LinkAce Import.
+- [ ] Readeck Import.
+- [ ] Shiori Import.
 
 ## Akzeptanzkriterien fuer Version 1
 
