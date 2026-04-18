@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
-from .store import BookmarkStore
+from .store import BookmarkFilters, BookmarkStore
 
 
 def make_store() -> BookmarkStore:
@@ -28,8 +28,16 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         if path == "/healthz":
             self.send_json({"ok": True, "version": __version__})
         elif path == "/api/bookmarks":
-            query = parse_qs(parsed_url.query).get("q", [""])[0]
-            self.send_json({"bookmarks": [bookmark.to_dict() for bookmark in store.list(query=query)], "query": query})
+            params = parse_qs(parsed_url.query)
+            query = get_query_param(params, "q")
+            filters = filters_from_query(params)
+            self.send_json(
+                {
+                    "bookmarks": [bookmark.to_dict() for bookmark in store.list(query=query, filters=filters)],
+                    "query": query,
+                    "filters": filters.to_dict(),
+                }
+            )
         elif path.startswith("/api/bookmarks/"):
             bookmark = store.get(path.rsplit("/", 1)[-1])
             if not bookmark:
@@ -172,6 +180,13 @@ def index_html() -> str:
 
   <h2>Bookmarks</h2>
   <label>Suche <input id="search" placeholder="Titel, URL, Domain, Tag, Collection"></label>
+  <div class="filters">
+    <label><input id="filter-favorite" type="checkbox" style="width:auto"> Nur Favoriten</label>
+    <label><input id="filter-pinned" type="checkbox" style="width:auto"> Nur Pins</label>
+    <label>Domain <input id="filter-domain" placeholder="github.com"></label>
+    <label>Tag <input id="filter-tag" placeholder="selfhost"></label>
+    <label>Collection <input id="filter-collection" placeholder="Development"></label>
+  </div>
   <button id="refresh">Aktualisieren</button>
   <div id="bookmarks"></div>
 
@@ -185,7 +200,19 @@ def index_html() -> str:
 
     async function refreshBookmarks() {
       const query = document.querySelector('#search').value.trim();
-      const response = await fetch(`/api/bookmarks?q=${encodeURIComponent(query)}`);
+      const params = new URLSearchParams();
+      if (query) params.set('q', query);
+      if (document.querySelector('#filter-favorite').checked) params.set('favorite', 'true');
+      if (document.querySelector('#filter-pinned').checked) params.set('pinned', 'true');
+      for (const [param, selector] of [
+        ['domain', '#filter-domain'],
+        ['tag', '#filter-tag'],
+        ['collection', '#filter-collection']
+      ]) {
+        const value = document.querySelector(selector).value.trim();
+        if (value) params.set(param, value);
+      }
+      const response = await fetch(`/api/bookmarks?${params.toString()}`);
       const payload = await response.json();
       bookmarksEl.innerHTML = '';
       for (const bookmark of payload.bookmarks) {
@@ -269,10 +296,38 @@ def index_html() -> str:
     document.querySelector('#refresh').addEventListener('click', refreshBookmarks);
     document.querySelector('#dry-run').addEventListener('click', refreshDryRun);
     document.querySelector('#search').addEventListener('input', refreshBookmarks);
+    document.querySelector('#filter-favorite').addEventListener('change', refreshBookmarks);
+    document.querySelector('#filter-pinned').addEventListener('change', refreshBookmarks);
+    document.querySelector('#filter-domain').addEventListener('input', refreshBookmarks);
+    document.querySelector('#filter-tag').addEventListener('input', refreshBookmarks);
+    document.querySelector('#filter-collection').addEventListener('input', refreshBookmarks);
     refreshAll();
   </script>
 </body>
 </html>"""
+
+
+def get_query_param(params: dict[str, list[str]], key: str) -> str:
+    return params.get(key, [""])[0].strip()
+
+
+def optional_bool_query_param(params: dict[str, list[str]], key: str) -> bool | None:
+    value = get_query_param(params, key).lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return None
+
+
+def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
+    return BookmarkFilters(
+        favorite=optional_bool_query_param(params, "favorite"),
+        pinned=optional_bool_query_param(params, "pinned"),
+        domain=get_query_param(params, "domain"),
+        tag=get_query_param(params, "tag"),
+        collection=get_query_param(params, "collection"),
+    )
 
 
 def main() -> None:

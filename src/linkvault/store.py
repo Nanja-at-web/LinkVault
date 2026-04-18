@@ -34,6 +34,18 @@ class Bookmark:
         return asdict(self)
 
 
+@dataclass
+class BookmarkFilters:
+    favorite: bool | None = None
+    pinned: bool | None = None
+    domain: str = ""
+    tag: str = ""
+    collection: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 MetadataFetcher = Callable[[str], PageMetadata]
 
 
@@ -76,33 +88,59 @@ class BookmarkStore:
             ensure_column(connection, "bookmarks", "favicon_url", "TEXT NOT NULL DEFAULT ''")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_normalized_url ON bookmarks(normalized_url)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_domain ON bookmarks(domain)")
+            connection.execute(
+                """
+                CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
+                    bookmark_id UNINDEXED,
+                    title,
+                    url,
+                    description,
+                    domain,
+                    tags,
+                    collections,
+                    notes
+                )
+                """
+            )
+            self.sync_search_index(connection)
 
-    def list(self, query: str = "") -> list[Bookmark]:
+    def list(self, query: str = "", filters: BookmarkFilters | None = None) -> list[Bookmark]:
+        filters = filters or BookmarkFilters()
         if query.strip():
-            return self.search(query)
+            return self.search(query, filters=filters)
+
+        filter_sql, values = bookmark_filter_sql(filters)
+        where = f"WHERE {' AND '.join(filter_sql)}" if filter_sql else ""
         with self.connect() as connection:
-            rows = connection.execute("SELECT * FROM bookmarks ORDER BY created_at DESC, title ASC").fetchall()
+            rows = connection.execute(
+                f"""
+                SELECT * FROM bookmarks b
+                {where}
+                ORDER BY favorite DESC, pinned DESC, created_at DESC, title ASC
+                """,
+                values,
+            ).fetchall()
         return [bookmark_from_row(row) for row in rows]
 
-    def search(self, query: str) -> list[Bookmark]:
-        terms = [term for term in query.strip().split() if term]
-        if not terms:
-            return self.list()
+    def search(self, query: str, filters: BookmarkFilters | None = None) -> list[Bookmark]:
+        fts_query = build_fts_query(query)
+        if not fts_query:
+            return self.list(filters=filters)
 
-        clauses = []
-        values: list[str] = []
-        fields = ["title", "url", "description", "domain", "tags", "collections", "notes"]
-        for term in terms:
-            clauses.append("(" + " OR ".join(f"{field} LIKE ?" for field in fields) + ")")
-            values.extend([f"%{term}%"] * len(fields))
-
-        sql = f"""
-            SELECT * FROM bookmarks
-            WHERE {' AND '.join(clauses)}
-            ORDER BY favorite DESC, pinned DESC, updated_at DESC, title ASC
-        """
+        filter_sql, filter_values = bookmark_filter_sql(filters or BookmarkFilters())
+        clauses = ["bookmarks_fts MATCH ?", *filter_sql]
+        values: list[Any] = [fts_query, *filter_values]
         with self.connect() as connection:
-            rows = connection.execute(sql, values).fetchall()
+            rows = connection.execute(
+                f"""
+                SELECT b.*, bm25(bookmarks_fts) AS search_rank
+                FROM bookmarks_fts
+                JOIN bookmarks b ON b.id = bookmarks_fts.bookmark_id
+                WHERE {' AND '.join(clauses)}
+                ORDER BY search_rank ASC, b.favorite DESC, b.pinned DESC, b.updated_at DESC, b.title ASC
+                """,
+                values,
+            ).fetchall()
         return [bookmark_from_row(row) for row in rows]
 
     def get(self, bookmark_id: str) -> Bookmark | None:
@@ -125,6 +163,7 @@ class BookmarkStore:
                 """,
                 bookmark_to_record(bookmark),
             )
+            upsert_search_index(connection, bookmark)
         return bookmark
 
     def update(self, bookmark_id: str, payload: dict[str, Any], *, enrich_metadata: bool = True) -> Bookmark | None:
@@ -165,6 +204,7 @@ class BookmarkStore:
                     bookmark.id,
                 ),
             )
+            upsert_search_index(connection, bookmark)
         return bookmark
 
     def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:
@@ -192,6 +232,7 @@ class BookmarkStore:
 
     def delete(self, bookmark_id: str) -> bool:
         with self.connect() as connection:
+            connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (bookmark_id,))
             cursor = connection.execute("DELETE FROM bookmarks WHERE id = ?", (bookmark_id,))
         return cursor.rowcount > 0
 
@@ -263,6 +304,12 @@ class BookmarkStore:
             )
         return {"groups": groups, "group_count": len(groups)}
 
+    def sync_search_index(self, connection: sqlite3.Connection) -> None:
+        bookmark_count = connection.execute("SELECT COUNT(*) FROM bookmarks").fetchone()[0]
+        fts_count = connection.execute("SELECT COUNT(*) FROM bookmarks_fts").fetchone()[0]
+        if bookmark_count != fts_count:
+            rebuild_search_index(connection)
+
 
 def bookmark_from_payload(
     payload: dict[str, Any],
@@ -328,6 +375,68 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
         bookmark.created_at,
         bookmark.updated_at,
     )
+
+
+def upsert_search_index(connection: sqlite3.Connection, bookmark: Bookmark) -> None:
+    connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (bookmark.id,))
+    connection.execute(
+        """
+        INSERT INTO bookmarks_fts (bookmark_id, title, url, description, domain, tags, collections, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        search_record(bookmark),
+    )
+
+
+def rebuild_search_index(connection: sqlite3.Connection) -> None:
+    connection.execute("DELETE FROM bookmarks_fts")
+    rows = connection.execute("SELECT * FROM bookmarks").fetchall()
+    for row in rows:
+        upsert_search_index(connection, bookmark_from_row(row))
+
+
+def search_record(bookmark: Bookmark) -> tuple[str, str, str, str, str, str, str, str]:
+    return (
+        bookmark.id,
+        bookmark.title,
+        bookmark.url,
+        bookmark.description,
+        bookmark.domain,
+        encode_list(bookmark.tags),
+        encode_list(bookmark.collections),
+        bookmark.notes,
+    )
+
+
+def build_fts_query(query: str) -> str:
+    terms = [term.strip() for term in query.split() if term.strip()]
+    return " AND ".join(quote_fts_term(term) for term in terms)
+
+
+def quote_fts_term(term: str) -> str:
+    escaped = term.replace('"', '""')
+    return f'"{escaped}"*'
+
+
+def bookmark_filter_sql(filters: BookmarkFilters) -> tuple[list[str], list[Any]]:
+    clauses: list[str] = []
+    values: list[Any] = []
+    if filters.favorite is not None:
+        clauses.append("b.favorite = ?")
+        values.append(int(filters.favorite))
+    if filters.pinned is not None:
+        clauses.append("b.pinned = ?")
+        values.append(int(filters.pinned))
+    if filters.domain.strip():
+        clauses.append("LOWER(b.domain) = LOWER(?)")
+        values.append(filters.domain.strip())
+    if filters.tag.strip():
+        clauses.append("('\n' || b.tags || '\n') LIKE ?")
+        values.append(f"%\n{filters.tag.strip()}\n%")
+    if filters.collection.strip():
+        clauses.append("('\n' || b.collections || '\n') LIKE ?")
+        values.append(f"%\n{filters.collection.strip()}\n%")
+    return clauses, values
 
 
 def clean_list(value: Any) -> list[str]:

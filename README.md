@@ -25,7 +25,8 @@ Der Schwerpunkt liegt auf:
 
 Der erste Prototyp nutzt nur die Python-Standardbibliothek. Er speichert
 Bookmarks in SQLite, holt beim Speichern Metadaten aus Webseiten, normalisiert
-URLs und zeigt exakte Dublettengruppen inklusive Merge-Dry-Run.
+URLs, bietet SQLite-FTS5-Volltextsuche mit Filtern und zeigt exakte
+Dublettengruppen inklusive Merge-Dry-Run.
 
 ```bash
 PYTHONPATH=src python3 -m linkvault.server
@@ -38,6 +39,7 @@ Wichtige Endpunkte:
 - `GET /healthz`
 - `GET /api/bookmarks`
 - `GET /api/bookmarks?q=suchbegriff`
+- `GET /api/bookmarks?q=suchbegriff&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development`
 - `POST /api/bookmarks`
 - `GET /api/bookmarks/{id}`
 - `PATCH /api/bookmarks/{id}`

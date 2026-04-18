@@ -21,7 +21,7 @@ Status-Legende:
 - [~] Link anlegen, bearbeiten, loeschen.
 - [x] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
 - [~] Tags, Collections, Favoriten und Pins.
-- [~] Volltextsuche ueber Titel, URL, Beschreibung.
+- [x] SQLite-FTS5-Volltextsuche mit Filtern fuer Favorit, Pin, Domain, Tag und Collection.
 - [~] Import aus Browser-Bookmark-HTML.
 
 ## Phase 2: Dubletten und Favoritenpflege

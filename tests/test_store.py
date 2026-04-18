@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from linkvault.metadata import PageMetadata
-from linkvault.store import BookmarkStore
+from linkvault.store import BookmarkFilters, BookmarkStore
 
 
 class StoreTest(unittest.TestCase):
@@ -124,6 +124,75 @@ class StoreTest(unittest.TestCase):
             results = store.search("github selfhost")
 
             self.assertEqual([bookmark.id for bookmark in results], [first.id])
+
+    def test_search_filters_by_flags_domain_tag_and_collection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            match = store.add(
+                {
+                    "url": "https://github.com/Nanja-at-web/LinkVault",
+                    "title": "LinkVault",
+                    "description": "Selfhosted bookmark vault",
+                    "tags": "selfhost,github",
+                    "collections": "Development",
+                    "favorite": True,
+                    "pinned": True,
+                }
+            )
+            store.add(
+                {
+                    "url": "https://github.com/other/project",
+                    "title": "Other vault",
+                    "description": "Selfhosted bookmark vault",
+                    "tags": "selfhost",
+                    "collections": "Archive",
+                    "favorite": True,
+                    "pinned": False,
+                }
+            )
+
+            results = store.search(
+                "bookmark",
+                filters=BookmarkFilters(
+                    favorite=True,
+                    pinned=True,
+                    domain="github.com",
+                    tag="github",
+                    collection="Development",
+                ),
+            )
+
+            self.assertEqual([bookmark.id for bookmark in results], [match.id])
+
+    def test_filters_work_without_search_query(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            match = store.add(
+                {
+                    "url": "https://example.com/a",
+                    "title": "A",
+                    "tags": "docs",
+                    "collections": "Inbox",
+                    "favorite": True,
+                }
+            )
+            store.add({"url": "https://example.com/b", "title": "B", "tags": "docs", "collections": "Archive"})
+
+            results = store.list(filters=BookmarkFilters(favorite=True, tag="docs", collection="Inbox"))
+
+            self.assertEqual([bookmark.id for bookmark in results], [match.id])
+
+    def test_search_index_updates_after_update_and_delete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bookmark = store.add({"url": "https://example.com/a", "title": "Before"})
+
+            self.assertEqual(store.search("after"), [])
+            store.update(bookmark.id, {"title": "After"})
+            self.assertEqual([item.id for item in store.search("after")], [bookmark.id])
+
+            self.assertTrue(store.delete(bookmark.id))
+            self.assertEqual(store.search("after"), [])
 
 
 if __name__ == "__main__":

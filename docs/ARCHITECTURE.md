@@ -7,9 +7,9 @@ LinkVault sollte als robuste, LXC-freundliche Web-App gebaut werden:
 - Backend: Go oder TypeScript/Node. Empfehlung: Go fuer kleine Binaries,
   einfache LXC-Installation und Shiori-aehnliche Leichtigkeit.
 - Frontend: React mit serverseitig ausgeliefertem Build.
-- Datenbank: PostgreSQL als Default, SQLite nur fuer Single-User-Testmodus.
-- Suche: PostgreSQL Full Text Search fuer MVP, spaeter Meilisearch oder
-  Tantivy-basierter Index.
+- Datenbank: SQLite fuer den Python-MVP, PostgreSQL spaeter als Default.
+- Suche: SQLite FTS5 im Python-MVP, spaeter PostgreSQL Full Text Search,
+  Meilisearch oder Tantivy-basierter Index.
 - Queue: eingebaute Job-Tabelle fuer MVP, spaeter Redis optional.
 - Archivierung: Readability-Extraktion, Single-HTML, Screenshot/PDF ueber
   Playwright oder Browserless-kompatiblen Worker.
