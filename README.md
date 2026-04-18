@@ -64,6 +64,15 @@ Fuer interne LXC-Tests gibt es `proxmox/linkvault-lxc-test.sh`. Das ist noch
 kein offizielles community-scripts.org-Skript, sondern der naechste
 Zwischenschritt fuer reproduzierbare Proxmox-LXC-Tests.
 
+Experimenteller Proxmox-Host-Einzeiler fuer einen neuen Debian-LXC:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
+```
+
+Dieser Befehl wird in der Proxmox VE Shell ausgefuehrt. Er erstellt einen
+neuen Debian-LXC, startet ihn und installiert LinkVault darin.
+
 Backup und Restore fuer den SQLite-MVP:
 
 ```bash

@@ -35,6 +35,7 @@ noetige Dienst-Vorarbeit:
 - `scripts/install-debian.sh`: lokaler Debian-Installer fuer den Python-MVP.
 - `scripts/backup-linkvault.sh`: konsistentes SQLite-Backup im laufenden Betrieb.
 - `scripts/restore-linkvault.sh`: Restore mit Dienststopp und Vorher-Kopie.
+- `ct/linkvault.sh`: experimenteller Proxmox-Host-Einzeiler fuer neuen Debian-LXC.
 - `proxmox/linkvault-lxc-test.sh`: interner Smoke-Test in einem Debian-LXC.
 - `docs/DEBIAN_LXC_TEST.md`: reproduzierbare Testprozedur fuer frische LXC.
 - `docs/BACKUP_RESTORE.md`: Backup/Restore-Ablauf fuer den SQLite-MVP.
@@ -43,7 +44,30 @@ Das ist bewusst noch keine finale Einreichung. Der naechste Nachweis ist, dass
 der Debian-Installer wiederholbar in einem frischen LXC startet und
 `/healthz` erreichbar ist.
 
-## `ct/linkvault.sh` Skizze
+## Proxmox-Host-Einzeiler
+
+Experimenteller Installationsweg in der Proxmox VE Shell:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
+```
+
+Der Einzeiler erstellt einen neuen Debian-LXC, startet ihn und fuehrt im
+Container den LinkVault-Installer aus. Er ist noch kein offizielles
+community-scripts.org-Skript, aber entspricht dem gewuenschten Testablauf fuer
+einen ersten Proxmox-Host-Install.
+
+Optionale Overrides:
+
+```bash
+LINKVAULT_CTID=140 \
+LINKVAULT_ROOTFS_STORAGE=local-lvm \
+LINKVAULT_TEMPLATE_STORAGE=local \
+LINKVAULT_BRIDGE=vmbr0 \
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
+```
+
+## `ct/linkvault.sh` Community-Scripts-Zielbild
 
 ```bash
 #!/usr/bin/env bash

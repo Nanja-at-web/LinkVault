@@ -29,6 +29,31 @@ Netzwerk: Internetzugang fuer apt und GitHub
 User: root im Container
 ```
 
+## Proxmox-Host-Einzeiler
+
+In der Proxmox VE Shell kann ein neuer Debian-LXC experimentell so erstellt
+und installiert werden:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
+```
+
+Der Befehl laeuft auf dem Proxmox-Host. Er erstellt den Container selbst,
+startet ihn und fuehrt darin den LinkVault-Installer aus.
+
+Optionale Variablen:
+
+```bash
+LINKVAULT_CTID=140
+LINKVAULT_HOSTNAME=linkvault
+LINKVAULT_ROOTFS_STORAGE=local-lvm
+LINKVAULT_TEMPLATE_STORAGE=local
+LINKVAULT_BRIDGE=vmbr0
+LINKVAULT_CORES=2
+LINKVAULT_MEMORY=1024
+LINKVAULT_DISK=16
+```
+
 ## Installationstest
 
 Im Container:
