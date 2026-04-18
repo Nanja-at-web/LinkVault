@@ -57,6 +57,10 @@ Container den LinkVault-Installer aus. Er ist noch kein offizielles
 community-scripts.org-Skript, aber entspricht dem gewuenschten Testablauf fuer
 einen ersten Proxmox-Host-Install.
 
+Der Host-Installer installiert im frischen Container zuerst `curl` und
+`ca-certificates`, laedt danach den LinkVault-LXC-Smoke-Test nach `/tmp` und
+prueft am Ende den Healthcheck.
+
 Optionale Overrides:
 
 ```bash

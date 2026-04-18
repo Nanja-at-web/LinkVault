@@ -41,6 +41,17 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/m
 Der Befehl laeuft auf dem Proxmox-Host. Er erstellt den Container selbst,
 startet ihn und fuehrt darin den LinkVault-Installer aus.
 
+Wenn ein frueher Testlauf mit `curl: command not found` im Container
+abgebrochen ist, kann der bestehende Container manuell repariert werden:
+
+```bash
+pct exec 112 -- bash -lc 'apt-get update && apt-get install -y curl ca-certificates'
+pct exec 112 -- bash -lc 'curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-lxc-test.sh -o /tmp/linkvault-lxc-test.sh && chmod +x /tmp/linkvault-lxc-test.sh && /tmp/linkvault-lxc-test.sh'
+pct exec 112 -- curl -fsS http://127.0.0.1:3080/healthz
+```
+
+`112` dabei durch die eigene CTID ersetzen.
+
 Optionale Variablen:
 
 ```bash

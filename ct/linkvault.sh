@@ -77,6 +77,28 @@ wait_for_container_network() {
   exit 1
 }
 
+bootstrap_container() {
+  local ctid="$1"
+  echo "Installing bootstrap packages inside CT ${ctid}..."
+  pct exec "${ctid}" -- bash -lc \
+    "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates"
+}
+
+install_linkvault_in_container() {
+  local ctid="$1"
+  echo "Installing LinkVault inside CT ${ctid}..."
+  pct exec "${ctid}" -- bash -lc \
+    "curl -fsSL '${INSTALL_URL}' -o /tmp/linkvault-lxc-test.sh \
+      && chmod +x /tmp/linkvault-lxc-test.sh \
+      && LINKVAULT_REPO_URL='${REPO_URL}' LINKVAULT_BRANCH='${BRANCH}' /tmp/linkvault-lxc-test.sh"
+}
+
+verify_linkvault() {
+  local ctid="$1"
+  echo "Verifying LinkVault healthcheck inside CT ${ctid}..."
+  pct exec "${ctid}" -- curl -fsS http://127.0.0.1:3080/healthz >/dev/null
+}
+
 container_ip() {
   local ctid="$1"
   pct exec "${ctid}" -- bash -lc "hostname -I | awk '{print \$1}'" 2>/dev/null || true
@@ -118,9 +140,9 @@ main() {
 
   pct start "${ctid}"
   wait_for_container_network "${ctid}"
-
-  pct exec "${ctid}" -- bash -lc \
-    "LINKVAULT_REPO_URL='${REPO_URL}' LINKVAULT_BRANCH='${BRANCH}' bash -c \"\$(curl -fsSL '${INSTALL_URL}')\""
+  bootstrap_container "${ctid}"
+  install_linkvault_in_container "${ctid}"
+  verify_linkvault "${ctid}"
 
   ip="$(container_ip "${ctid}")"
   echo
