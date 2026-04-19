@@ -79,9 +79,23 @@ Der Test:
 5. prueft, ob der Marker noch vorhanden ist,
 6. prueft den Healthcheck erneut.
 
+## Letzter erfolgreicher echter Proxmox-LXC-Test
+
+```text
+Datum: 2026-04-19
+Container-ID: 112
+Quelle: https://github.com/Nanja-at-web/LinkVault.git
+Ref: main
+Healthcheck vor Update: erfolgreich
+Update erfolgreich: ja
+Healthcheck nach Update: erfolgreich
+Marker erhalten: update_test_20260419191415_22668
+Vorheriger erfolgreicher Marker: update_test_20260419191324_16675
+Log: /tmp/linkvault-update-test.log
+```
+
 ## Noch offen
 
-- Update-Smoke-Test im echten Proxmox-LXC ausfuehren und Ergebnis festhalten.
 - Update von einem echten alten Release auf einen neuen Release testen.
 - Fallback-Ablauf dokumentieren: vor Update Backup erstellen, bei Fehler Restore
   ausfuehren.

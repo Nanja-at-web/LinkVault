@@ -260,9 +260,20 @@ Healthcheck nach Restore: erfolgreich
 Service nach Restore: active (running)
 ```
 
-Ein echter Update-Testlauf, ein Post-Install Helper und die Umstellung auf die
-offiziellen Community-Scripts-Helfer bleiben vor einer ProxmoxVED-Einreichung
-offen.
+Am 19.04.2026 wurde auch der Update-Smoke-Test im echten Proxmox-LXC
+erfolgreich ausgefuehrt:
+
+```text
+Container-ID: 112
+Quelle: https://github.com/Nanja-at-web/LinkVault.git
+Ref: main
+Update-Marker: update_test_20260419191415_22668
+Healthcheck vor Update: erfolgreich
+Healthcheck nach Update: erfolgreich
+```
+
+Ein Post-Install Helper und die Umstellung auf die offiziellen
+Community-Scripts-Helfer bleiben vor einer ProxmoxVED-Einreichung offen.
 
 ## Hinweise aus aktueller Pruefung
 
