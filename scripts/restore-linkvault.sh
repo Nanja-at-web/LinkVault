@@ -14,11 +14,27 @@ DATA_FILE="${LINKVAULT_DATA:-${DATA_DIR}/linkvault.sqlite3}"
 SERVICE_NAME="${LINKVAULT_SERVICE_NAME:-linkvault}"
 WORKDIR="$(mktemp -d)"
 STAMP="$(date -u +%Y%m%d-%H%M%S)"
+HEALTH_URL="${LINKVAULT_HEALTH_URL:-http://127.0.0.1:3080/healthz}"
 
 cleanup() {
   rm -rf "${WORKDIR}"
 }
 trap cleanup EXIT
+
+wait_for_health() {
+  for _ in {1..60}; do
+    if curl -fsS "${HEALTH_URL}"; then
+      echo
+      return
+    fi
+    sleep 1
+  done
+
+  systemctl status "${SERVICE_NAME}" --no-pager || true
+  journalctl -u "${SERVICE_NAME}" -n 100 --no-pager || true
+  echo "LinkVault did not become healthy after restore: ${HEALTH_URL}" >&2
+  exit 1
+}
 
 if [[ ! -f "${ARCHIVE}" ]]; then
   echo "Backup archive not found: ${ARCHIVE}" >&2
@@ -68,8 +84,7 @@ fi
 
 if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files "${SERVICE_NAME}.service" >/dev/null 2>&1; then
   systemctl start "${SERVICE_NAME}"
-  curl -fsS http://127.0.0.1:3080/healthz
-  echo
+  wait_for_health
 fi
 
 echo "LinkVault restore completed."
