@@ -7,7 +7,9 @@ die wichtigsten Betriebsaufgaben, damit Nutzer nicht manuell systemd,
 journald, Backup-Skripte und Update-Skripte zusammensuchen muessen.
 
 Der Helper wird durch `scripts/install-debian.sh` und `scripts/update-linkvault.sh`
-nach `/usr/local/bin/linkvault-helper` installiert.
+nach `/usr/local/bin/linkvault-helper` installiert. Zusaetzlich wird ein Symlink
+nach `/usr/bin/linkvault-helper` gesetzt, damit direkte Proxmox-Aufrufe wie
+`pct exec 112 -- linkvault-helper health` funktionieren.
 
 ## Interaktives Menue
 

@@ -64,6 +64,10 @@ install -m 0755 "${SOURCE_DIR}/scripts/backup-linkvault.sh" "/usr/local/bin/back
 install -m 0755 "${SOURCE_DIR}/scripts/restore-linkvault.sh" "/usr/local/bin/restore-linkvault.sh"
 install -m 0755 "${SOURCE_DIR}/scripts/update-linkvault.sh" "/usr/local/bin/update-linkvault.sh"
 install -m 0755 "${SOURCE_DIR}/scripts/linkvault-helper.sh" "/usr/local/bin/linkvault-helper"
+ln -sf /usr/local/bin/backup-linkvault.sh /usr/bin/backup-linkvault.sh
+ln -sf /usr/local/bin/restore-linkvault.sh /usr/bin/restore-linkvault.sh
+ln -sf /usr/local/bin/update-linkvault.sh /usr/bin/update-linkvault.sh
+ln -sf /usr/local/bin/linkvault-helper /usr/bin/linkvault-helper
 
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
