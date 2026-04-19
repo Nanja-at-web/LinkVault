@@ -15,6 +15,10 @@ Die Konfiguration liegt hier:
 /etc/linkvault/linkvault.env
 ```
 
+Die Env-Datei enthaelt das initiale Setup-Token und wird deshalb mit
+`root:linkvault` und `0640` installiert. Der Dienst laeuft als User
+`linkvault` und kann sie ueber die Gruppenberechtigung lesen.
+
 Diese beiden Dateien reichen aktuell fuer ein vollstaendiges Backup des MVP.
 Spaetere Archivdaten, Screenshots, PDFs oder hochgeladene Dateien werden
 ebenfalls unter `/var/lib/linkvault` liegen und muessen dann mitgesichert

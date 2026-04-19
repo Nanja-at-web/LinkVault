@@ -7,6 +7,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 ARCHIVE="$1"
+APP_GROUP="${LINKVAULT_GROUP:-linkvault}"
 CONFIG_FILE="${LINKVAULT_CONFIG_FILE:-/etc/linkvault/linkvault.env}"
 DATA_DIR="${LINKVAULT_DATA_DIR:-/var/lib/linkvault}"
 DATA_FILE="${LINKVAULT_DATA:-${DATA_DIR}/linkvault.sqlite3}"
@@ -53,7 +54,12 @@ install -m 0640 "${WORKDIR}/linkvault.sqlite3" "${DATA_FILE}"
 
 if [[ -f "${WORKDIR}/linkvault.env" && ! -f "${CONFIG_FILE}" ]]; then
   install -d "$(dirname "${CONFIG_FILE}")"
-  install -m 0644 "${WORKDIR}/linkvault.env" "${CONFIG_FILE}"
+  install -m 0640 "${WORKDIR}/linkvault.env" "${CONFIG_FILE}"
+fi
+
+if [[ -f "${CONFIG_FILE}" && "$(basename "${CONFIG_FILE}")" == "linkvault.env" ]] && getent group "${APP_GROUP}" >/dev/null; then
+  chown root:"${APP_GROUP}" "${CONFIG_FILE}"
+  chmod 0640 "${CONFIG_FILE}"
 fi
 
 if id -u linkvault >/dev/null 2>&1; then

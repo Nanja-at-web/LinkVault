@@ -111,6 +111,8 @@ Erwartung:
 - `/healthz` liefert `{"ok": true, "version": "0.1.0"}`.
 - In `/var/lib/linkvault` wird `linkvault.sqlite3` angelegt.
 - `/etc/linkvault/linkvault.env` enthaelt `LINKVAULT_DATA_DIR=/var/lib/linkvault`.
+- `/etc/linkvault/linkvault.env` ist `root:linkvault` und `0640`, damit der
+  Dienst das Setup-Token lesen kann, ohne es weltlesbar zu machen.
 
 Wenn `systemctl status` schon `active (running)` meldet, `curl` aber direkt
 danach noch nicht verbinden kann, ist das meist nur ein Timing-Thema. Die

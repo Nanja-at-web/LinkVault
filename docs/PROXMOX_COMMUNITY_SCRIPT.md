@@ -198,6 +198,10 @@ LINKVAULT_ADDR=0.0.0.0:3080
 LINKVAULT_DATA_DIR=/var/lib/linkvault
 ```
 
+Die Datei `/etc/linkvault/linkvault.env` enthaelt auch
+`LINKVAULT_SETUP_TOKEN`. Sie muss deshalb `root:linkvault` und `0640` sein:
+nicht weltlesbar, aber fuer den Dienstuser `linkvault` lesbar.
+
 ## Community-Scripts Einreichung
 
 Vor einer Einreichung braucht das Projekt:
