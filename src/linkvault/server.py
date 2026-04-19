@@ -118,6 +118,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             elif path == "/api/logout":
                 auth_store.delete_session(self.session_cookie())
                 self.send_json({"logged_out": True}, headers=[expired_session_cookie_header()])
+            elif path == "/api/bookmarks/bulk":
+                if not self.require_auth(auth_store):
+                    return
+                self.send_json(store.bulk_update(payload))
             elif path == "/api/bookmarks":
                 if not self.require_auth(auth_store):
                     return
@@ -247,6 +251,7 @@ def index_html() -> str:
     .actions { margin: .65rem 0; }
     .edit-form { margin-top: .75rem; padding: .75rem; border: 1px solid #ddd; border-radius: 6px; }
     .edit-form textarea { min-height: 4rem; }
+    .bulk-actions { border: 1px solid #ddd; border-radius: 6px; padding: .75rem; margin: 1rem 0; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -309,6 +314,33 @@ def index_html() -> str:
     <label>Collection <input id="filter-collection" placeholder="Development"></label>
   </div>
   <button id="refresh">Aktualisieren</button>
+  <section class="bulk-actions">
+    <h3>Bulk-Aktionen</h3>
+    <p class="muted"><span id="selected-count">0</span> Bookmarks ausgewaehlt.</p>
+    <button id="select-visible" type="button">Sichtbare auswaehlen</button>
+    <button id="clear-selection" type="button">Auswahl leeren</button>
+    <form id="bulk-form">
+      <label>Tags hinzufuegen <input name="add_tags" placeholder="selfhost, docs"></label>
+      <label>Tags entfernen <input name="remove_tags" placeholder="inbox, old"></label>
+      <label>Collections setzen <input name="set_collections" placeholder="Development, Reading"></label>
+      <label>Favorit
+        <select name="favorite">
+          <option value="">Nicht aendern</option>
+          <option value="true">Setzen</option>
+          <option value="false">Entfernen</option>
+        </select>
+      </label>
+      <label>Pin
+        <select name="pinned">
+          <option value="">Nicht aendern</option>
+          <option value="true">Setzen</option>
+          <option value="false">Entfernen</option>
+        </select>
+      </label>
+      <button>Auf Auswahl anwenden</button>
+      <button id="bulk-delete" type="button">Auswahl loeschen</button>
+    </form>
+  </section>
   <div id="bookmarks"></div>
 
   <h2>Dubletten Dry-Run</h2>
@@ -328,6 +360,7 @@ def index_html() -> str:
     const appEl = document.querySelector('#app');
     const userbar = document.querySelector('#userbar');
     const currentUser = document.querySelector('#current-user');
+    const selectedIds = new Set();
 
     async function loadAuth() {
       authError.textContent = '';
@@ -387,10 +420,14 @@ def index_html() -> str:
       }
       const payload = await response.json();
       bookmarksEl.innerHTML = '';
+      selectedIds.clear();
+      updateSelectedCount();
       for (const bookmark of payload.bookmarks) {
         const row = document.createElement('div');
         row.className = 'row';
+        row.dataset.bookmarkId = bookmark.id;
         row.innerHTML = `
+          <label><input data-role="select-bookmark" type="checkbox" style="width:auto"> Auswaehlen</label>
           <strong>${escapeHtml(bookmark.title)}</strong>
           <div><a href="${escapeAttr(bookmark.url)}">${escapeHtml(bookmark.url)}</a></div>
           <div class="muted">${escapeHtml(bookmark.domain)} · tags: ${escapeHtml(bookmark.tags.join(', ') || '-')} · collections: ${escapeHtml(bookmark.collections.join(', ') || '-')}</div>
@@ -418,6 +455,14 @@ def index_html() -> str:
         row.querySelector('[data-action="favorite"]').addEventListener('click', () => patchBookmark(bookmark.id, {favorite: !bookmark.favorite}));
         row.querySelector('[data-action="pin"]').addEventListener('click', () => patchBookmark(bookmark.id, {pinned: !bookmark.pinned}));
         row.querySelector('[data-action="delete"]').addEventListener('click', () => deleteBookmark(bookmark.id));
+        row.querySelector('[data-role="select-bookmark"]').addEventListener('change', (event) => {
+          if (event.target.checked) {
+            selectedIds.add(bookmark.id);
+          } else {
+            selectedIds.delete(bookmark.id);
+          }
+          updateSelectedCount();
+        });
         row.querySelector('[data-role="edit"]').addEventListener('submit', async (event) => {
           event.preventDefault();
           await patchBookmark(bookmark.id, Object.fromEntries(new FormData(event.target)));
@@ -454,6 +499,14 @@ def index_html() -> str:
       await refreshDryRun();
     }
 
+    function updateSelectedCount() {
+      document.querySelector('#selected-count').textContent = String(selectedIds.size);
+    }
+
+    function selectedBookmarkIds() {
+      return Array.from(selectedIds);
+    }
+
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, (char) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
     }
@@ -475,6 +528,52 @@ def index_html() -> str:
       event.target.reset();
       await refreshAll();
     });
+
+    document.querySelector('#bulk-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const ids = selectedBookmarkIds();
+      if (!ids.length) return;
+      const formData = Object.fromEntries(new FormData(event.target));
+      const payload = {ids};
+      for (const key of ['add_tags', 'remove_tags', 'set_collections']) {
+        if (formData[key] && String(formData[key]).trim()) payload[key] = formData[key];
+      }
+      if (formData.favorite) payload.favorite = formData.favorite;
+      if (formData.pinned) payload.pinned = formData.pinned;
+      await bulkUpdate(payload);
+      event.target.reset();
+    });
+
+    document.querySelector('#bulk-delete').addEventListener('click', async () => {
+      const ids = selectedBookmarkIds();
+      if (!ids.length) return;
+      await bulkUpdate({ids, delete: true});
+    });
+
+    document.querySelector('#select-visible').addEventListener('click', () => {
+      document.querySelectorAll('[data-role="select-bookmark"]').forEach((checkbox) => {
+        checkbox.checked = true;
+        selectedIds.add(checkbox.closest('.row').dataset.bookmarkId);
+      });
+      updateSelectedCount();
+    });
+
+    document.querySelector('#clear-selection').addEventListener('click', () => {
+      selectedIds.clear();
+      document.querySelectorAll('[data-role="select-bookmark"]').forEach((checkbox) => {
+        checkbox.checked = false;
+      });
+      updateSelectedCount();
+    });
+
+    async function bulkUpdate(payload) {
+      await fetch('/api/bookmarks/bulk', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      await refreshAll();
+    }
 
     setupForm.addEventListener('submit', async (event) => {
       event.preventDefault();

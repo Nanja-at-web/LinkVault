@@ -26,7 +26,7 @@ Status legend:
 - [~] Create, edit, and delete links.
 - [x] Edit links in the UI: title, description, tags, collections, favorite,
   pin, and notes.
-- [ ] Bulk actions for tags, collections, favorites, and pins.
+- [x] Bulk actions for tags, collections, favorites, and pins.
 - [x] Fetch metadata: title, description, favicon, domain.
 - [~] Tags, collections, favorites, and pins.
 - [x] SQLite FTS5 full-text search with filters for favorite, pin, domain,
@@ -61,7 +61,7 @@ Status legend:
 ## Phase 4: Automation
 
 - [ ] Rule engine.
-- [ ] Bulk editing.
+- [~] Bulk editing: bookmark cleanup exists; archive/status bulk actions are open.
 - [ ] Smart collections.
 - [ ] Optional AI tagging.
 - [ ] Expand public REST API.

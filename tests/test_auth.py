@@ -78,6 +78,16 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertEqual(updated["title"], "Updated")
                 self.assertEqual(updated["notes"], "Edited in UI")
 
+                bulk = request_json(
+                    opener,
+                    f"{base_url}/api/bookmarks/bulk",
+                    {"ids": [bookmark["id"]], "add_tags": "bulk", "set_collections": "Inbox", "favorite": True},
+                )
+                self.assertEqual(bulk["updated"], 1)
+                self.assertEqual(bulk["bookmarks"][0]["tags"], ["bulk"])
+                self.assertEqual(bulk["bookmarks"][0]["collections"], ["Inbox"])
+                self.assertTrue(bulk["bookmarks"][0]["favorite"])
+
                 request_json(opener, f"{base_url}/api/logout", {})
                 with self.assertRaises(urllib.error.HTTPError) as logged_out:
                     request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/b"})

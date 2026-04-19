@@ -22,7 +22,7 @@ Status-Legende:
 - [x] Login und Single-User-Setup mit initialem Setup-Token.
 - [~] Link anlegen, bearbeiten, loeschen.
 - [x] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
-- [ ] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.
+- [x] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.
 - [x] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
 - [~] Tags, Collections, Favoriten und Pins.
 - [x] SQLite-FTS5-Volltextsuche mit Filtern fuer Favorit, Pin, Domain, Tag und Collection.
@@ -55,7 +55,7 @@ Status-Legende:
 ## Phase 4: Automatisierung
 
 - [ ] Regel-Engine.
-- [ ] Bulk-Editing.
+- [~] Bulk-Editing: Bookmark-Pflege vorhanden, Archiv-/Status-Bulk offen.
 - [ ] Smart Collections.
 - [ ] AI-Tagging optional.
 - [ ] Public REST-API ausbauen.

@@ -213,6 +213,57 @@ class BookmarkStore:
             upsert_search_index(connection, bookmark)
         return bookmark
 
+    def bulk_update(self, payload: dict[str, Any]) -> dict[str, Any]:
+        ids = clean_list(payload.get("ids", []))
+        if not ids:
+            raise ValueError("ids are required")
+
+        if to_bool(payload.get("delete", False)):
+            deleted = sum(1 for bookmark_id in ids if self.delete(bookmark_id))
+            return {"updated": 0, "deleted": deleted, "not_found": len(ids) - deleted, "bookmarks": []}
+
+        updated: list[Bookmark] = []
+        not_found = 0
+        add_tags = clean_list(payload.get("add_tags", []))
+        remove_tags = clean_list(payload.get("remove_tags", []))
+        add_collections = clean_list(payload.get("add_collections", []))
+        remove_collections = clean_list(payload.get("remove_collections", []))
+        replace_collections = "set_collections" in payload
+        set_collections = clean_list(payload.get("set_collections", []))
+
+        for bookmark_id in ids:
+            bookmark = self.get(bookmark_id)
+            if not bookmark:
+                not_found += 1
+                continue
+
+            changes: dict[str, Any] = {}
+            if add_tags or remove_tags:
+                changes["tags"] = remove_items(add_items(bookmark.tags, add_tags), remove_tags)
+            if replace_collections:
+                changes["collections"] = set_collections
+            elif add_collections or remove_collections:
+                changes["collections"] = remove_items(add_items(bookmark.collections, add_collections), remove_collections)
+            if "favorite" in payload:
+                changes["favorite"] = to_bool(payload["favorite"])
+            if "pinned" in payload:
+                changes["pinned"] = to_bool(payload["pinned"])
+
+            if not changes:
+                updated.append(bookmark)
+                continue
+
+            changed = self.update(bookmark_id, changes, enrich_metadata=False)
+            if changed:
+                updated.append(changed)
+
+        return {
+            "updated": len(updated),
+            "deleted": 0,
+            "not_found": not_found,
+            "bookmarks": [bookmark.to_dict() for bookmark in updated],
+        }
+
     def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:
         if not enrich_metadata or not self.metadata_fetcher:
             return dict(payload)
@@ -459,6 +510,15 @@ def encode_list(value: list[str]) -> str:
 
 def decode_list(value: str) -> list[str]:
     return clean_list(value.splitlines())
+
+
+def add_items(existing: list[str], additions: list[str]) -> list[str]:
+    return clean_list([*existing, *additions])
+
+
+def remove_items(existing: list[str], removals: list[str]) -> list[str]:
+    removal_set = set(clean_list(removals))
+    return clean_list([item for item in existing if item not in removal_set])
 
 
 def domain_for_url(url: str) -> str:

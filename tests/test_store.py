@@ -208,6 +208,46 @@ class StoreTest(unittest.TestCase):
             self.assertTrue(store.delete(bookmark.id))
             self.assertEqual(store.search("after"), [])
 
+    def test_bulk_update_tags_collections_and_flags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            first = store.add({"url": "https://example.com/a", "title": "A", "tags": "old, keep"})
+            second = store.add({"url": "https://example.com/b", "title": "B", "tags": "old"})
+
+            result = store.bulk_update(
+                {
+                    "ids": [first.id, second.id, "missing"],
+                    "add_tags": "new",
+                    "remove_tags": "old",
+                    "set_collections": "Inbox, Reading",
+                    "favorite": True,
+                    "pinned": True,
+                }
+            )
+
+            self.assertEqual(result["updated"], 2)
+            self.assertEqual(result["not_found"], 1)
+            updated_first = store.get(first.id)
+            updated_second = store.get(second.id)
+            self.assertEqual(updated_first.tags, ["keep", "new"])
+            self.assertEqual(updated_second.tags, ["new"])
+            self.assertEqual(updated_first.collections, ["Inbox", "Reading"])
+            self.assertTrue(updated_first.favorite)
+            self.assertTrue(updated_second.pinned)
+            self.assertEqual({item.id for item in store.search("new")}, {first.id, second.id})
+
+    def test_bulk_delete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            first = store.add({"url": "https://example.com/a", "title": "A"})
+            second = store.add({"url": "https://example.com/b", "title": "B"})
+
+            result = store.bulk_update({"ids": [first.id, second.id, "missing"], "delete": True})
+
+            self.assertEqual(result["deleted"], 2)
+            self.assertEqual(result["not_found"], 1)
+            self.assertEqual(store.list(), [])
+
 
 if __name__ == "__main__":
     unittest.main()
