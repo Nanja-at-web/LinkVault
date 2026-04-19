@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 # Experimental Proxmox host installer for LinkVault.
 # Run on the Proxmox VE host shell, not inside an existing container.
@@ -15,18 +15,67 @@ MEMORY="${LINKVAULT_MEMORY:-1024}"
 DISK="${LINKVAULT_DISK:-16}"
 REPO_URL="${LINKVAULT_REPO_URL:-https://github.com/Nanja-at-web/LinkVault.git}"
 BRANCH="${LINKVAULT_BRANCH:-main}"
-INSTALL_URL="${LINKVAULT_INSTALL_URL:-https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-lxc-test.sh}"
+INSTALL_URL="${LINKVAULT_INSTALL_URL:-https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/install/linkvault-install.sh}"
+LOG_FILE="${LINKVAULT_HOST_LOG:-/tmp/linkvault-ct-install.log}"
+
+if [[ -t 1 ]]; then
+  CL="\033[m"
+  GN="\033[1;92m"
+  BL="\033[36m"
+  YW="\033[33m"
+  RD="\033[01;31m"
+else
+  CL=""
+  GN=""
+  BL=""
+  YW=""
+  RD=""
+fi
+
+header_info() {
+  clear 2>/dev/null || true
+  printf "%b\n" "${BL}=================================================${CL}"
+  printf "%b\n" "${GN} ${APP} LXC Installer${CL}"
+  printf "%b\n" "${BL}=================================================${CL}"
+}
+
+msg_info() {
+  printf "%b\n" "  ${BL}[*]${CL} $1" >&2
+}
+
+msg_ok() {
+  printf "%b\n" "  ${GN}[OK]${CL} $1" >&2
+}
+
+msg_error() {
+  printf "%b\n" "  ${RD}[ERROR]${CL} $1" >&2
+}
+
+run_quiet() {
+  local label="$1"
+  shift
+  msg_info "${label}"
+  if "$@" >>"${LOG_FILE}" 2>&1; then
+    msg_ok "${label}"
+    return
+  fi
+
+  msg_error "${label}"
+  echo "Last log lines from ${LOG_FILE}:" >&2
+  tail -n 100 "${LOG_FILE}" >&2 || true
+  exit 1
+}
 
 require_root() {
   if [[ "${EUID}" -ne 0 ]]; then
-    echo "Run this script as root in the Proxmox VE shell." >&2
+    msg_error "Run this script as root in the Proxmox VE shell."
     exit 1
   fi
 }
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
-    echo "Required command not found: $1" >&2
+    msg_error "Required command not found: $1"
     echo "This script must run on a Proxmox VE host." >&2
     exit 1
   fi
@@ -41,14 +90,15 @@ next_ctid() {
 }
 
 select_template() {
-  pveam update >/dev/null
+  run_quiet "Refreshing LXC Template List" pveam update
+
   local template
   template="$(pveam available --section system | awk '$2 ~ /^debian-13-standard_.*amd64\.tar\.(zst|gz)$/ {print $2; exit}')"
   if [[ -z "${template}" ]]; then
     template="$(pveam available --section system | awk '$2 ~ /^debian-12-standard_.*amd64\.tar\.(zst|gz)$/ {print $2; exit}')"
   fi
   if [[ -z "${template}" ]]; then
-    echo "No Debian 13 or Debian 12 amd64 LXC template found via pveam." >&2
+    msg_error "No Debian 13 or Debian 12 amd64 LXC template found via pveam."
     exit 1
   fi
   echo "${template}"
@@ -56,58 +106,64 @@ select_template() {
 
 download_template_if_needed() {
   local template="$1"
-  if ! pveam list "${TEMPLATE_STORAGE}" | awk -v storage="${TEMPLATE_STORAGE}" -v template="${template}" '
+  if pveam list "${TEMPLATE_STORAGE}" | awk -v storage="${TEMPLATE_STORAGE}" -v template="${template}" '
     $1 == template || $1 == storage ":vztmpl/" template { found = 1 }
     END { exit !found }
   '; then
-    pveam download "${TEMPLATE_STORAGE}" "${template}"
+    msg_ok "Using cached Template"
+    return
   fi
+
+  run_quiet "Downloading Template" pveam download "${TEMPLATE_STORAGE}" "${template}"
 }
 
 wait_for_container_network() {
   local ctid="$1"
-  echo "Waiting for network inside CT ${ctid}..."
+  msg_info "Waiting for Network"
   for _ in {1..60}; do
-    if pct exec "${ctid}" -- bash -lc "getent hosts github.com >/dev/null 2>&1"; then
+    if pct exec "${ctid}" -- bash -lc "getent hosts github.com >/dev/null 2>&1" >>"${LOG_FILE}" 2>&1; then
+      msg_ok "Network Connected"
       return
     fi
     sleep 2
   done
-  echo "Timed out waiting for network/DNS inside CT ${ctid}." >&2
+
+  msg_error "Network not ready inside CT ${ctid}"
   exit 1
 }
 
-bootstrap_container() {
+install_bootstrap_packages() {
   local ctid="$1"
-  echo "Installing bootstrap packages inside CT ${ctid}..."
-  pct exec "${ctid}" -- bash -lc \
+  run_quiet "Installing Bootstrap Packages" pct exec "${ctid}" -- bash -lc \
     "export LANG=C.UTF-8 LC_ALL=C.UTF-8 \
       && apt-get update \
       && DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates"
 }
 
-install_linkvault_in_container() {
+install_linkvault() {
   local ctid="$1"
-  echo "Installing LinkVault inside CT ${ctid}..."
-  pct exec "${ctid}" -- bash -lc \
-    "curl -fsSL '${INSTALL_URL}' -o /tmp/linkvault-lxc-test.sh \
-      && chmod +x /tmp/linkvault-lxc-test.sh \
-      && LINKVAULT_REPO_URL='${REPO_URL}' LINKVAULT_BRANCH='${BRANCH}' /tmp/linkvault-lxc-test.sh"
+  run_quiet "Installing LinkVault" pct exec "${ctid}" -- bash -lc \
+    "curl -fsSL '${INSTALL_URL}' -o /tmp/linkvault-install.sh \
+      && chmod +x /tmp/linkvault-install.sh \
+      && LINKVAULT_REPO_URL='${REPO_URL}' LINKVAULT_BRANCH='${BRANCH}' /tmp/linkvault-install.sh"
 }
 
 verify_linkvault() {
   local ctid="$1"
-  echo "Verifying LinkVault healthcheck inside CT ${ctid}..."
+  msg_info "Checking Health"
   for _ in {1..60}; do
-    if pct exec "${ctid}" -- curl -fsS http://127.0.0.1:3080/healthz >/dev/null 2>&1; then
+    if pct exec "${ctid}" -- curl -fsS http://127.0.0.1:3080/healthz >>"${LOG_FILE}" 2>&1; then
+      msg_ok "Healthcheck Passed"
       return
     fi
     sleep 1
   done
 
-  pct exec "${ctid}" -- systemctl status linkvault --no-pager || true
-  pct exec "${ctid}" -- journalctl -u linkvault -n 100 --no-pager || true
-  echo "LinkVault did not become healthy inside CT ${ctid}." >&2
+  pct exec "${ctid}" -- systemctl status linkvault --no-pager >>"${LOG_FILE}" 2>&1 || true
+  pct exec "${ctid}" -- journalctl -u linkvault -n 100 --no-pager >>"${LOG_FILE}" 2>&1 || true
+  msg_error "LinkVault did not become healthy inside CT ${ctid}."
+  echo "Last log lines from ${LOG_FILE}:" >&2
+  tail -n 120 "${LOG_FILE}" >&2 || true
   exit 1
 }
 
@@ -117,6 +173,8 @@ container_ip() {
 }
 
 main() {
+  : >"${LOG_FILE}"
+  header_info
   require_root
   require_command pct
   require_command pveam
@@ -127,19 +185,17 @@ main() {
   template="$(select_template)"
 
   if pct status "${ctid}" >/dev/null 2>&1; then
-    echo "CT ${ctid} already exists. Choose another ID with LINKVAULT_CTID=123." >&2
+    msg_error "CT ${ctid} already exists. Choose another ID with LINKVAULT_CTID=123."
     exit 1
   fi
 
-  echo "Installing ${APP} in new Debian LXC"
-  echo "CTID: ${ctid}"
-  echo "Hostname: ${HOSTNAME}"
-  echo "Template: ${template}"
-  echo "Rootfs: ${ROOTFS_STORAGE}:${DISK}G"
+  msg_info "Using CTID ${ctid}"
+  msg_info "Using ${template}"
+  msg_info "Using ${ROOTFS_STORAGE}:${DISK}G, ${CORES} CPU, ${MEMORY} MB RAM"
 
   download_template_if_needed "${template}"
 
-  pct create "${ctid}" "${TEMPLATE_STORAGE}:vztmpl/${template}" \
+  run_quiet "Creating LXC Container" pct create "${ctid}" "${TEMPLATE_STORAGE}:vztmpl/${template}" \
     --hostname "${HOSTNAME}" \
     --cores "${CORES}" \
     --memory "${MEMORY}" \
@@ -150,22 +206,24 @@ main() {
     --features nesting=1 \
     --onboot 1
 
-  pct start "${ctid}"
+  run_quiet "Starting LXC Container" pct start "${ctid}"
   wait_for_container_network "${ctid}"
-  bootstrap_container "${ctid}"
-  install_linkvault_in_container "${ctid}"
+  install_bootstrap_packages "${ctid}"
+  install_linkvault "${ctid}"
   verify_linkvault "${ctid}"
 
   ip="$(container_ip "${ctid}")"
+
   echo
-  echo "${APP} installation completed."
-  echo "Container: ${ctid}"
+  msg_ok "Completed Successfully"
+  printf "%b\n" "  ${YW}Access it using:${CL}"
   if [[ -n "${ip}" ]]; then
-    echo "Open: http://${ip}:3080"
+    printf "%b\n" "  ${GN}http://${ip}:3080${CL}"
   else
-    echo "Open the container IP on port 3080."
+    printf "%b\n" "  ${GN}Open the container IP on port 3080.${CL}"
   fi
-  echo "Healthcheck: pct exec ${ctid} -- curl -fsS http://127.0.0.1:3080/healthz"
+  printf "%b\n" "  Healthcheck: pct exec ${ctid} -- curl -fsS http://127.0.0.1:3080/healthz"
+  printf "%b\n" "  Log: ${LOG_FILE}"
 }
 
 main "$@"

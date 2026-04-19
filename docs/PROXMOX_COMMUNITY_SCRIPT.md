@@ -35,7 +35,8 @@ noetige Dienst-Vorarbeit:
 - `scripts/install-debian.sh`: lokaler Debian-Installer fuer den Python-MVP.
 - `scripts/backup-linkvault.sh`: konsistentes SQLite-Backup im laufenden Betrieb.
 - `scripts/restore-linkvault.sh`: Restore mit Dienststopp und Vorher-Kopie.
-- `ct/linkvault.sh`: experimenteller Proxmox-Host-Einzeiler fuer neuen Debian-LXC.
+- `ct/linkvault.sh`: community-scripts-aehnlicher Proxmox-Host-Einzeiler fuer neuen Debian-LXC.
+- `install/linkvault-install.sh`: community-scripts-aehnlicher Installer innerhalb des Containers.
 - `proxmox/linkvault-lxc-test.sh`: interner Smoke-Test in einem Debian-LXC.
 - `docs/DEBIAN_LXC_TEST.md`: reproduzierbare Testprozedur fuer frische LXC.
 - `docs/BACKUP_RESTORE.md`: Backup/Restore-Ablauf fuer den SQLite-MVP.
@@ -61,6 +62,10 @@ Der Host-Installer installiert im frischen Container zuerst `curl` und
 `ca-certificates`, laedt danach den LinkVault-LXC-Smoke-Test nach `/tmp` und
 prueft am Ende den Healthcheck.
 
+Die Ausgabe ist inzwischen bewusst community-scripts-aehnlich: kurzer Header,
+`[OK]`-Statuszeilen, lange `apt`, `pct` und `pip`-Ausgaben in
+`/tmp/linkvault-ct-install.log`, danach URL und Healthcheck-Befehl.
+
 Optionale Overrides:
 
 ```bash
@@ -71,7 +76,7 @@ LINKVAULT_BRIDGE=vmbr0 \
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
 ```
 
-## `ct/linkvault.sh` Community-Scripts-Zielbild
+## Offizielles community-scripts-Zielbild
 
 ```bash
 #!/usr/bin/env bash
@@ -154,6 +159,10 @@ set -euo pipefail
 # 8. systemd Service
 # systemctl enable --now linkvault
 ```
+
+Im Repo existiert bereits ein experimentelles `install/linkvault-install.sh`.
+Fuer eine echte community-scripts.org-Einreichung muesste dieses Skript noch
+auf deren `install.func` und Review-Konventionen umgestellt werden.
 
 ## Konfigurationsdatei
 
