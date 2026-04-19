@@ -1,92 +1,108 @@
 # LinkVault
 
-LinkVault ist der Entwurf fuer ein selbsthostbares Bookmark-, Archiv- und
-Wissensverwaltungstool, das die staerksten Eigenschaften von Karakeep,
-linkding, Linkwarden, LinkAce, Readeck und Shiori zusammenfuehrt.
+[Deutsch](README.de.md)
 
-Der Schwerpunkt liegt auf:
+LinkVault is an early self-hosted bookmark, archive, and knowledge-management
+project. It aims to combine the strongest ideas from Karakeep, linkding,
+Linkwarden, LinkAce, Readeck, and Shiori while focusing on the gaps that still
+matter in real self-hosting: safe deduplication, favorites cleanup, structured
+organization, local archiving, and simple Proxmox LXC installation.
 
-- sehr guter Dublettenbereinigung mit sicherem Merge statt blindem Loeschen
-- Favoriten, Pins, Listen, Collections, Tags und Regeln
-- automatischem Sortieren und Kategorisieren
-- lokaler Archivierung von Webseiten, Artikeln, PDFs, Bildern und Notizen
-- einfacher Installation als Proxmox-LXC ueber community-scripts.org
-- Import aus bestehenden Bookmark-Tools und Browsern
+The current focus is:
 
-## Dokumente
+- high-quality duplicate detection with safe merge plans instead of blind
+  deletes
+- favorites, pins, lists, collections, tags, and later rules
+- automatic sorting and categorization workflows
+- local archiving for web pages, articles, PDFs, images, and notes
+- one-command Proxmox LXC installation inspired by community-scripts.org
+- imports from browsers and existing bookmark tools
 
-- [Produktvision](docs/PRODUCT_SPEC.md)
-- [Technische Architektur](docs/ARCHITECTURE.md)
-- [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
-- [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
-- [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
-- [Debian-LXC Installationstest](docs/DEBIAN_LXC_TEST.md)
-- [Backup und Restore](docs/BACKUP_RESTORE.md)
-- [MVP-Roadmap](docs/ROADMAP.md)
+## Documentation
 
-## Lokaler MVP-Prototyp
+- [German README](README.de.md)
+- [Product vision, German](docs/PRODUCT_SPEC.md)
+- [Technical architecture, German](docs/ARCHITECTURE.md)
+- [Deep research impact, German](docs/RESEARCH_IMPACT.md)
+- [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
+- [Proxmox community-scripts target, German](docs/PROXMOX_COMMUNITY_SCRIPT.md)
+- [Debian LXC installation test, German](docs/DEBIAN_LXC_TEST.md)
+- [Backup and restore, German](docs/BACKUP_RESTORE.md)
+- [MVP roadmap, German](docs/ROADMAP.md)
+- [MVP roadmap, English](docs/ROADMAP.en.md)
 
-Der erste Prototyp nutzt nur die Python-Standardbibliothek. Er speichert
-Bookmarks in SQLite, holt beim Speichern Metadaten aus Webseiten, normalisiert
-URLs, bietet SQLite-FTS5-Volltextsuche mit Filtern und zeigt exakte
-Dublettengruppen inklusive Merge-Dry-Run.
+Most detailed project notes are still German. English documentation starts with
+this README and the roadmap, then expands as the implementation stabilizes.
+
+## Local MVP Prototype
+
+The first prototype uses only the Python standard library. It stores bookmarks
+in SQLite, fetches basic metadata when saving links, normalizes URLs, provides
+SQLite FTS5 full-text search with filters, and shows exact duplicate groups
+with a merge dry-run.
 
 ```bash
 PYTHONPATH=src python3 -m linkvault.server
 ```
 
-Danach ist die Mini-UI unter `http://127.0.0.1:3080` erreichbar.
+The mini UI is then available at:
 
-Konfiguration kann lokal ueber `.env` oder im Servicebetrieb ueber
-`/etc/linkvault/linkvault.env` gesetzt werden:
+```text
+http://127.0.0.1:3080
+```
+
+Configuration can be provided locally through `.env` or, in service mode,
+through `/etc/linkvault/linkvault.env`:
 
 ```env
 LINKVAULT_ADDR=0.0.0.0:3080
 LINKVAULT_DATA_DIR=/var/lib/linkvault
 ```
 
-`LINKVAULT_DATA` kann alternativ direkt auf eine SQLite-Datei zeigen. Ohne
-Konfiguration nutzt der lokale MVP `data/linkvault.sqlite3`.
+`LINKVAULT_DATA` can also point directly to a SQLite database file. Without
+configuration, the local MVP uses `data/linkvault.sqlite3`.
 
-## Debian-Service
+## Debian Service
 
-Die erste Debian-Installation fuer Tests liegt in `scripts/install-debian.sh`.
-Sie installiert LinkVault in eine virtuelle Python-Umgebung unter
-`/opt/linkvault`, legt den Systemuser `linkvault` an, schreibt
-`/etc/linkvault/linkvault.env`, nutzt `/var/lib/linkvault` als Datenpfad und
-aktiviert `deploy/linkvault.service`.
+The first Debian test installer lives in `scripts/install-debian.sh`. It
+installs LinkVault into a Python virtual environment under `/opt/linkvault`,
+creates the `linkvault` system user, writes `/etc/linkvault/linkvault.env`,
+uses `/var/lib/linkvault` as the data directory, and enables
+`deploy/linkvault.service`.
 
 ```bash
 sudo ./scripts/install-debian.sh
 curl http://127.0.0.1:3080/healthz
 ```
 
-Fuer interne LXC-Tests gibt es `proxmox/linkvault-lxc-test.sh`. Das ist noch
-kein offizielles community-scripts.org-Skript, sondern der naechste
-Zwischenschritt fuer reproduzierbare Proxmox-LXC-Tests.
+For internal LXC tests, use `proxmox/linkvault-lxc-test.sh`. This is not an
+official community-scripts.org submission yet; it is the reproducible test path
+toward that goal.
 
-Experimenteller Proxmox-Host-Einzeiler fuer einen neuen Debian-LXC:
+Experimental Proxmox host one-liner for a new Debian LXC:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
 ```
 
-Dieser Befehl wird in der Proxmox VE Shell ausgefuehrt. Er erstellt einen
-neuen Debian-LXC, startet ihn und installiert LinkVault darin.
+Run this command in the Proxmox VE shell. It creates a new Debian LXC, starts
+it, installs LinkVault inside the container, and prints the access URL.
 
-Backup und Restore fuer den SQLite-MVP:
+Backup and restore for the SQLite MVP:
 
 ```bash
 sudo ./scripts/backup-linkvault.sh
 sudo ./scripts/restore-linkvault.sh /var/backups/linkvault/linkvault-backup-YYYYmmdd-HHMMSS.tar.gz
 ```
 
-Wichtige Endpunkte:
+## API Snapshot
+
+Important endpoints:
 
 - `GET /healthz`
 - `GET /api/bookmarks`
-- `GET /api/bookmarks?q=suchbegriff`
-- `GET /api/bookmarks?q=suchbegriff&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development`
+- `GET /api/bookmarks?q=query`
+- `GET /api/bookmarks?q=query&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development`
 - `POST /api/bookmarks`
 - `GET /api/bookmarks/{id}`
 - `PATCH /api/bookmarks/{id}`
@@ -95,57 +111,55 @@ Wichtige Endpunkte:
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
 
-## Produktprioritaet Aus Der Recherche
+## Product Direction
 
-Die Deep-Research-Sammlung bestaetigt: LinkVault sollte nicht einfach ein
-weiterer Bookmark-Manager werden. Die staerkste Positionierung ist eine
-gezielte Synthese:
+The deep research collection confirms that LinkVault should not become just
+another bookmark manager. The strongest positioning is a deliberate synthesis:
 
-- linkding als Vorbild fuer robuste URL-Deduplizierung, API und geringen
-  Betriebsaufwand
-- Karakeep als Vorbild fuer Favoriten, Listen, Regeln, AI-Optionen und
-  moderne Wissensworkflows
-- Linkwarden als Vorbild fuer Langzeitarchivierung, Collections,
-  Reader-Ansicht und Annotationen
-- Readeck als Vorbild fuer leichtgewichtige lokale Lesekopien, Highlights und
-  EPUB/OPDS-nahe Reader-Fluesse
-- LinkAce als Vorbild fuer klassische Multiuser-, SSO-, API- und
-  Link-Monitoring-Reife
-- Shiori/Readeck als Mahnung, den Betrieb klein und selfhost-freundlich zu
-  halten
-- community-scripts.org als Praxisreferenz fuer Proxmox-LXC-Installation,
-  Logs, Healthcheck, Updates und Backup/Restore
+- linkding as the reference for robust URL deduplication, API design, and low
+  operational overhead
+- Karakeep as the reference for favorites, lists, rules, AI options, and modern
+  knowledge workflows
+- Linkwarden as the reference for long-term archiving, collections, reader
+  views, and annotations
+- Readeck as the reference for lightweight local reading copies, highlights,
+  and EPUB/OPDS-style reader flows
+- LinkAce as the reference for mature multi-user, SSO, API, and link
+  monitoring features
+- Shiori/Readeck as reminders to keep operations small and self-host friendly
+- community-scripts.org as the operational benchmark for Proxmox LXC
+  installation, logs, health checks, updates, backup, and restore
 
-Daraus folgt fuer die naechsten Schritte: erst Login/Single-User-Setup,
-Dedup-Dashboard, echter LXC-Backup/Restore-Test und bessere Bookmark-Pflege;
-Archiv-Worker, AI und Browser-Sync kommen danach schrittweise.
+This means the next steps are: single-user setup and login, a dedup dashboard,
+real LXC backup/restore testing, and better bookmark editing workflows. Archive
+workers, AI, and browser sync should come later in smaller, optional layers.
 
-## Lizenz
+## License
 
-LinkVault steht unter AGPL-3.0-or-later. Das passt zum Ziel einer freien
-Selfhost-Web-App, bei der Verbesserungen auch bei Netzwerkbetrieb wieder der
-Community zugutekommen sollen.
+LinkVault is licensed under AGPL-3.0-or-later. That fits the goal of a free
+self-hosted web application where network-service improvements should flow back
+to the community.
 
-Tests:
+Run tests:
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests
 ```
 
-## Leitidee
+## Guiding Idea
 
-LinkVault soll nicht nur Links speichern. Es soll eine Link-Sammlung aktiv
-pflegen: doppelte Favoriten erkennen, aehnliche Inhalte gruppieren,
-schlechte Metadaten verbessern, tote Links ueberwachen und neue Links anhand
-von Regeln, AI-Vorschlaegen und Nutzungsverhalten passend einordnen.
+LinkVault should not merely store links. It should actively maintain a link
+collection: find duplicate favorites, group similar content, improve weak
+metadata, monitor dead links, and suggest useful organization through rules,
+optional AI, and user behavior.
 
 ## Research
 
-Das beigefuegte Research-Zip wurde nach
-[`selfhosted-bookmark-research`](selfhosted-bookmark-research/) extrahiert.
-Es enthaelt Vergleichstabellen, Projektzusammenfassungen, Quellenlisten und
-erste Dedup-Beispiele.
+The original research bundle was extracted into
+[`selfhosted-bookmark-research`](selfhosted-bookmark-research/). It contains
+comparison tables, project summaries, source lists, and initial deduplication
+examples.
 
-Die zusaetzliche Deep-Research-Sammlung vom 19.04.2026 wurde in
-[Research Impact](docs/RESEARCH_IMPACT.md) ausgewertet und in Roadmap sowie
-Produktprioritaet uebernommen.
+The additional deep research collection from 2026-04-19 was evaluated in
+[Research Impact](docs/RESEARCH_IMPACT.md) and reflected in the roadmap and
+product priorities.

@@ -1,0 +1,26 @@
+# LinkVault Documentation
+
+[Deutsch](README.de.md)
+
+This documentation is being translated gradually. English readers should start
+with:
+
+- [Project README](../README.md)
+- [MVP Roadmap](ROADMAP.en.md)
+
+The detailed working documents are currently German-first:
+
+- [Produktvision](PRODUCT_SPEC.md)
+- [Technische Architektur](ARCHITECTURE.md)
+- [Research Impact](RESEARCH_IMPACT.md)
+- [Dubletten, Sortierung und Kategorien](DEDUP_SORTING_CATEGORIZATION.md)
+- [Proxmox Community-Scripts Zielbild](PROXMOX_COMMUNITY_SCRIPT.md)
+- [Debian-LXC Installationstest](DEBIAN_LXC_TEST.md)
+- [Backup und Restore](BACKUP_RESTORE.md)
+- [MVP-Roadmap Deutsch](ROADMAP.md)
+
+Translation policy:
+
+- Public entry points should be English-first.
+- German planning notes may remain German while the MVP is moving quickly.
+- Stable user-facing docs should get English versions before a public release.

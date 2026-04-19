@@ -11,6 +11,7 @@ Status-Legende:
 - [x] Repository-Struktur festlegen.
 - [x] Lizenz waehlen: AGPL-3.0-or-later.
 - [x] Deep-Research-Sammlung auswerten und Produktprioritaeten ableiten.
+- [x] Englischsprachigen Repo-Einstieg und englische Roadmap anlegen.
 - [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
 - [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
 - [ ] Lokale Dev-Installation mit Docker Compose.
