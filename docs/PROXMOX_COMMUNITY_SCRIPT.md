@@ -81,6 +81,11 @@ LINKVAULT_BRIDGE=vmbr0 \
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
 ```
 
+Der Installer prueft die gewaehlte CTID direkt am Anfang. Wenn die ID bereits
+existiert, bricht er vor Template-Download, Container-Erstellung und
+Installation ab und nennt nach Moeglichkeit die naechste freie ID aus
+`pvesh get /cluster/nextid`.
+
 ## Stufenplan Richtung community-scripts
 
 Die Community-Scripts-Dokumentation ist gross genug, dass LinkVault dieses

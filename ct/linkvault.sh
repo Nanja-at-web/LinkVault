@@ -89,6 +89,30 @@ next_ctid() {
   pvesh get /cluster/nextid
 }
 
+validate_ctid() {
+  local ctid="$1"
+  if [[ ! "${ctid}" =~ ^[0-9]+$ ]]; then
+    msg_error "Invalid CTID: ${ctid}. Use a numeric ID, for example LINKVAULT_CTID=123."
+    exit 1
+  fi
+}
+
+require_free_ctid() {
+  local ctid="$1"
+  validate_ctid "${ctid}"
+
+  if pct status "${ctid}" >/dev/null 2>&1; then
+    local next_id
+    next_id="$(pvesh get /cluster/nextid 2>/dev/null || true)"
+    if [[ -n "${next_id}" && "${next_id}" =~ ^[0-9]+$ && "${next_id}" != "${ctid}" ]]; then
+      msg_error "CT ${ctid} already exists. Try again with LINKVAULT_CTID=${next_id}."
+    else
+      msg_error "CT ${ctid} already exists. Choose another free ID with LINKVAULT_CTID=123."
+    fi
+    exit 1
+  fi
+}
+
 select_template() {
   run_quiet "Refreshing LXC Template List" pveam update
 
@@ -187,12 +211,8 @@ main() {
 
   local ctid template ip token
   ctid="$(next_ctid)"
+  require_free_ctid "${ctid}"
   template="$(select_template)"
-
-  if pct status "${ctid}" >/dev/null 2>&1; then
-    msg_error "CT ${ctid} already exists. Choose another ID with LINKVAULT_CTID=123."
-    exit 1
-  fi
 
   msg_info "Using CTID ${ctid}"
   msg_info "Using ${template}"
