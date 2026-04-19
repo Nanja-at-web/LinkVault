@@ -91,6 +91,11 @@ Erwartung:
 - In `/var/lib/linkvault` wird `linkvault.sqlite3` angelegt.
 - `/etc/linkvault/linkvault.env` enthaelt `LINKVAULT_DATA_DIR=/var/lib/linkvault`.
 
+Wenn `systemctl status` schon `active (running)` meldet, `curl` aber direkt
+danach noch nicht verbinden kann, ist das meist nur ein Timing-Thema. Die
+aktuellen Skripte warten bis zu 60 Sekunden auf `/healthz` und geben bei einem
+echten Fehler automatisch `systemctl status` und `journalctl -u linkvault` aus.
+
 ## Ein-Kommando-Smoke-Test
 
 Alternativ:

@@ -96,7 +96,17 @@ install_linkvault_in_container() {
 verify_linkvault() {
   local ctid="$1"
   echo "Verifying LinkVault healthcheck inside CT ${ctid}..."
-  pct exec "${ctid}" -- curl -fsS http://127.0.0.1:3080/healthz >/dev/null
+  for _ in {1..60}; do
+    if pct exec "${ctid}" -- curl -fsS http://127.0.0.1:3080/healthz >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+
+  pct exec "${ctid}" -- systemctl status linkvault --no-pager || true
+  pct exec "${ctid}" -- journalctl -u linkvault -n 100 --no-pager || true
+  echo "LinkVault did not become healthy inside CT ${ctid}." >&2
+  exit 1
 }
 
 container_ip() {
