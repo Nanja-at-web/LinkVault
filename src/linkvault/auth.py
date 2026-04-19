@@ -1,0 +1,182 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+import secrets
+import sqlite3
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Iterator
+
+
+PASSWORD_ITERATIONS = 210_000
+SESSION_DAYS = 30
+
+
+@dataclass(frozen=True)
+class User:
+    id: str
+    username: str
+    created_at: str
+    updated_at: str
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
+class AuthStore:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.migrate()
+
+    @contextmanager
+    def connect(self) -> Iterator[sqlite3.Connection]:
+        connection = sqlite3.connect(self.path)
+        connection.row_factory = sqlite3.Row
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
+    def migrate(self) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)")
+
+    def setup_required(self) -> bool:
+        with self.connect() as connection:
+            count = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        return count == 0
+
+    def create_initial_user(self, username: str, password: str, setup_token: str, configured_token: str) -> User:
+        username = clean_username(username)
+        validate_password(password)
+
+        if not self.setup_required():
+            raise ValueError("setup already completed")
+        if configured_token and not hmac.compare_digest(setup_token, configured_token):
+            raise ValueError("invalid setup token")
+        if not configured_token and setup_token:
+            raise ValueError("setup token is not configured")
+
+        now = datetime.now(UTC).isoformat()
+        user = User(id=secrets.token_hex(16), username=username, created_at=now, updated_at=now)
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO users (id, username, password_hash, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (user.id, user.username, hash_password(password), user.created_at, user.updated_at),
+            )
+        return user
+
+    def authenticate(self, username: str, password: str) -> User | None:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM users WHERE username = ?", (username.strip(),)).fetchone()
+
+        if not row or not verify_password(password, row["password_hash"]):
+            return None
+        return user_from_row(row)
+
+    def create_session(self, user_id: str) -> str:
+        now = datetime.now(UTC)
+        session_id = secrets.token_urlsafe(32)
+        with self.connect() as connection:
+            connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (now.isoformat(),))
+            connection.execute(
+                """
+                INSERT INTO sessions (id, user_id, created_at, expires_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    user_id,
+                    now.isoformat(),
+                    (now + timedelta(days=SESSION_DAYS)).isoformat(),
+                ),
+            )
+        return session_id
+
+    def user_for_session(self, session_id: str) -> User | None:
+        if not session_id:
+            return None
+
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT u.*
+                FROM sessions s
+                JOIN users u ON u.id = s.user_id
+                WHERE s.id = ? AND s.expires_at > ?
+                """,
+                (session_id, now),
+            ).fetchone()
+        return user_from_row(row) if row else None
+
+    def delete_session(self, session_id: str) -> None:
+        with self.connect() as connection:
+            connection.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+
+
+def clean_username(username: str) -> str:
+    cleaned = username.strip()
+    if not cleaned:
+        raise ValueError("username is required")
+    if len(cleaned) > 80:
+        raise ValueError("username is too long")
+    return cleaned
+
+
+def validate_password(password: str) -> None:
+    if len(password) < 12:
+        raise ValueError("password must be at least 12 characters")
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("ascii"), PASSWORD_ITERATIONS)
+    return f"pbkdf2_sha256${PASSWORD_ITERATIONS}${salt}${digest.hex()}"
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        algorithm, iterations, salt, expected = password_hash.split("$", 3)
+    except ValueError:
+        return False
+    if algorithm != "pbkdf2_sha256":
+        return False
+
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("ascii"), int(iterations))
+    return hmac.compare_digest(digest.hex(), expected)
+
+
+def user_from_row(row: sqlite3.Row) -> User:
+    return User(id=row["id"], username=row["username"], created_at=row["created_at"], updated_at=row["updated_at"])

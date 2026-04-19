@@ -19,6 +19,7 @@ Community-Scripts-Dokumentation beschreibt dafuer zwei Teile:
 | Disk | 16 GB |
 | Port | 3080 |
 | Datenbank | SQLite unter `/var/lib/linkvault`, PostgreSQL spaeter |
+| Erstes Setup | initialer Admin via `LINKVAULT_SETUP_TOKEN` |
 | Reverse Proxy | optional, nicht erzwungen |
 
 Begruendung: Der aktuelle Python-MVP soll leicht in einem Debian-LXC laufen.

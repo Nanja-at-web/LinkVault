@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import SimpleCookie
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
+from .auth import AuthStore, User
 from .config import load_config
 from .store import BookmarkFilters, BookmarkStore
 
@@ -15,17 +17,41 @@ def make_store() -> BookmarkStore:
     return BookmarkStore(load_config().data_path)
 
 
+def make_auth_store() -> AuthStore:
+    return AuthStore(load_config().data_path)
+
+
 class LinkVaultHandler(BaseHTTPRequestHandler):
     server_version = f"LinkVault/{__version__}"
 
     def do_GET(self) -> None:
         store = make_store()
+        auth_store = make_auth_store()
         parsed_url = urlparse(self.path)
         path = parsed_url.path
 
         if path == "/healthz":
             self.send_json({"ok": True, "version": __version__})
+        elif path == "/api/setup/status":
+            config = load_config()
+            self.send_json(
+                {
+                    "setup_required": auth_store.setup_required(),
+                    "setup_token_required": bool(config.setup_token),
+                }
+            )
+        elif path == "/api/me":
+            user = self.current_user(auth_store)
+            self.send_json(
+                {
+                    "authenticated": user is not None,
+                    "setup_required": auth_store.setup_required(),
+                    "user": user.to_dict() if user else None,
+                }
+            )
         elif path == "/api/bookmarks":
+            if not self.require_auth(auth_store):
+                return
             params = parse_qs(parsed_url.query)
             query = get_query_param(params, "q")
             filters = filters_from_query(params)
@@ -37,14 +63,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 }
             )
         elif path.startswith("/api/bookmarks/"):
+            if not self.require_auth(auth_store):
+                return
             bookmark = store.get(path.rsplit("/", 1)[-1])
             if not bookmark:
                 self.send_json({"error": "bookmark not found"}, HTTPStatus.NOT_FOUND)
                 return
             self.send_json(bookmark.to_dict())
         elif path == "/api/dedup":
+            if not self.require_auth(auth_store):
+                return
             self.send_json({"groups": store.dedup_groups()})
         elif path == "/api/dedup/dry-run":
+            if not self.require_auth(auth_store):
+                return
             self.send_json(store.dedup_dry_run())
         elif path == "/":
             self.send_html(index_html())
@@ -54,18 +86,46 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         store = make_store()
+        auth_store = make_auth_store()
 
         try:
             payload = self.read_json()
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, ValueError):
             self.send_json({"error": "invalid json"}, HTTPStatus.BAD_REQUEST)
             return
 
         try:
-            if path == "/api/bookmarks":
+            if path == "/api/setup":
+                user = auth_store.create_initial_user(
+                    str(payload.get("username", "")),
+                    str(payload.get("password", "")),
+                    str(payload.get("setup_token", "")),
+                    load_config().setup_token,
+                )
+                session_id = auth_store.create_session(user.id)
+                self.send_json(
+                    {"user": user.to_dict(), "setup_required": False},
+                    HTTPStatus.CREATED,
+                    headers=[session_cookie_header(session_id)],
+                )
+            elif path == "/api/login":
+                user = auth_store.authenticate(str(payload.get("username", "")), str(payload.get("password", "")))
+                if not user:
+                    self.send_json({"error": "invalid username or password"}, HTTPStatus.UNAUTHORIZED)
+                    return
+                session_id = auth_store.create_session(user.id)
+                self.send_json({"user": user.to_dict()}, headers=[session_cookie_header(session_id)])
+            elif path == "/api/logout":
+                auth_store.delete_session(self.session_cookie())
+                self.send_json({"logged_out": True}, headers=[expired_session_cookie_header()])
+            elif path == "/api/bookmarks":
+                if not self.require_auth(auth_store):
+                    return
                 bookmark = store.add(payload)
                 self.send_json(bookmark.to_dict(), HTTPStatus.CREATED)
             elif path == "/api/import/browser-html":
+                if not self.require_auth(auth_store):
+                    return
                 html = str(payload.get("html", ""))
                 self.send_json(store.import_browser_html(html), HTTPStatus.CREATED)
             else:
@@ -84,6 +144,8 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         if not path.startswith("/api/bookmarks/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
+        if not self.require_auth(make_auth_store()):
+            return
 
         deleted = make_store().delete(path.rsplit("/", 1)[-1])
         if not deleted:
@@ -95,6 +157,8 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if not path.startswith("/api/bookmarks/"):
             self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        if not self.require_auth(make_auth_store()):
             return
 
         try:
@@ -120,11 +184,37 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             raise ValueError("json object expected")
         return payload
 
-    def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
+    def current_user(self, auth_store: AuthStore) -> User | None:
+        return auth_store.user_for_session(self.session_cookie())
+
+    def require_auth(self, auth_store: AuthStore) -> User | None:
+        user = self.current_user(auth_store)
+        if user:
+            return user
+        self.send_json({"error": "authentication required"}, HTTPStatus.UNAUTHORIZED)
+        return None
+
+    def session_cookie(self) -> str:
+        cookie_header = self.headers.get("cookie", "")
+        if not cookie_header:
+            return ""
+        cookie = SimpleCookie()
+        cookie.load(cookie_header)
+        morsel = cookie.get("linkvault_session")
+        return morsel.value if morsel else ""
+
+    def send_json(
+        self,
+        payload: dict[str, Any],
+        status: HTTPStatus = HTTPStatus.OK,
+        headers: list[tuple[str, str]] | None = None,
+    ) -> None:
         body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
         self.send_response(status)
         self.send_header("content-type", "application/json; charset=utf-8")
         self.send_header("content-length", str(len(body)))
+        for name, value in headers or []:
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -152,11 +242,41 @@ def index_html() -> str:
     pre { background: #f2f2f2; padding: 1rem; overflow: auto; }
     .row { border-top: 1px solid #ddd; padding: .75rem 0; }
     .muted { color: #555; }
+    .error { color: #b00020; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <h1>LinkVault MVP</h1>
-  <p>Links speichern, importieren, bearbeiten und Dubletten als Dry-Run pruefen.</p>
+  <div class="toolbar">
+    <div>
+      <h1>LinkVault MVP</h1>
+      <p>Links speichern, importieren, bearbeiten und Dubletten als Dry-Run pruefen.</p>
+    </div>
+    <div id="userbar" hidden>
+      <span id="current-user"></span>
+      <button id="logout" type="button">Logout</button>
+    </div>
+  </div>
+
+  <section id="auth-panel">
+    <h2 id="auth-title">Login</h2>
+    <p id="auth-help" class="muted"></p>
+    <form id="setup-form" hidden>
+      <label>Setup-Token <input name="setup_token" autocomplete="one-time-code"></label>
+      <label>Benutzername <input name="username" autocomplete="username" required></label>
+      <label>Passwort <input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+      <button>Admin anlegen</button>
+    </form>
+    <form id="login-form" hidden>
+      <label>Benutzername <input name="username" autocomplete="username" required></label>
+      <label>Passwort <input name="password" type="password" autocomplete="current-password" required></label>
+      <button>Einloggen</button>
+    </form>
+    <p id="auth-error" class="error"></p>
+  </section>
+
+  <main id="app" hidden>
 
   <h2>Bookmark speichern</h2>
   <form id="bookmark-form">
@@ -191,10 +311,57 @@ def index_html() -> str:
   <h2>Dubletten Dry-Run</h2>
   <button id="dry-run">Dry-Run aktualisieren</button>
   <pre id="dedup-output">Noch keine Daten geladen.</pre>
+  </main>
 
   <script>
     const bookmarksEl = document.querySelector('#bookmarks');
     const dedupOutput = document.querySelector('#dedup-output');
+    const authPanel = document.querySelector('#auth-panel');
+    const authTitle = document.querySelector('#auth-title');
+    const authHelp = document.querySelector('#auth-help');
+    const authError = document.querySelector('#auth-error');
+    const setupForm = document.querySelector('#setup-form');
+    const loginForm = document.querySelector('#login-form');
+    const appEl = document.querySelector('#app');
+    const userbar = document.querySelector('#userbar');
+    const currentUser = document.querySelector('#current-user');
+
+    async function loadAuth() {
+      authError.textContent = '';
+      const response = await fetch('/api/me');
+      const payload = await response.json();
+      if (payload.authenticated) {
+        showApp(payload.user);
+        await refreshAll();
+        return;
+      }
+
+      appEl.hidden = true;
+      userbar.hidden = true;
+      authPanel.hidden = false;
+      if (payload.setup_required) {
+        const statusResponse = await fetch('/api/setup/status');
+        const status = await statusResponse.json();
+        authTitle.textContent = 'Erstes Setup';
+        authHelp.textContent = status.setup_token_required
+          ? 'Setup-Token aus /etc/linkvault/linkvault.env eingeben und Admin anlegen.'
+          : 'Admin anlegen. Fuer produktive Installationen sollte LINKVAULT_SETUP_TOKEN gesetzt sein.';
+        setupForm.hidden = false;
+        loginForm.hidden = true;
+      } else {
+        authTitle.textContent = 'Login';
+        authHelp.textContent = 'Mit deinem LinkVault-Admin anmelden.';
+        setupForm.hidden = true;
+        loginForm.hidden = false;
+      }
+    }
+
+    function showApp(user) {
+      authPanel.hidden = true;
+      appEl.hidden = false;
+      userbar.hidden = false;
+      currentUser.textContent = user ? user.username : '';
+    }
 
     async function refreshBookmarks() {
       const query = document.querySelector('#search').value.trim();
@@ -211,6 +378,10 @@ def index_html() -> str:
         if (value) params.set(param, value);
       }
       const response = await fetch(`/api/bookmarks?${params.toString()}`);
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
       const payload = await response.json();
       bookmarksEl.innerHTML = '';
       for (const bookmark of payload.bookmarks) {
@@ -235,6 +406,10 @@ def index_html() -> str:
 
     async function refreshDryRun() {
       const response = await fetch('/api/dedup/dry-run');
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
       dedupOutput.textContent = JSON.stringify(await response.json(), null, 2);
     }
 
@@ -279,6 +454,47 @@ def index_html() -> str:
       await refreshAll();
     });
 
+    setupForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      authError.textContent = '';
+      const response = await fetch('/api/setup', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(Object.fromEntries(new FormData(event.target)))
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        authError.textContent = payload.error || 'Setup fehlgeschlagen.';
+        return;
+      }
+      event.target.reset();
+      showApp(payload.user);
+      await refreshAll();
+    });
+
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      authError.textContent = '';
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(Object.fromEntries(new FormData(event.target)))
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        authError.textContent = payload.error || 'Login fehlgeschlagen.';
+        return;
+      }
+      event.target.reset();
+      showApp(payload.user);
+      await refreshAll();
+    });
+
+    document.querySelector('#logout').addEventListener('click', async () => {
+      await fetch('/api/logout', {method: 'POST'});
+      await loadAuth();
+    });
+
     document.querySelector('#import-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.target));
@@ -299,7 +515,7 @@ def index_html() -> str:
     document.querySelector('#filter-domain').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-tag').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-collection').addEventListener('input', refreshBookmarks);
-    refreshAll();
+    loadAuth();
   </script>
 </body>
 </html>"""
@@ -325,6 +541,20 @@ def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
         domain=get_query_param(params, "domain"),
         tag=get_query_param(params, "tag"),
         collection=get_query_param(params, "collection"),
+    )
+
+
+def session_cookie_header(session_id: str) -> tuple[str, str]:
+    return (
+        "Set-Cookie",
+        f"linkvault_session={session_id}; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax",
+    )
+
+
+def expired_session_cookie_header() -> tuple[str, str]:
+    return (
+        "Set-Cookie",
+        "linkvault_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
     )
 
 

@@ -16,13 +16,20 @@ class LinkVaultConfig:
     host: str
     port: int
     data_path: Path
+    setup_token: str = ""
     env_file: Path | None = None
 
 
 def load_config() -> LinkVaultConfig:
     env_file = load_environment_file()
     host, port = host_and_port_from_env()
-    return LinkVaultConfig(host=host, port=port, data_path=data_path_from_env(), env_file=env_file)
+    return LinkVaultConfig(
+        host=host,
+        port=port,
+        data_path=data_path_from_env(),
+        setup_token=os.environ.get("LINKVAULT_SETUP_TOKEN", "").strip(),
+        env_file=env_file,
+    )
 
 
 def load_environment_file() -> Path | None:

@@ -8,6 +8,7 @@ CONFIG_DIR="${LINKVAULT_CONFIG_DIR:-/etc/linkvault}"
 DATA_DIR="${LINKVAULT_DATA_DIR:-/var/lib/linkvault}"
 SERVICE_NAME="${LINKVAULT_SERVICE_NAME:-linkvault}"
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SETUP_TOKEN="${LINKVAULT_SETUP_TOKEN:-}"
 
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
@@ -39,11 +40,23 @@ python3 -m venv "${APP_DIR}/.venv"
 chown -R "${APP_USER}:${APP_GROUP}" "${APP_DIR}" "${DATA_DIR}"
 
 if [[ ! -f "${CONFIG_DIR}/linkvault.env" ]]; then
+  if [[ -z "${SETUP_TOKEN}" ]]; then
+    SETUP_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+  fi
   cat > "${CONFIG_DIR}/linkvault.env" <<EOF
 LINKVAULT_ADDR=0.0.0.0:3080
 LINKVAULT_DATA_DIR=${DATA_DIR}
+LINKVAULT_SETUP_TOKEN=${SETUP_TOKEN}
 EOF
-  chmod 0644 "${CONFIG_DIR}/linkvault.env"
+  chmod 0640 "${CONFIG_DIR}/linkvault.env"
+elif ! grep -q '^LINKVAULT_SETUP_TOKEN=' "${CONFIG_DIR}/linkvault.env"; then
+  if [[ -z "${SETUP_TOKEN}" ]]; then
+    SETUP_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+  fi
+  printf '\nLINKVAULT_SETUP_TOKEN=%s\n' "${SETUP_TOKEN}" >>"${CONFIG_DIR}/linkvault.env"
+  chmod 0640 "${CONFIG_DIR}/linkvault.env"
+else
+  SETUP_TOKEN="$(sed -n 's/^LINKVAULT_SETUP_TOKEN=//p' "${CONFIG_DIR}/linkvault.env" | tail -n 1)"
 fi
 
 install -m 0644 "${SOURCE_DIR}/deploy/linkvault.service" "/etc/systemd/system/${SERVICE_NAME}.service"
@@ -53,3 +66,4 @@ systemctl enable --now "${SERVICE_NAME}"
 
 echo "LinkVault installed."
 echo "Healthcheck: curl http://127.0.0.1:3080/healthz"
+echo "Setup token: ${SETUP_TOKEN}"

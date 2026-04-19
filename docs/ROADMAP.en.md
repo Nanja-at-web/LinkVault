@@ -22,7 +22,7 @@ Status legend:
 
 ## Phase 1: Bookmark Core
 
-- [ ] Login and single-user setup with initial setup token.
+- [x] Login and single-user setup with initial setup token.
 - [~] Create, edit, and delete links.
 - [ ] Edit links in the UI: title, description, tags, collections, favorite,
   pin, and notes.

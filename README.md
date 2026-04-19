@@ -87,6 +87,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/m
 
 Run this command in the Proxmox VE shell. It creates a new Debian LXC, starts
 it, installs LinkVault inside the container, and prints the access URL.
+The installer also prints the first setup token. Use it once in the web UI to
+create the initial admin user.
 
 The official Community Scripts path is staged: this repository keeps the
 experimental installer first, new script submissions should go through
@@ -105,6 +107,11 @@ sudo ./scripts/restore-linkvault.sh /var/backups/linkvault/linkvault-backup-YYYY
 Important endpoints:
 
 - `GET /healthz`
+- `GET /api/setup/status`
+- `POST /api/setup`
+- `POST /api/login`
+- `POST /api/logout`
+- `GET /api/me`
 - `GET /api/bookmarks`
 - `GET /api/bookmarks?q=query`
 - `GET /api/bookmarks?q=query&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development`

@@ -19,7 +19,7 @@ Status-Legende:
 
 ## Phase 1: Bookmark-Kern
 
-- [ ] Login und Single-User-Setup mit initialem Setup-Token.
+- [x] Login und Single-User-Setup mit initialem Setup-Token.
 - [~] Link anlegen, bearbeiten, loeschen.
 - [ ] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
 - [ ] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.

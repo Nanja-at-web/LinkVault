@@ -172,6 +172,11 @@ container_ip() {
   pct exec "${ctid}" -- bash -lc "hostname -I | awk '{print \$1}'" 2>/dev/null || true
 }
 
+setup_token() {
+  local ctid="$1"
+  pct exec "${ctid}" -- bash -lc "sed -n 's/^LINKVAULT_SETUP_TOKEN=//p' /etc/linkvault/linkvault.env | tail -n 1" 2>/dev/null || true
+}
+
 main() {
   : >"${LOG_FILE}"
   header_info
@@ -180,7 +185,7 @@ main() {
   require_command pveam
   require_command pvesh
 
-  local ctid template ip
+  local ctid template ip token
   ctid="$(next_ctid)"
   template="$(select_template)"
 
@@ -213,6 +218,7 @@ main() {
   verify_linkvault "${ctid}"
 
   ip="$(container_ip "${ctid}")"
+  token="$(setup_token "${ctid}")"
 
   echo
   msg_ok "Completed Successfully"
@@ -221,6 +227,9 @@ main() {
     printf "%b\n" "  ${GN}http://${ip}:3080${CL}"
   else
     printf "%b\n" "  ${GN}Open the container IP on port 3080.${CL}"
+  fi
+  if [[ -n "${token}" ]]; then
+    printf "%b\n" "  Setup token: ${GN}${token}${CL}"
   fi
   printf "%b\n" "  Healthcheck: pct exec ${ctid} -- curl -fsS http://127.0.0.1:3080/healthz"
   printf "%b\n" "  Log: ${LOG_FILE}"
