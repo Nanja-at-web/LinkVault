@@ -244,6 +244,9 @@ def index_html() -> str:
     .muted { color: #555; }
     .error { color: #b00020; }
     .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .actions { margin: .65rem 0; }
+    .edit-form { margin-top: .75rem; padding: .75rem; border: 1px solid #ddd; border-radius: 6px; }
+    .edit-form textarea { min-height: 4rem; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -392,14 +395,33 @@ def index_html() -> str:
           <div><a href="${escapeAttr(bookmark.url)}">${escapeHtml(bookmark.url)}</a></div>
           <div class="muted">${escapeHtml(bookmark.domain)} · tags: ${escapeHtml(bookmark.tags.join(', ') || '-')} · collections: ${escapeHtml(bookmark.collections.join(', ') || '-')}</div>
           <div>${escapeHtml(bookmark.description || '')}</div>
+          <div class="muted">notes: ${escapeHtml(bookmark.notes || '-')}</div>
           <div class="muted">favicon: ${escapeHtml(bookmark.favicon_url || '-')}</div>
-          <button data-action="favorite">${bookmark.favorite ? 'Favorit entfernen' : 'Favorit setzen'}</button>
-          <button data-action="pin">${bookmark.pinned ? 'Pin entfernen' : 'Pin setzen'}</button>
-          <button data-action="delete">Loeschen</button>
+          <div class="actions">
+            <button data-action="favorite">${bookmark.favorite ? 'Favorit entfernen' : 'Favorit setzen'}</button>
+            <button data-action="pin">${bookmark.pinned ? 'Pin entfernen' : 'Pin setzen'}</button>
+            <button data-action="delete">Loeschen</button>
+          </div>
+          <details>
+            <summary>Bearbeiten</summary>
+            <form class="edit-form" data-role="edit">
+              <label>URL <input name="url" required value="${escapeAttr(bookmark.url)}"></label>
+              <label>Titel <input name="title" value="${escapeAttr(bookmark.title)}"></label>
+              <label>Beschreibung <textarea name="description">${escapeHtml(bookmark.description || '')}</textarea></label>
+              <label>Tags <input name="tags" value="${escapeAttr(bookmark.tags.join(', '))}"></label>
+              <label>Collections <input name="collections" value="${escapeAttr(bookmark.collections.join(', '))}"></label>
+              <label>Notizen <textarea name="notes">${escapeHtml(bookmark.notes || '')}</textarea></label>
+              <button>Speichern</button>
+            </form>
+          </details>
         `;
         row.querySelector('[data-action="favorite"]').addEventListener('click', () => patchBookmark(bookmark.id, {favorite: !bookmark.favorite}));
         row.querySelector('[data-action="pin"]').addEventListener('click', () => patchBookmark(bookmark.id, {pinned: !bookmark.pinned}));
         row.querySelector('[data-action="delete"]').addEventListener('click', () => deleteBookmark(bookmark.id));
+        row.querySelector('[data-role="edit"]').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          await patchBookmark(bookmark.id, Object.fromEntries(new FormData(event.target)));
+        });
         bookmarksEl.appendChild(row);
       }
     }

@@ -21,7 +21,7 @@ Status-Legende:
 
 - [x] Login und Single-User-Setup mit initialem Setup-Token.
 - [~] Link anlegen, bearbeiten, loeschen.
-- [ ] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
+- [x] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
 - [ ] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.
 - [x] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
 - [~] Tags, Collections, Favoriten und Pins.

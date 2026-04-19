@@ -24,11 +24,25 @@ class StoreTest(unittest.TestCase):
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             bookmark = store.add({"url": "https://example.com", "title": "Example"})
 
-            updated = store.update(bookmark.id, {"favorite": True, "tags": "docs, test"})
+            updated = store.update(
+                bookmark.id,
+                {
+                    "title": "Updated Example",
+                    "description": "Updated description",
+                    "favorite": True,
+                    "tags": "docs, test",
+                    "collections": "Inbox, Reading",
+                    "notes": "Keep this one.",
+                },
+            )
 
             self.assertIsNotNone(updated)
+            self.assertEqual(updated.title, "Updated Example")
+            self.assertEqual(updated.description, "Updated description")
             self.assertTrue(updated.favorite)
             self.assertEqual(updated.tags, ["docs", "test"])
+            self.assertEqual(updated.collections, ["Inbox", "Reading"])
+            self.assertEqual(updated.notes, "Keep this one.")
             self.assertTrue(store.delete(bookmark.id))
             self.assertIsNone(store.get(bookmark.id))
 

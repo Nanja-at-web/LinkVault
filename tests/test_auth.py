@@ -69,6 +69,15 @@ class AuthHttpTest(unittest.TestCase):
                 bookmark = request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/a"})
                 self.assertEqual(bookmark["url"], "http://127.0.0.1:9/a")
 
+                updated = request_json(
+                    opener,
+                    f"{base_url}/api/bookmarks/{bookmark['id']}",
+                    {"title": "Updated", "notes": "Edited in UI"},
+                    method="PATCH",
+                )
+                self.assertEqual(updated["title"], "Updated")
+                self.assertEqual(updated["notes"], "Edited in UI")
+
                 request_json(opener, f"{base_url}/api/logout", {})
                 with self.assertRaises(urllib.error.HTTPError) as logged_out:
                     request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/b"})
@@ -81,12 +90,12 @@ class AuthHttpTest(unittest.TestCase):
                 restore_env("LINKVAULT_SETUP_TOKEN", previous_token)
 
 
-def request_json(opener: urllib.request.OpenerDirector, url: str, payload: dict) -> dict:
+def request_json(opener: urllib.request.OpenerDirector, url: str, payload: dict, method: str = "POST") -> dict:
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
         headers={"content-type": "application/json"},
-        method="POST",
+        method=method,
     )
     with opener.open(request, timeout=5) as response:
         return json.loads(response.read().decode("utf-8"))

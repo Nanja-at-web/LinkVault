@@ -24,7 +24,7 @@ Status legend:
 
 - [x] Login and single-user setup with initial setup token.
 - [~] Create, edit, and delete links.
-- [ ] Edit links in the UI: title, description, tags, collections, favorite,
+- [x] Edit links in the UI: title, description, tags, collections, favorite,
   pin, and notes.
 - [ ] Bulk actions for tags, collections, favorites, and pins.
 - [x] Fetch metadata: title, description, favicon, domain.
