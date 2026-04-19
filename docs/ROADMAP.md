@@ -89,6 +89,7 @@ Status-Legende:
 - [x] Update-Funktion fuer installierte LinkVault-LXC: CT 112 Smoke-Test am 19.04.2026 erfolgreich.
 - [x] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden.
 - [x] Backup/Restore im echten Proxmox-LXC testen: CT 112 Smoke-Test am 19.04.2026 erfolgreich.
+- [x] Migrationstest in zweiten frischen Proxmox-LXC: Restore von CT 112 nach CT 114 am 19.04.2026 erfolgreich.
 - [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.
 - [ ] community-scripts.org-Konventionen mit `build.func`/`install.func` pruefen.
 - [ ] ProxmoxVE-Local-Kompatibilitaet pruefen.

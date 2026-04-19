@@ -125,10 +125,25 @@ Healthcheck nach Restore: erfolgreich
 Service nach Restore: active (running)
 ```
 
+Letzter erfolgreicher Migrationstest in einen zweiten frischen Proxmox-LXC:
+
+```text
+Datum: 2026-04-19
+Quelle: CT 112
+Ziel: CT 114
+Ziel-URL: http://192.168.1.190:3080
+Backup: /var/backups/linkvault/linkvault-backup-20260419-201933.tar.gz
+Restore im Ziel-CT: erfolgreich
+Benutzer nach Restore: 1
+Bookmarks nach Restore: 9
+Healthcheck nach Restore: erfolgreich
+Hinweis: Beim Dienstneustart waehrend Restore war ein frueher curl-Versuch zu
+frueh; der anschliessende Healthcheck war erfolgreich.
+```
+
 ## Noch offen
 
 - Backup/Restore mit Archivdateien testen, sobald Archivierung implementiert
   ist.
-- Restore in einem zweiten frischen Debian-LXC als Migrationstest pruefen.
 - Update-Szenario testen: Backup erstellen, Update ausfuehren, Restore als
   Fallback pruefen.

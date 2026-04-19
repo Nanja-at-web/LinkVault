@@ -104,6 +104,8 @@ Status legend:
 - [x] Backup/restore documentation: SQLite MVP docs and scripts exist.
 - [x] Test backup/restore in a real Proxmox LXC: CT 112 smoke test succeeded on
   2026-04-19.
+- [x] Migration test into a second fresh Proxmox LXC: restore from CT 112 to CT
+  114 succeeded on 2026-04-19.
 - [~] Test on Proxmox VE 8.4/9.x: first real Proxmox run succeeded; version
   matrix is open.
 - [ ] Check community-scripts.org conventions with `build.func`/`install.func`.

@@ -288,6 +288,19 @@ linkvault-helper status: active (running)
 linkvault-helper overview: active
 ```
 
+Am 19.04.2026 wurde ein Migrationstest in einen zweiten frischen Proxmox-LXC
+erfolgreich ausgefuehrt:
+
+```text
+Quelle: CT 112
+Ziel: CT 114
+Ziel-URL: http://192.168.1.190:3080
+Backup: /var/backups/linkvault/linkvault-backup-20260419-201933.tar.gz
+Restore im Ziel-CT: erfolgreich
+Benutzer nach Restore: 1
+Bookmarks nach Restore: 9
+```
+
 Die Umstellung auf die offiziellen Community-Scripts-Helfer bleibt vor einer
 ProxmoxVED-Einreichung offen.
 

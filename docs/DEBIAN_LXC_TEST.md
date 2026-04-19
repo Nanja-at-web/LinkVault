@@ -219,6 +219,13 @@ Post-Install Helper erfolgreich: ja
 Helper Healthcheck: ja
 Helper Status: active (running)
 Helper Overview: active
+Migration in zweiten frischen LXC erfolgreich: ja
+Migration Quelle: CT 112
+Migration Ziel: CT 114
+Migration Ziel-URL: http://192.168.1.190:3080
+Migration Backup: /var/backups/linkvault/linkvault-backup-20260419-201933.tar.gz
+Migration Benutzer nach Restore: 1
+Migration Bookmarks nach Restore: 9
 Offene Fehler: apt/locale-Warnungen wurden beobachtet; Skripte setzen nun C.UTF-8.
 ```
 
