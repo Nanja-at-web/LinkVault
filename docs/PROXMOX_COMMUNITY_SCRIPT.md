@@ -242,12 +242,23 @@ Container-ID: 112
 Template: debian-13-standard_13.1-2_amd64.tar.zst
 Rootfs: local-lvm:16G
 Healthcheck: erfolgreich
-URL: http://192.168.1.17:3080
+URL: http://192.168.1.132:3080
 ```
 
-Backup/Restore im LXC, ein Update-Test, ein Post-Install Helper und die
-Umstellung auf die offiziellen Community-Scripts-Helfer bleiben vor einer
-ProxmoxVED-Einreichung offen.
+Am 19.04.2026 wurde zusaetzlich der Backup/Restore-Smoke-Test im echten
+Proxmox-LXC erfolgreich ausgefuehrt:
+
+```text
+Container-ID: 112
+Backup: /var/backups/linkvault/linkvault-backup-20260419-152335.tar.gz
+Restore-Marker: backup_restore_20260419152330_13602
+Healthcheck vor Restore: erfolgreich
+Healthcheck nach Restore: erfolgreich
+Service nach Restore: active (running)
+```
+
+Ein Update-Test, ein Post-Install Helper und die Umstellung auf die offiziellen
+Community-Scripts-Helfer bleiben vor einer ProxmoxVED-Einreichung offen.
 
 ## Hinweise aus aktueller Pruefung
 

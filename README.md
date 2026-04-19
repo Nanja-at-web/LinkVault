@@ -147,10 +147,10 @@ another bookmark manager. The strongest positioning is a deliberate synthesis:
 The UX research adds another product rule: cleanup tasks must be visible, not
 hidden in APIs. LinkVault should grow toward a clear navigation with Inbox,
 Favorites, Duplicates, Collections, Tags, Archive, Activity, and Settings.
-The next product steps are URL duplicate preflight, a stronger dedup dashboard,
-real LXC backup/restore runs, and later API tokens with a sync setup flow.
-Archive workers, AI, and browser sync should come later in smaller, optional
-layers.
+After the successful real LXC backup/restore smoke test, the next product
+steps are URL duplicate preflight, a stronger dedup dashboard, and later API
+tokens with a sync setup flow. Archive workers, AI, and browser sync should
+come later in smaller, optional layers.
 
 ## License
 

@@ -139,9 +139,10 @@ gezielte Synthese:
 Die UX-Recherche ergaenzt: Pflegeaufgaben muessen sichtbar sein, nicht in APIs
 versteckt. LinkVault soll in Richtung klarer Navigation mit Inbox, Favoriten,
 Dubletten, Collections, Tags, Archiv, Aktivitaet und Einstellungen wachsen.
-Daraus folgen als naechste Produktschritte URL-Duplicate-Preflight, staerkeres
-Dedup-Dashboard, echte LXC-Backup/Restore-Laeufe und spaeter API-Token mit
-Sync-Setup. Archiv-Worker, AI und Browser-Sync kommen danach schrittweise.
+Daraus folgen nach dem erfolgreichen echten LXC-Backup/Restore-Smoke-Test als
+naechste Produktschritte URL-Duplicate-Preflight, staerkeres Dedup-Dashboard
+und spaeter API-Token mit Sync-Setup. Archiv-Worker, AI und Browser-Sync kommen
+danach schrittweise.
 
 ## Lizenz
 

@@ -114,10 +114,21 @@ Der Test:
 7. prueft, ob der Marker zurueck ist,
 8. prueft den Healthcheck erneut.
 
+Letzter erfolgreicher echter Proxmox-LXC-Test:
+
+```text
+Datum: 2026-04-19
+Container-ID: 112
+Backup: /var/backups/linkvault/linkvault-backup-20260419-152335.tar.gz
+Restore-Marker: backup_restore_20260419152330_13602
+Healthcheck nach Restore: erfolgreich
+Service nach Restore: active (running)
+```
+
 ## Noch offen
 
 - Backup/Restore mit Archivdateien testen, sobald Archivierung implementiert
   ist.
-- Restore in frischem Debian-LXC gegen `scripts/install-debian.sh` testen.
+- Restore in einem zweiten frischen Debian-LXC als Migrationstest pruefen.
 - Update-Szenario testen: Backup erstellen, Update ausfuehren, Restore als
   Fallback pruefen.

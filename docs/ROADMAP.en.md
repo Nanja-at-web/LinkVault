@@ -99,10 +99,9 @@ Status legend:
 - [ ] Post-install UX inspired by community-scripts.org: clearly print URL,
   setup token, healthcheck, logs, backup, restore, and update hints.
 - [ ] Update function for installed LinkVault LXCs.
-- [~] Backup/restore documentation: SQLite MVP docs and scripts exist; real LXC
-  restore test is open.
-- [~] Test backup/restore in a real Proxmox LXC: automated host test script
-  exists; real run is open.
+- [x] Backup/restore documentation: SQLite MVP docs and scripts exist.
+- [x] Test backup/restore in a real Proxmox LXC: CT 112 smoke test succeeded on
+  2026-04-19.
 - [~] Test on Proxmox VE 8.4/9.x: first real Proxmox run succeeded; version
   matrix is open.
 - [ ] Check community-scripts.org conventions with `build.func`/`install.func`.

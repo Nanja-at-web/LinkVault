@@ -186,8 +186,22 @@ Container unprivileged: ja
 CPU/RAM/Disk: 2 vCPU / 1024 MB / 16 GB
 Installationsskript erfolgreich: ja
 Healthcheck erfolgreich: ja
-Erreichbare URL: http://192.168.1.17:3080
-Backup erfolgreich: offen
-Restore erfolgreich: offen
+Erreichbare URL: http://192.168.1.132:3080
+Backup erfolgreich: ja
+Backup-Datei: /var/backups/linkvault/linkvault-backup-20260419-152335.tar.gz
+Restore erfolgreich: ja
+Restore-Marker: backup_restore_20260419152330_13602
+Service nach Restore: active (running)
+Healthcheck nach Restore: ja
 Offene Fehler: apt/locale-Warnungen wurden beobachtet; Skripte setzen nun C.UTF-8.
+```
+
+Der erste Restore-Smoke-Testlauf traf ein Timing-/Raw-Cache-Problem beim
+Neustart des Dienstes. Das Testskript wartet nun robuster auf den Healthcheck
+und nutzt Cache-Buster beim Nachladen der Skripte. Danach liefen zwei
+Backup/Restore-Smoke-Tests erfolgreich durch.
+
+```text
+Vorheriger erfolgreicher Restore-Marker: backup_restore_20260419152204_8110
+Letzter erfolgreicher Restore-Marker: backup_restore_20260419152330_13602
 ```
