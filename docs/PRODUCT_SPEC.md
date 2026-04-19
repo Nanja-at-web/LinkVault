@@ -19,6 +19,24 @@ Merge-Workflows, unklare Archivkonsistenz und zu wenig Automatisierung.
 | Readeck | Read-it-later, lokale Inhaltskopien, Labels, Favorites, EPUB/OPDS | staerkere Bookmark-Organisation und Sync |
 | Shiori | leichtes Go-Selfhosting, einfache Bedienung | vollstaendigere Team-, Archiv- und Dedup-Funktionen |
 
+## Produktformel Aus Der Deep-Research-Sammlung
+
+Die Deep-Research-Sammlung vom 19.04.2026 schaerft die Produktlinie:
+
+```text
+linkding-artige URL-Deduplizierung
++ Karakeep-artige Favoriten, Listen, Regeln und AI-Optionen
++ Linkwarden-artige Archivformate und Collections
++ Readeck-artige Reader-/Highlight- und leichte Speicherlogik
++ LinkAce-artige Multiuser-, SSO-, API- und Monitoring-Reife
++ Shiori-artige Einfachheit im Betrieb
++ community-scripts-artige Proxmox-LXC-Installation
+```
+
+Damit ist LinkVaults Kernversprechen nicht "alle Features sofort", sondern:
+sichere Link-Pflege, starke Favoriten-/Dublettenbereinigung, gute
+Selfhost-Betriebsqualitaet und schrittweise Archivtiefe.
+
 ## Kernfunktionen
 
 ### Bookmarks und Inhalte

@@ -17,6 +17,7 @@ Der Schwerpunkt liegt auf:
 
 - [Produktvision](docs/PRODUCT_SPEC.md)
 - [Technische Architektur](docs/ARCHITECTURE.md)
+- [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian-LXC Installationstest](docs/DEBIAN_LXC_TEST.md)
@@ -94,6 +95,31 @@ Wichtige Endpunkte:
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
 
+## Produktprioritaet Aus Der Recherche
+
+Die Deep-Research-Sammlung bestaetigt: LinkVault sollte nicht einfach ein
+weiterer Bookmark-Manager werden. Die staerkste Positionierung ist eine
+gezielte Synthese:
+
+- linkding als Vorbild fuer robuste URL-Deduplizierung, API und geringen
+  Betriebsaufwand
+- Karakeep als Vorbild fuer Favoriten, Listen, Regeln, AI-Optionen und
+  moderne Wissensworkflows
+- Linkwarden als Vorbild fuer Langzeitarchivierung, Collections,
+  Reader-Ansicht und Annotationen
+- Readeck als Vorbild fuer leichtgewichtige lokale Lesekopien, Highlights und
+  EPUB/OPDS-nahe Reader-Fluesse
+- LinkAce als Vorbild fuer klassische Multiuser-, SSO-, API- und
+  Link-Monitoring-Reife
+- Shiori/Readeck als Mahnung, den Betrieb klein und selfhost-freundlich zu
+  halten
+- community-scripts.org als Praxisreferenz fuer Proxmox-LXC-Installation,
+  Logs, Healthcheck, Updates und Backup/Restore
+
+Daraus folgt fuer die naechsten Schritte: erst Login/Single-User-Setup,
+Dedup-Dashboard, echter LXC-Backup/Restore-Test und bessere Bookmark-Pflege;
+Archiv-Worker, AI und Browser-Sync kommen danach schrittweise.
+
 ## Lizenz
 
 LinkVault steht unter AGPL-3.0-or-later. Das passt zum Ziel einer freien
@@ -119,3 +145,7 @@ Das beigefuegte Research-Zip wurde nach
 [`selfhosted-bookmark-research`](selfhosted-bookmark-research/) extrahiert.
 Es enthaelt Vergleichstabellen, Projektzusammenfassungen, Quellenlisten und
 erste Dedup-Beispiele.
+
+Die zusaetzliche Deep-Research-Sammlung vom 19.04.2026 wurde in
+[Research Impact](docs/RESEARCH_IMPACT.md) ausgewertet und in Roadmap sowie
+Produktprioritaet uebernommen.

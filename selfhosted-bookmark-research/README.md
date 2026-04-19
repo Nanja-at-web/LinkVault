@@ -21,3 +21,11 @@ Inhalt:
 
 Hinweis:
 Der Bericht basiert auf der zuvor erzeugten Deep-Research-Sammlung. Wo in den Primärquellen keine belastbare Aussage verifiziert werden konnte, ist das explizit als „unklar“ oder „nicht belastbar bestätigt“ markiert.
+
+Update 2026-04-19:
+Die zusaetzlich bereitgestellte Deep-Research-Sammlung wurde fuer LinkVault in
+`docs/RESEARCH_IMPACT.md` ausgewertet. Die wichtigsten Produktfolgen sind:
+linkding als Referenz fuer URL-Dedup/API, Karakeep fuer Regeln/Favoriten/AI,
+Linkwarden fuer Archivformate, Readeck fuer Reader/Highlights, LinkAce fuer
+SSO/API/Monitoring, Shiori fuer schlanken Betrieb und community-scripts.org
+fuer Proxmox-LXC-Installationsqualitaet.

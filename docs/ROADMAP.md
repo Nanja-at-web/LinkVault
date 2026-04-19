@@ -10,6 +10,7 @@ Status-Legende:
 
 - [x] Repository-Struktur festlegen.
 - [x] Lizenz waehlen: AGPL-3.0-or-later.
+- [x] Deep-Research-Sammlung auswerten und Produktprioritaeten ableiten.
 - [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
 - [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
 - [ ] Lokale Dev-Installation mit Docker Compose.
@@ -17,29 +18,38 @@ Status-Legende:
 
 ## Phase 1: Bookmark-Kern
 
-- [ ] Login und Single-User-Setup.
+- [ ] Login und Single-User-Setup mit initialem Setup-Token.
 - [~] Link anlegen, bearbeiten, loeschen.
+- [ ] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
+- [ ] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.
 - [x] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
 - [~] Tags, Collections, Favoriten und Pins.
 - [x] SQLite-FTS5-Volltextsuche mit Filtern fuer Favorit, Pin, Domain, Tag und Collection.
 - [~] Import aus Browser-Bookmark-HTML.
+- [ ] API-Token fuer Import, Extension und Automatisierung.
 
 ## Phase 2: Dubletten und Favoritenpflege
 
 - [x] URL-Normalisierung.
 - [x] Exakte Dublettenerkennung.
-- [~] Dubletten-Dashboard.
+- [ ] URL-Check-Endpunkt nach linkding/Karakeep-Vorbild.
+- [~] Dubletten-Dashboard mit Gewinner-Vorschlag.
 - [~] Merge-Plan mit Dry-Run.
 - [ ] Undo fuer Merge.
+- [ ] Merge-Ausfuehrung ohne Loeschen: Verlierer markieren und Daten uebernehmen.
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
+- [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.
 
 ## Phase 3: Archivierung
 
-- [ ] Reader-Extrakt.
+- [ ] Reader-Extrakt und gespeicherter Textinhalt nach Readeck-Vorbild.
+- [ ] Highlights und Notizen im Reader.
 - [ ] Screenshot und PDF.
 - [ ] Single-HTML.
+- [ ] EPUB/OPDS-nahe Export-/Reader-Option pruefen.
 - [ ] Archivstatus je Link.
 - [ ] Link Health Checks.
+- [ ] Archivassets in Backup/Restore und Merge-Plan aufnehmen.
 
 ## Phase 4: Automatisierung
 
@@ -47,8 +57,9 @@ Status-Legende:
 - [ ] Bulk-Editing.
 - [ ] Smart Collections.
 - [ ] AI-Tagging optional.
-- [ ] API-Keys und REST-API.
+- [ ] Public REST-API ausbauen.
 - [ ] Webhooks.
+- [ ] Floccus-/Browser-Sync-Bridge pruefen.
 
 ## Phase 5: Proxmox-Installation
 
@@ -58,14 +69,17 @@ Status-Legende:
 - [~] `ct/linkvault.sh`: community-scripts-aehnlicher Proxmox-Host-Einzeiler erfolgreich getestet, offizielle Einreichung offen.
 - [~] `install/linkvault-install.sh`: experimenteller Container-Installer vorhanden, finale community-scripts.org-Konventionen offen.
 - [ ] Update-Funktion.
-- [~] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden, LXC-Restore-Test offen.
+- [~] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden, echter LXC-Restore-Test offen.
+- [ ] Backup/Restore im echten Proxmox-LXC testen.
 - [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.
+- [ ] community-scripts.org-Konventionen mit `build.func`/`install.func` pruefen.
 
 ## Phase 6: Migrationen aus bestehenden Tools
 
+- [ ] Import-Vorschau mit Dry-Run und Duplikatbericht.
 - [ ] linkding Import via API/Export.
-- [ ] Linkwarden Import.
 - [ ] Karakeep Import.
+- [ ] Linkwarden Import.
 - [ ] LinkAce Import.
 - [ ] Readeck Import.
 - [ ] Shiori Import.
