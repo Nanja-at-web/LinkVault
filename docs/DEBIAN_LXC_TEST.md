@@ -137,6 +137,12 @@ curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox
 bash /tmp/linkvault-backup-restore-test.sh 112
 ```
 
+Direkt als Einzeiler:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-backup-restore-test.sh)" _ 112
+```
+
 Manueller Test nach erfolgreicher Installation:
 
 ```bash

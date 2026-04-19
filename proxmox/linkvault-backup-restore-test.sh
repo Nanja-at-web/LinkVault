@@ -14,6 +14,10 @@ MARKER_ID="backup_restore_$(date -u +%Y%m%d%H%M%S)_${RANDOM}"
 MARKER_URL="https://backup-restore.invalid/${MARKER_ID}"
 LOG_FILE="${LINKVAULT_BACKUP_RESTORE_LOG:-/tmp/linkvault-backup-restore-test.log}"
 
+if [[ -z "${CTID}" && "${0:-}" =~ ^[0-9]+$ ]]; then
+  CTID="$0"
+fi
+
 if [[ -t 1 ]]; then
   CL="\033[m"
   GN="\033[1;92m"

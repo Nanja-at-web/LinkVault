@@ -97,6 +97,12 @@ curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox
 bash /tmp/linkvault-backup-restore-test.sh 112
 ```
 
+Als direkter `curl | bash`-Einzeiler:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-backup-restore-test.sh)" _ 112
+```
+
 Der Test:
 
 1. prueft `/healthz` im Container,
