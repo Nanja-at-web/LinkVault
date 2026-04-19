@@ -77,6 +77,33 @@ Ein Proxmox-Backup des kompletten LXC ist weiterhin sinnvoll. Das
 LinkVault-eigene Backup bleibt trotzdem wichtig, weil es kleiner ist und sich
 leichter zwischen Installationen oder Testcontainern wiederherstellen laesst.
 
+## Proxmox-LXC Smoke-Test
+
+Auf dem Proxmox-Host kann ein bestehender LinkVault-Container automatisch
+gegen Backup und Restore getestet werden:
+
+```bash
+LINKVAULT_CTID=112 ./proxmox/linkvault-backup-restore-test.sh
+```
+
+Oder direkt vom GitHub-Branch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-backup-restore-test.sh -o /tmp/linkvault-backup-restore-test.sh
+bash /tmp/linkvault-backup-restore-test.sh 112
+```
+
+Der Test:
+
+1. prueft `/healthz` im Container,
+2. laedt Backup- und Restore-Skript in den Container,
+3. legt einen temporaeren Marker-Bookmark in SQLite an,
+4. erstellt ein Backup,
+5. loescht den Marker,
+6. stellt das Backup wieder her,
+7. prueft, ob der Marker zurueck ist,
+8. prueft den Healthcheck erneut.
+
 ## Noch offen
 
 - Backup/Restore mit Archivdateien testen, sobald Archivierung implementiert

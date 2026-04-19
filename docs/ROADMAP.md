@@ -74,7 +74,7 @@ Status-Legende:
 - [ ] Post-Install Helper fuer Update, Einstellungen, Logs und Basisdiagnose.
 - [ ] Update-Funktion fuer installierte LinkVault-LXC.
 - [~] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden, echter LXC-Restore-Test offen.
-- [ ] Backup/Restore im echten Proxmox-LXC testen.
+- [~] Backup/Restore im echten Proxmox-LXC testen: automatisches Host-Testskript vorhanden, echter Lauf offen.
 - [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.
 - [ ] community-scripts.org-Konventionen mit `build.func`/`install.func` pruefen.
 - [ ] ProxmoxVE-Local-Kompatibilitaet pruefen.

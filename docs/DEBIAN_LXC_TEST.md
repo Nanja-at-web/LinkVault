@@ -128,7 +128,14 @@ bash /tmp/linkvault-lxc-test.sh
 
 ## Backup/Restore-Test im LXC
 
-Nach erfolgreicher Installation:
+Automatischer Test vom Proxmox-Host gegen den installierten Container:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-backup-restore-test.sh -o /tmp/linkvault-backup-restore-test.sh
+bash /tmp/linkvault-backup-restore-test.sh 112
+```
+
+Manueller Test nach erfolgreicher Installation:
 
 ```bash
 /tmp/linkvault/scripts/backup-linkvault.sh

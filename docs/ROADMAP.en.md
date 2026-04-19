@@ -86,7 +86,8 @@ Status legend:
 - [ ] Update function for installed LinkVault LXCs.
 - [~] Backup/restore documentation: SQLite MVP docs and scripts exist; real LXC
   restore test is open.
-- [ ] Test backup/restore in a real Proxmox LXC.
+- [~] Test backup/restore in a real Proxmox LXC: automated host test script
+  exists; real run is open.
 - [~] Test on Proxmox VE 8.4/9.x: first real Proxmox run succeeded; version
   matrix is open.
 - [ ] Check community-scripts.org conventions with `build.func`/`install.func`.
