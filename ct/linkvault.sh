@@ -81,7 +81,9 @@ bootstrap_container() {
   local ctid="$1"
   echo "Installing bootstrap packages inside CT ${ctid}..."
   pct exec "${ctid}" -- bash -lc \
-    "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates"
+    "export LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+      && apt-get update \
+      && DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates"
 }
 
 install_linkvault_in_container() {

@@ -2,8 +2,21 @@
 
 ## Status
 
-Dieser Test muss auf einem echten Debian-LXC oder Proxmox-Host laufen. Auf dem
-aktuellen Entwicklungsrechner wurde geprueft:
+Der Proxmox-Host-Einzeiler wurde am 19.04.2026 erstmals erfolgreich auf einem
+echten Proxmox-Host getestet.
+
+```text
+Host: proxbox
+Kernel: Linux 6.17.13-2-pve x86_64
+Container-ID: 112
+Template: debian-13-standard_13.1-2_amd64.tar.zst
+Rootfs: local-lvm:16G
+IP: 192.168.1.17
+Healthcheck: erfolgreich
+URL: http://192.168.1.17:3080
+```
+
+Auf dem aktuellen Entwicklungsrechner wurde zusaetzlich geprueft:
 
 ```text
 OS: Darwin/macOS
@@ -12,9 +25,9 @@ LXC tools: nicht vorhanden
 Docker: nicht vorhanden
 ```
 
-Darum kann der frische LXC-Test hier nicht echt ausgefuehrt werden. Die
-folgenden Schritte sind die reproduzierbare Testprozedur fuer den naechsten
-Lauf auf Proxmox.
+Darum kann der frische LXC-Test lokal nicht direkt wiederholt werden. Die
+folgenden Schritte bleiben die reproduzierbare Testprozedur fuer weitere
+Proxmox-Laeufe.
 
 ## Frischer Debian-LXC
 
@@ -136,4 +149,22 @@ Healthcheck erfolgreich:
 Backup erfolgreich:
 Restore erfolgreich:
 Offene Fehler:
+```
+
+## Letzter erfolgreicher Testlauf
+
+```text
+Datum: 2026-04-19
+Host: proxbox
+Kernel: Linux proxbox 6.17.13-2-pve x86_64
+Debian-Template: debian-13-standard_13.1-2_amd64.tar.zst
+Container-ID: 112
+Container unprivileged: ja
+CPU/RAM/Disk: 2 vCPU / 1024 MB / 16 GB
+Installationsskript erfolgreich: ja
+Healthcheck erfolgreich: ja
+Erreichbare URL: http://192.168.1.17:3080
+Backup erfolgreich: offen
+Restore erfolgreich: offen
+Offene Fehler: apt/locale-Warnungen wurden beobachtet; Skripte setzen nun C.UTF-8.
 ```

@@ -9,6 +9,9 @@ DATA_DIR="${LINKVAULT_DATA_DIR:-/var/lib/linkvault}"
 SERVICE_NAME="${LINKVAULT_SERVICE_NAME:-linkvault}"
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run this installer as root." >&2
   exit 1
@@ -17,7 +20,7 @@ fi
 echo "Installing LinkVault from ${SOURCE_DIR}"
 
 apt-get update
-apt-get install -y python3 python3-venv curl ca-certificates
+DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv curl ca-certificates
 
 if ! getent group "${APP_GROUP}" >/dev/null; then
   groupadd --system "${APP_GROUP}"

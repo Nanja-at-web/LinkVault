@@ -176,12 +176,21 @@ Vor einer Einreichung braucht das Projekt:
 
 ## Aktueller Teststatus
 
-Am 18.04.2026 konnte der echte Debian-LXC-Test auf dem Entwicklungsrechner
-nicht ausgefuehrt werden, weil die Umgebung macOS/Darwin ist und keine
-Proxmox- oder LXC-Werkzeuge vorhanden sind. Die Shell-Skripte und die lokale
-Service-Konfiguration werden deshalb hier nur syntaktisch und mit temporaeren
-SQLite-Pfaden getestet. Der echte Nachweis bleibt ein Lauf in einem frischen
-Debian-LXC nach `docs/DEBIAN_LXC_TEST.md`.
+Am 19.04.2026 wurde der experimentelle Proxmox-Host-Einzeiler erfolgreich auf
+einem echten Proxmox-Host getestet:
+
+```text
+Host: proxbox
+Kernel: Linux 6.17.13-2-pve x86_64
+Container-ID: 112
+Template: debian-13-standard_13.1-2_amd64.tar.zst
+Rootfs: local-lvm:16G
+Healthcheck: erfolgreich
+URL: http://192.168.1.17:3080
+```
+
+Backup/Restore im LXC und ein Update-Test bleiben vor einer
+community-scripts.org-Einreichung offen.
 
 ## Hinweise aus aktueller Pruefung
 

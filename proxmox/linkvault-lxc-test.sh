@@ -14,8 +14,11 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
 apt-get update
-apt-get install -y git curl ca-certificates
+DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates
 
 rm -rf "${WORKDIR}"
 git clone --branch "${BRANCH}" --depth 1 "${REPO_URL}" "${WORKDIR}"

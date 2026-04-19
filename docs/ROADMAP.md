@@ -54,12 +54,12 @@ Status-Legende:
 
 - [ ] Release-Binary bauen.
 - [~] Debian 13 Installationsskript: lokaler Python-MVP-Installer vorhanden, Release-Installer offen.
-- [~] Internes Proxmox-LXC-Testskript: erster Container-Smoke-Test vorhanden, echter Proxmox-Lauf offen.
-- [~] `ct/linkvault.sh`: experimenteller Proxmox-Host-Einzeiler vorhanden, community-scripts.org-Einreichung offen.
+- [x] Internes Proxmox-LXC-Testskript: Container-Smoke-Test auf Proxmox erfolgreich.
+- [~] `ct/linkvault.sh`: experimenteller Proxmox-Host-Einzeiler erfolgreich getestet, community-scripts.org-Einreichung offen.
 - [ ] `install/linkvault-install.sh` fuer finales community-scripts.org-Layout.
 - [ ] Update-Funktion.
 - [~] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden, LXC-Restore-Test offen.
-- [~] Test auf Proxmox VE 8.4/9.x: Testprozedur vorhanden, echter Proxmox-Lauf offen.
+- [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.
 
 ## Phase 6: Migrationen aus bestehenden Tools
 
