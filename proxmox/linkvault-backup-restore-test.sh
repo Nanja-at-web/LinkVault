@@ -7,8 +7,9 @@ set -Eeuo pipefail
 APP="LinkVault"
 CTID="${LINKVAULT_CTID:-${1:-}}"
 SCRIPT_BASE_URL="${LINKVAULT_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main}"
-BACKUP_SCRIPT_URL="${SCRIPT_BASE_URL}/scripts/backup-linkvault.sh"
-RESTORE_SCRIPT_URL="${SCRIPT_BASE_URL}/scripts/restore-linkvault.sh"
+SCRIPT_CACHE_BUST="${LINKVAULT_SCRIPT_CACHE_BUST:-$(date -u +%s)}"
+BACKUP_SCRIPT_URL="${SCRIPT_BASE_URL}/scripts/backup-linkvault.sh?cb=${SCRIPT_CACHE_BUST}"
+RESTORE_SCRIPT_URL="${SCRIPT_BASE_URL}/scripts/restore-linkvault.sh?cb=${SCRIPT_CACHE_BUST}"
 HEALTH_URL="${LINKVAULT_HEALTH_URL:-http://127.0.0.1:3080/healthz}"
 MARKER_ID="backup_restore_$(date -u +%Y%m%d%H%M%S)_${RANDOM}"
 MARKER_URL="https://backup-restore.invalid/${MARKER_ID}"
@@ -173,11 +174,38 @@ backup_linkvault() {
 
 restore_linkvault() {
   local archive="$1"
-  run_quiet "Restoring LinkVault backup" ct_exec /tmp/restore-linkvault.sh "${archive}"
+  msg_info "Restoring LinkVault backup"
+  if ct_exec /tmp/restore-linkvault.sh "${archive}" >>"${LOG_FILE}" 2>&1; then
+    msg_ok "Restoring LinkVault backup"
+    return
+  fi
+
+  msg_info "Restore command returned non-zero; checking whether service recovered"
+  if wait_for_health; then
+    msg_ok "LinkVault recovered after restore"
+    return
+  fi
+
+  msg_error "Restoring LinkVault backup"
+  echo "Last log lines from ${LOG_FILE}:" >&2
+  tail -n 120 "${LOG_FILE}" >&2 || true
+  exit 1
 }
 
 verify_health() {
   run_quiet "Checking LinkVault health" ct_exec curl -fsS "${HEALTH_URL}"
+}
+
+wait_for_health() {
+  for _ in {1..60}; do
+    if ct_exec curl -fsS "${HEALTH_URL}" >>"${LOG_FILE}" 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  ct_exec systemctl status linkvault --no-pager >>"${LOG_FILE}" 2>&1 || true
+  ct_exec journalctl -u linkvault -n 100 --no-pager >>"${LOG_FILE}" 2>&1 || true
+  return 1
 }
 
 main() {
