@@ -108,9 +108,8 @@ if env_path.exists():
             key, value = line.split("=", 1)
             env[key.strip()] = value.strip().strip("'\"")
 
-data_file = Path(env.get("LINKVAULT_DATA", ""))
-if not str(data_file):
-    data_file = Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
+data_path = env.get("LINKVAULT_DATA", "").strip()
+data_file = Path(data_path) if data_path else Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
 
 marker_id = os.environ["MARKER_ID"]
 marker_url = os.environ["MARKER_URL"]
@@ -181,9 +180,8 @@ if env_path.exists():
             key, value = line.split("=", 1)
             env[key.strip()] = value.strip().strip("'\"")
 
-data_file = Path(env.get("LINKVAULT_DATA", ""))
-if not str(data_file):
-    data_file = Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
+data_path = env.get("LINKVAULT_DATA", "").strip()
+data_file = Path(data_path) if data_path else Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
 
 connection = sqlite3.connect(data_file)
 with connection:
@@ -209,9 +207,8 @@ if env_path.exists():
             key, value = line.split("=", 1)
             env[key.strip()] = value.strip().strip("'\"")
 
-data_file = Path(env.get("LINKVAULT_DATA", ""))
-if not str(data_file):
-    data_file = Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
+data_path = env.get("LINKVAULT_DATA", "").strip()
+data_file = Path(data_path) if data_path else Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
 
 connection = sqlite3.connect(data_file)
 count = connection.execute("SELECT COUNT(*) FROM bookmarks WHERE id = ?", (os.environ["MARKER_ID"],)).fetchone()[0]
