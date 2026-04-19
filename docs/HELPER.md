@@ -46,9 +46,20 @@ linkvault-helper token
 
 Backup, Restore und Update muessen als `root` laufen.
 
+## Letzter erfolgreicher echter Proxmox-LXC-Test
+
+```text
+Datum: 2026-04-19
+Container-ID: 112
+Installation via Update-Smoke-Test: erfolgreich
+Update-Marker: update_test_20260419193620_11553
+Direkter pct-exec-Aufruf: erfolgreich
+Healthcheck: linkvault-helper health -> ok
+Service-Status: linkvault-helper status -> active (running)
+Uebersicht: linkvault-helper overview -> active
+```
+
 ## Noch offen
 
-- Helper im echten CT 112 nach Update/Installation aufrufen und Ergebnis
-  dokumentieren.
 - Spaeter an community-scripts.org-Post-Install-Konventionen angleichen.
 - Optional eine explizite Backup-vor-Update-Abfrage im Helper ergaenzen.

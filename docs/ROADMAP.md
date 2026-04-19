@@ -83,7 +83,7 @@ Status-Legende:
 - [~] `install/linkvault-install.sh`: experimenteller Container-Installer vorhanden, finale community-scripts.org-Konventionen offen.
 - [~] Community-Scripts-Prozess klaeren: neue Skripte zuerst ueber ProxmoxVED, nicht direkt ueber ProxmoxVE.
 - [ ] Default-/Advanced-Mode nach community-scripts.org-Konventionen.
-- [~] Post-Install Helper fuer Update, Einstellungen, Logs und Basisdiagnose: Skript vorhanden, echter CT-112-Lauf offen.
+- [x] Post-Install Helper fuer Update, Einstellungen, Logs und Basisdiagnose: CT 112 Test am 19.04.2026 erfolgreich.
 - [ ] Post-Install UX nach community-scripts.org-Vorbild: URL, Setup-Token,
   Healthcheck, Logs, Backup, Restore und Update klar ausgeben.
 - [x] Update-Funktion fuer installierte LinkVault-LXC: CT 112 Smoke-Test am 19.04.2026 erfolgreich.

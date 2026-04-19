@@ -268,13 +268,22 @@ erfolgreich ausgefuehrt:
 Container-ID: 112
 Quelle: https://github.com/Nanja-at-web/LinkVault.git
 Ref: main
-Update-Marker: update_test_20260419191415_22668
+Update-Marker: update_test_20260419193620_11553
 Healthcheck vor Update: erfolgreich
 Healthcheck nach Update: erfolgreich
 ```
 
-Der Post-Install Helper ist im Repo vorbereitet. Ein echter Helper-Testlauf und
-die Umstellung auf die offiziellen Community-Scripts-Helfer bleiben vor einer
+Am 19.04.2026 wurde der Post-Install Helper im echten CT 112 erfolgreich
+getestet:
+
+```text
+Direkter pct-exec-Aufruf: erfolgreich
+linkvault-helper health: ok
+linkvault-helper status: active (running)
+linkvault-helper overview: active
+```
+
+Die Umstellung auf die offiziellen Community-Scripts-Helfer bleibt vor einer
 ProxmoxVED-Einreichung offen.
 
 ## Hinweise aus aktueller Pruefung

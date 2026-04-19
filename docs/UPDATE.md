@@ -89,8 +89,8 @@ Ref: main
 Healthcheck vor Update: erfolgreich
 Update erfolgreich: ja
 Healthcheck nach Update: erfolgreich
-Marker erhalten: update_test_20260419191415_22668
-Vorheriger erfolgreicher Marker: update_test_20260419191324_16675
+Marker erhalten: update_test_20260419193620_11553
+Vorheriger erfolgreicher Marker: update_test_20260419191415_22668
 Log: /tmp/linkvault-update-test.log
 ```
 

@@ -213,8 +213,12 @@ Restore-Marker: backup_restore_20260419152330_13602
 Service nach Restore: active (running)
 Healthcheck nach Restore: ja
 Update erfolgreich: ja
-Update-Marker: update_test_20260419191415_22668
+Update-Marker: update_test_20260419193620_11553
 Healthcheck nach Update: ja
+Post-Install Helper erfolgreich: ja
+Helper Healthcheck: ja
+Helper Status: active (running)
+Helper Overview: active
 Offene Fehler: apt/locale-Warnungen wurden beobachtet; Skripte setzen nun C.UTF-8.
 ```
 
@@ -227,5 +231,6 @@ Backup/Restore-Smoke-Tests erfolgreich durch.
 Vorheriger erfolgreicher Restore-Marker: backup_restore_20260419152204_8110
 Letzter erfolgreicher Restore-Marker: backup_restore_20260419152330_13602
 Vorheriger erfolgreicher Update-Marker: update_test_20260419191324_16675
-Letzter erfolgreicher Update-Marker: update_test_20260419191415_22668
+Weiterer erfolgreicher Update-Marker: update_test_20260419191415_22668
+Letzter erfolgreicher Update-Marker: update_test_20260419193620_11553
 ```
