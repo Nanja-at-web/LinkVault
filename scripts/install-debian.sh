@@ -60,6 +60,10 @@ chown root:"${APP_GROUP}" "${CONFIG_DIR}/linkvault.env"
 chmod 0640 "${CONFIG_DIR}/linkvault.env"
 
 install -m 0644 "${SOURCE_DIR}/deploy/linkvault.service" "/etc/systemd/system/${SERVICE_NAME}.service"
+install -m 0755 "${SOURCE_DIR}/scripts/backup-linkvault.sh" "/usr/local/bin/backup-linkvault.sh"
+install -m 0755 "${SOURCE_DIR}/scripts/restore-linkvault.sh" "/usr/local/bin/restore-linkvault.sh"
+install -m 0755 "${SOURCE_DIR}/scripts/update-linkvault.sh" "/usr/local/bin/update-linkvault.sh"
+install -m 0755 "${SOURCE_DIR}/scripts/linkvault-helper.sh" "/usr/local/bin/linkvault-helper"
 
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
@@ -67,3 +71,4 @@ systemctl enable --now "${SERVICE_NAME}"
 echo "LinkVault installed."
 echo "Healthcheck: curl http://127.0.0.1:3080/healthz"
 echo "Setup token: ${SETUP_TOKEN}"
+echo "Helper: linkvault-helper"

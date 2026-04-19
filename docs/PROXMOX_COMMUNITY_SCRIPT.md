@@ -37,6 +37,7 @@ noetige Dienst-Vorarbeit:
 - `scripts/backup-linkvault.sh`: konsistentes SQLite-Backup im laufenden Betrieb.
 - `scripts/restore-linkvault.sh`: Restore mit Dienststopp und Vorher-Kopie.
 - `scripts/update-linkvault.sh`: Update aus GitHub-Quelle mit Service-Neustart und Healthcheck.
+- `scripts/linkvault-helper.sh`: lokaler Helper fuer Status, Logs, Healthcheck, Backup, Restore, Update und Setup-Token.
 - `ct/linkvault.sh`: community-scripts-aehnlicher Proxmox-Host-Einzeiler fuer neuen Debian-LXC.
 - `install/linkvault-install.sh`: community-scripts-aehnlicher Installer innerhalb des Containers.
 - `proxmox/linkvault-lxc-test.sh`: interner Smoke-Test in einem Debian-LXC.
@@ -44,10 +45,10 @@ noetige Dienst-Vorarbeit:
 - `docs/DEBIAN_LXC_TEST.md`: reproduzierbare Testprozedur fuer frische LXC.
 - `docs/BACKUP_RESTORE.md`: Backup/Restore-Ablauf fuer den SQLite-MVP.
 - `docs/UPDATE.md`: Update-Ablauf und Update-Smoke-Test.
+- `docs/HELPER.md`: Post-Install Helper fuer lokale Admin-Aufgaben.
 
 Das ist bewusst noch keine finale Einreichung. Der naechste Nachweis ist, dass
-der Update-Smoke-Test im echten CT 112 durchlaeuft und Daten dabei erhalten
-bleiben.
+der Post-Install Helper im echten CT 112 aufgerufen und dokumentiert wird.
 
 ## Proxmox-Host-Einzeiler
 
@@ -272,8 +273,9 @@ Healthcheck vor Update: erfolgreich
 Healthcheck nach Update: erfolgreich
 ```
 
-Ein Post-Install Helper und die Umstellung auf die offiziellen
-Community-Scripts-Helfer bleiben vor einer ProxmoxVED-Einreichung offen.
+Der Post-Install Helper ist im Repo vorbereitet. Ein echter Helper-Testlauf und
+die Umstellung auf die offiziellen Community-Scripts-Helfer bleiben vor einer
+ProxmoxVED-Einreichung offen.
 
 ## Hinweise aus aktueller Pruefung
 

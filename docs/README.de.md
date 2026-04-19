@@ -19,6 +19,7 @@ Die detaillierten Arbeitsdokumente bleiben aktuell deutsch:
 - [Debian-LXC Installationstest](DEBIAN_LXC_TEST.md)
 - [Backup und Restore](BACKUP_RESTORE.md)
 - [Update](UPDATE.md)
+- [Post-Install Helper](HELPER.md)
 - [MVP-Roadmap Deutsch](ROADMAP.md)
 
 Uebersetzungsregel:

@@ -88,6 +88,10 @@ fi
 "${APP_DIR}/.venv/bin/pip" install --upgrade "${WORKDIR}/source"
 
 install -m 0644 "${WORKDIR}/source/deploy/linkvault.service" "/etc/systemd/system/${SERVICE_NAME}.service"
+install -m 0755 "${WORKDIR}/source/scripts/backup-linkvault.sh" "/usr/local/bin/backup-linkvault.sh"
+install -m 0755 "${WORKDIR}/source/scripts/restore-linkvault.sh" "/usr/local/bin/restore-linkvault.sh"
+install -m 0755 "${WORKDIR}/source/scripts/update-linkvault.sh" "/usr/local/bin/update-linkvault.sh"
+install -m 0755 "${WORKDIR}/source/scripts/linkvault-helper.sh" "/usr/local/bin/linkvault-helper"
 
 if getent group "${APP_GROUP}" >/dev/null; then
   chown root:"${APP_GROUP}" "${CONFIG_FILE}"

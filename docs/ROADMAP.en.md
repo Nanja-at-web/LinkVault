@@ -95,7 +95,8 @@ Status legend:
 - [~] Clarify the Community Scripts process: new scripts go through
   ProxmoxVED first, not directly through ProxmoxVE.
 - [ ] Default/advanced mode following community-scripts.org conventions.
-- [ ] Post-install helper for updates, settings, logs, and basic diagnostics.
+- [~] Post-install helper for updates, settings, logs, and basic diagnostics:
+  script exists; real CT 112 run is open.
 - [ ] Post-install UX inspired by community-scripts.org: clearly print URL,
   setup token, healthcheck, logs, backup, restore, and update hints.
 - [x] Update function for installed LinkVault LXCs: CT 112 smoke test succeeded
