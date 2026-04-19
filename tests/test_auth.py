@@ -77,6 +77,19 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertTrue(preflight["has_matches"])
                 self.assertEqual(preflight["matches"][0]["bookmark"]["id"], bookmark["id"])
 
+                with self.assertRaises(urllib.error.HTTPError) as duplicate:
+                    request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/a"})
+                self.assertEqual(duplicate.exception.code, 409)
+                conflict = json.loads(duplicate.exception.read().decode("utf-8"))
+                self.assertEqual(conflict["preflight"]["matches"][0]["bookmark"]["id"], bookmark["id"])
+
+                duplicate_bookmark = request_json(
+                    opener,
+                    f"{base_url}/api/bookmarks",
+                    {"url": "http://127.0.0.1:9/a", "allow_duplicate": True},
+                )
+                self.assertNotEqual(duplicate_bookmark["id"], bookmark["id"])
+
                 updated = request_json(
                     opener,
                     f"{base_url}/api/bookmarks/{bookmark['id']}",

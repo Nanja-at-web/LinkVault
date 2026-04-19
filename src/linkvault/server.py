@@ -134,6 +134,17 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             elif path == "/api/bookmarks":
                 if not self.require_auth(auth_store):
                     return
+                if not to_bool(payload.get("allow_duplicate", False)):
+                    preflight = store.duplicate_preflight(str(payload.get("url", "")))
+                    if preflight["has_matches"]:
+                        self.send_json(
+                            {
+                                "error": "duplicate candidate found",
+                                "preflight": preflight,
+                            },
+                            HTTPStatus.CONFLICT,
+                        )
+                        return
                 bookmark = store.add(payload)
                 self.send_json(bookmark.to_dict(), HTTPStatus.CREATED)
             elif path == "/api/import/browser-html":
@@ -599,6 +610,12 @@ def index_html() -> str:
         method: 'POST',
         headers: {'content-type': 'application/json'},
         body: JSON.stringify(data)
+      }).then(async (response) => {
+        if (response.status === 409) {
+          const payload = await response.json();
+          renderDuplicatePreflight(payload.preflight, data, event.target);
+          throw new Error('duplicate preflight');
+        }
       });
       event.target.reset();
       await refreshAll();
@@ -643,6 +660,7 @@ def index_html() -> str:
       saveAnyway.type = 'button';
       saveAnyway.textContent = 'Trotzdem neu speichern';
       saveAnyway.addEventListener('click', async () => {
+        formData.allow_duplicate = true;
         await fetch('/api/bookmarks', {
           method: 'POST',
           headers: {'content-type': 'application/json'},
@@ -809,6 +827,12 @@ def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
         tag=get_query_param(params, "tag"),
         collection=get_query_param(params, "collection"),
     )
+
+
+def to_bool(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.lower() in {"1", "true", "yes", "on"}
+    return bool(value)
 
 
 def session_cookie_header(session_id: str) -> tuple[str, str]:

@@ -14,6 +14,11 @@ Der Preflight unterscheidet:
 
 ## API
 
+Normales Speichern ist serverseitig geschuetzt. Wenn ein Treffer gefunden wird,
+antwortet `POST /api/bookmarks` mit `409 Conflict` und dem Preflight-Ergebnis.
+
+Bewusstes doppeltes Speichern ist nur mit `allow_duplicate: true` moeglich.
+
 ```bash
 curl -X POST http://127.0.0.1:3080/api/bookmarks/preflight \
   -H 'content-type: application/json' \
@@ -45,7 +50,8 @@ Beim Speichern zeigt LinkVault Treffer direkt unter dem Formular. Nutzer koennen
 - den vorhandenen Bookmark mit den Formularfeldern aktualisieren,
 - bewusst trotzdem einen neuen Bookmark speichern.
 
-Es wird noch kein Merge ausgefuehrt und nichts geloescht.
+Es wird noch kein Merge ausgefuehrt und nichts geloescht. Ohne ausdrueckliche
+Nutzeraktion speichert die API keine Dublette.
 
 ## Dedup-Dashboard
 
