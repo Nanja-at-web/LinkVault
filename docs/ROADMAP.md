@@ -38,11 +38,11 @@ Status-Legende:
 
 - [x] URL-Normalisierung.
 - [x] Exakte Dublettenerkennung.
-- [ ] URL-Check-Endpunkt nach linkding/Karakeep-Vorbild.
-- [ ] Duplicate-Preflight beim Speichern: vorhanden oeffnen, aktualisieren,
-  Archivversion anhaengen, separat speichern oder spaeter pruefen.
-- [~] Dubletten-Dashboard mit Gewinner-Vorschlag.
-- [~] Merge-Plan mit Dry-Run.
+- [x] URL-Check-Endpunkt nach linkding/Karakeep-Vorbild: `/api/bookmarks/preflight`.
+- [~] Duplicate-Preflight beim Speichern: vorhanden oeffnen, aktualisieren oder
+  bewusst separat speichern vorhanden; Archivversion spaeter.
+- [x] Dubletten-Dashboard mit Gewinner-Vorschlag.
+- [x] Merge-Plan mit Dry-Run.
 - [ ] Undo fuer Merge.
 - [ ] Merge-Ausfuehrung ohne Loeschen: Verlierer markieren und Daten uebernehmen.
 - [ ] Conflict Center fuer Import-, Sync- und Merge-Konflikte.

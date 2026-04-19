@@ -42,11 +42,11 @@ Status legend:
 
 - [x] URL normalization.
 - [x] Exact duplicate detection.
-- [ ] URL check endpoint inspired by linkding and Karakeep.
-- [ ] Duplicate preflight while saving: open existing item, update it, attach
-  archive version, save separately, or review later.
-- [~] Duplicate dashboard with winner suggestions.
-- [~] Merge plan with dry-run.
+- [x] URL check endpoint inspired by linkding and Karakeep: `/api/bookmarks/preflight`.
+- [~] Duplicate preflight while saving: open existing item, update it, or
+  intentionally save separately exists; archive version comes later.
+- [x] Duplicate dashboard with winner suggestions.
+- [x] Merge plan with dry-run.
 - [ ] Undo for merge operations.
 - [ ] Merge execution without deletion: mark losing records and move data.
 - [ ] Conflict center for import, sync, and merge conflicts.

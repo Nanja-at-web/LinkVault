@@ -102,6 +102,31 @@ class StoreTest(unittest.TestCase):
             self.assertTrue(plan["keep_favorite"])
             self.assertTrue(plan["keep_pinned"])
             self.assertFalse(plan["delete_losers"])
+            self.assertEqual(dry_run["groups"][0]["winner"]["id"], winner.id)
+            difference_fields = {difference["field"] for difference in dry_run["groups"][0]["differences"]}
+            self.assertIn("tags", difference_fields)
+            self.assertIn("collections", difference_fields)
+
+    def test_duplicate_preflight_finds_exact_normalized_and_similar_urls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            exact = store.add({"url": "https://example.com/a", "title": "Exact"})
+            normalized = store.add({"url": "https://example.com/b?utm_source=news", "title": "Normalized"})
+            similar = store.add({"url": "https://example.com/docs/linkvault-install", "title": "Similar"})
+            store.add({"url": "https://other.test/docs/linkvault-install", "title": "Other domain"})
+
+            exact_preflight = store.duplicate_preflight("https://example.com/a")
+            self.assertEqual(exact_preflight["matches"][0]["bookmark"]["id"], exact.id)
+            self.assertEqual(exact_preflight["matches"][0]["match_type"], "exact_url")
+
+            normalized_preflight = store.duplicate_preflight("https://example.com/b")
+            self.assertEqual(normalized_preflight["matches"][0]["bookmark"]["id"], normalized.id)
+            self.assertEqual(normalized_preflight["matches"][0]["match_type"], "normalized_url")
+
+            similar_preflight = store.duplicate_preflight("https://example.com/docs/linkvault-installation")
+            self.assertTrue(similar_preflight["has_matches"])
+            self.assertEqual(similar_preflight["matches"][0]["bookmark"]["id"], similar.id)
+            self.assertEqual(similar_preflight["matches"][0]["match_type"], "similar_url")
 
     def test_metadata_fills_missing_title_description_and_favicon(self):
         def fake_fetcher(url: str) -> PageMetadata:

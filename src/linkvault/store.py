@@ -4,6 +4,7 @@ import sqlite3
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from difflib import SequenceMatcher
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Callable, Iterator
@@ -171,6 +172,58 @@ class BookmarkStore:
             )
             upsert_search_index(connection, bookmark)
         return bookmark
+
+    def duplicate_preflight(self, url: str, *, exclude_id: str = "") -> dict[str, Any]:
+        normalized_url = normalize_url(url)
+        exact_url = url.strip()
+        matches: dict[str, dict[str, Any]] = {}
+
+        def add_match(bookmark: Bookmark, match_type: str, score: int, reason: str) -> None:
+            if bookmark.id == exclude_id:
+                return
+            existing = matches.get(bookmark.id)
+            if existing and existing["score"] >= score:
+                return
+            matches[bookmark.id] = {
+                "match_type": match_type,
+                "score": score,
+                "reason": reason,
+                "bookmark": bookmark.to_dict(),
+            }
+
+        with self.connect() as connection:
+            for row in connection.execute("SELECT * FROM bookmarks WHERE url = ?", (exact_url,)).fetchall():
+                add_match(bookmark_from_row(row), "exact_url", 100, "Exact URL already exists")
+
+            for row in connection.execute(
+                "SELECT * FROM bookmarks WHERE normalized_url = ?",
+                (normalized_url,),
+            ).fetchall():
+                add_match(bookmark_from_row(row), "normalized_url", 95, "Normalized URL already exists")
+
+            domain = domain_for_url(normalized_url)
+            if domain:
+                rows = connection.execute(
+                    "SELECT * FROM bookmarks WHERE domain = ? AND normalized_url != ?",
+                    (domain, normalized_url),
+                ).fetchall()
+                for row in rows:
+                    bookmark = bookmark_from_row(row)
+                    score = similar_url_score(normalized_url, bookmark.normalized_url)
+                    if score >= 82:
+                        add_match(bookmark, "similar_url", score, "Similar URL on the same domain")
+
+        ordered = sorted(
+            matches.values(),
+            key=lambda item: (item["score"], item["bookmark"]["updated_at"]),
+            reverse=True,
+        )
+        return {
+            "url": exact_url,
+            "normalized_url": normalized_url,
+            "has_matches": bool(ordered),
+            "matches": ordered[:10],
+        }
 
     def update(self, bookmark_id: str, payload: dict[str, Any], *, enrich_metadata: bool = True) -> Bookmark | None:
         existing = self.get(bookmark_id)
@@ -343,16 +396,22 @@ class BookmarkStore:
         for group in self.dedup_groups():
             winner_id = group["winner_id"]
             losers = [item for item in group["items"] if item["id"] != winner_id]
+            winner = next(item for item in group["items"] if item["id"] == winner_id)
             tags = sorted({tag for item in group["items"] for tag in item["tags"]})
             collections = sorted({collection for item in group["items"] for collection in item["collections"]})
             groups.append(
                 {
                     **group,
+                    "winner": winner,
+                    "differences": group_differences(group["items"], winner_id),
                     "merge_plan": {
                         "winner_id": winner_id,
                         "loser_ids": [item["id"] for item in losers],
+                        "keep_title": winner["title"],
+                        "keep_description": winner["description"],
                         "move_tags": tags,
                         "move_collections": collections,
+                        "append_notes_from_losers": [item["notes"] for item in losers if item["notes"]],
                         "keep_favorite": any(item["favorite"] for item in group["items"]),
                         "keep_pinned": any(item["pinned"] for item in group["items"]),
                         "delete_losers": False,
@@ -523,6 +582,40 @@ def remove_items(existing: list[str], removals: list[str]) -> list[str]:
 
 def domain_for_url(url: str) -> str:
     return (urlsplit(url).hostname or "").lower()
+
+
+def similar_url_score(left: str, right: str) -> int:
+    return round(SequenceMatcher(None, comparable_url(left), comparable_url(right)).ratio() * 100)
+
+
+def comparable_url(url: str) -> str:
+    parts = urlsplit(url)
+    return f"{parts.netloc}{parts.path}?{parts.query}".rstrip("?")
+
+
+def group_differences(items: list[dict[str, Any]], winner_id: str) -> list[dict[str, Any]]:
+    fields = ["url", "title", "description", "tags", "collections", "notes", "favorite", "pinned"]
+    winner = next(item for item in items if item["id"] == winner_id)
+    differences = []
+    for field in fields:
+        values = [{"id": item["id"], "value": item[field]} for item in items]
+        comparable_values = {jsonish_value(item[field]) for item in items}
+        if len(comparable_values) <= 1:
+            continue
+        differences.append(
+            {
+                "field": field,
+                "winner_value": winner[field],
+                "values": values,
+            }
+        )
+    return differences
+
+
+def jsonish_value(value: Any) -> str:
+    if isinstance(value, list):
+        return "\n".join(str(item) for item in value)
+    return str(value)
 
 
 def to_bool(value: Any) -> bool:

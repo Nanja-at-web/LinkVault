@@ -122,6 +122,15 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 self.send_json(store.bulk_update(payload))
+            elif path == "/api/bookmarks/preflight":
+                if not self.require_auth(auth_store):
+                    return
+                self.send_json(
+                    store.duplicate_preflight(
+                        str(payload.get("url", "")),
+                        exclude_id=str(payload.get("exclude_id", "")),
+                    )
+                )
             elif path == "/api/bookmarks":
                 if not self.require_auth(auth_store):
                     return
@@ -252,6 +261,10 @@ def index_html() -> str:
     .edit-form { margin-top: .75rem; padding: .75rem; border: 1px solid #ddd; border-radius: 6px; }
     .edit-form textarea { min-height: 4rem; }
     .bulk-actions { border: 1px solid #ddd; border-radius: 6px; padding: .75rem; margin: 1rem 0; }
+    .notice { border: 1px solid #bbb; border-radius: 6px; padding: .75rem; margin: 1rem 0; background: #fafafa; }
+    .duplicate-match, .dedup-group { border-top: 1px solid #ddd; padding: .75rem 0; }
+    .dedup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; }
+    .dedup-box { border: 1px solid #ddd; border-radius: 6px; padding: .75rem; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -297,6 +310,7 @@ def index_html() -> str:
     <label><input name="pinned" type="checkbox" style="width:auto"> Pin</label>
     <button>Speichern</button>
   </form>
+  <section id="duplicate-preflight" class="notice" hidden></section>
 
   <h2>Browser-Bookmarks importieren</h2>
   <form id="import-form">
@@ -345,12 +359,13 @@ def index_html() -> str:
 
   <h2>Dubletten Dry-Run</h2>
   <button id="dry-run">Dry-Run aktualisieren</button>
-  <pre id="dedup-output">Noch keine Daten geladen.</pre>
+  <div id="dedup-output" class="notice">Noch keine Daten geladen.</div>
   </main>
 
   <script>
     const bookmarksEl = document.querySelector('#bookmarks');
     const dedupOutput = document.querySelector('#dedup-output');
+    const duplicatePreflight = document.querySelector('#duplicate-preflight');
     const authPanel = document.querySelector('#auth-panel');
     const authTitle = document.querySelector('#auth-title');
     const authHelp = document.querySelector('#auth-help');
@@ -477,7 +492,61 @@ def index_html() -> str:
         await loadAuth();
         return;
       }
-      dedupOutput.textContent = JSON.stringify(await response.json(), null, 2);
+      renderDedupDryRun(await response.json());
+    }
+
+    function renderDedupDryRun(payload) {
+      if (!payload.group_count) {
+        dedupOutput.textContent = 'Keine Dubletten gefunden.';
+        return;
+      }
+      dedupOutput.innerHTML = `<p><strong>${payload.group_count}</strong> Dublettengruppe(n) gefunden. Es wird noch nichts geloescht.</p>`;
+      for (const group of payload.groups) {
+        const section = document.createElement('section');
+        section.className = 'dedup-group';
+        section.innerHTML = `
+          <h3>${escapeHtml(group.reason)} (${group.score})</h3>
+          <p class="muted">${escapeHtml(group.normalized_url)}</p>
+          <div class="dedup-grid">
+            <div class="dedup-box">
+              <strong>Gewinner-Vorschlag</strong>
+              <p>${escapeHtml(group.winner.title)}</p>
+              <p><a href="${escapeAttr(group.winner.url)}">${escapeHtml(group.winner.url)}</a></p>
+              <button type="button" data-open="${escapeAttr(group.winner.id)}">Oeffnen</button>
+            </div>
+            <div class="dedup-box">
+              <strong>Merge-Plan</strong>
+              <p>Tags danach: ${escapeHtml(group.merge_plan.move_tags.join(', ') || '-')}</p>
+              <p>Collections danach: ${escapeHtml(group.merge_plan.move_collections.join(', ') || '-')}</p>
+              <p>Favorit behalten: ${group.merge_plan.keep_favorite ? 'ja' : 'nein'}</p>
+              <p>Pin behalten: ${group.merge_plan.keep_pinned ? 'ja' : 'nein'}</p>
+              <p>Loeschen: nein</p>
+            </div>
+          </div>
+          <details>
+            <summary>Unterschiede anzeigen</summary>
+            ${renderDifferences(group.differences)}
+          </details>
+        `;
+        section.querySelector('[data-open]').addEventListener('click', () => openBookmark(group.winner.id));
+        dedupOutput.appendChild(section);
+      }
+    }
+
+    function renderDifferences(differences) {
+      if (!differences.length) return '<p>Keine Feldunterschiede.</p>';
+      return differences.map((difference) => `
+        <div>
+          <strong>${escapeHtml(difference.field)}</strong>
+          <ul>
+            ${difference.values.map((item) => `<li><code>${escapeHtml(item.id.slice(0, 8))}</code>: ${escapeHtml(formatValue(item.value))}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
+    function formatValue(value) {
+      return Array.isArray(value) ? value.join(', ') : String(value || '-');
     }
 
     async function patchBookmark(id, data) {
@@ -520,6 +589,12 @@ def index_html() -> str:
       const data = Object.fromEntries(new FormData(event.target));
       data.favorite = data.favorite === 'on';
       data.pinned = data.pinned === 'on';
+      const preflight = await duplicatePreflightFor(data.url);
+      if (preflight.has_matches && !event.submitter?.dataset?.forceSave) {
+        renderDuplicatePreflight(preflight, data, event.target);
+        return;
+      }
+      duplicatePreflight.hidden = true;
       await fetch('/api/bookmarks', {
         method: 'POST',
         headers: {'content-type': 'application/json'},
@@ -528,6 +603,77 @@ def index_html() -> str:
       event.target.reset();
       await refreshAll();
     });
+
+    async function duplicatePreflightFor(url) {
+      const response = await fetch('/api/bookmarks/preflight', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({url})
+      });
+      return response.json();
+    }
+
+    function renderDuplicatePreflight(preflight, formData, form) {
+      duplicatePreflight.hidden = false;
+      duplicatePreflight.innerHTML = `
+        <h3>Moegliche Dublette gefunden</h3>
+        <p class="muted">Normalisierte URL: ${escapeHtml(preflight.normalized_url)}</p>
+        <p>Du kannst einen vorhandenen Bookmark oeffnen, den besten Treffer aktualisieren oder bewusst trotzdem neu speichern.</p>
+      `;
+      for (const match of preflight.matches) {
+        const bookmark = match.bookmark;
+        const row = document.createElement('div');
+        row.className = 'duplicate-match';
+        row.innerHTML = `
+          <strong>${escapeHtml(bookmark.title)}</strong>
+          <p><a href="${escapeAttr(bookmark.url)}">${escapeHtml(bookmark.url)}</a></p>
+          <p class="muted">${escapeHtml(match.reason)} · Score ${match.score} · ${escapeHtml(match.match_type)}</p>
+          <button type="button" data-action="open">Vorhandenen Bookmark oeffnen</button>
+          <button type="button" data-action="update">Vorhandenen Bookmark aktualisieren</button>
+        `;
+        row.querySelector('[data-action="open"]').addEventListener('click', () => openBookmark(bookmark.id));
+        row.querySelector('[data-action="update"]').addEventListener('click', async () => {
+          await patchBookmark(bookmark.id, formData);
+          form.reset();
+          duplicatePreflight.hidden = true;
+        });
+        duplicatePreflight.appendChild(row);
+      }
+      const saveAnyway = document.createElement('button');
+      saveAnyway.type = 'button';
+      saveAnyway.textContent = 'Trotzdem neu speichern';
+      saveAnyway.addEventListener('click', async () => {
+        await fetch('/api/bookmarks', {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: JSON.stringify(formData)
+        });
+        form.reset();
+        duplicatePreflight.hidden = true;
+        await refreshAll();
+      });
+      duplicatePreflight.appendChild(saveAnyway);
+    }
+
+    function openBookmark(id) {
+      const row = document.querySelector(`[data-bookmark-id="${CSS.escape(id)}"]`);
+      if (!row) {
+        document.querySelector('#search').value = '';
+        document.querySelector('#filter-favorite').checked = false;
+        document.querySelector('#filter-pinned').checked = false;
+        document.querySelector('#filter-domain').value = '';
+        document.querySelector('#filter-tag').value = '';
+        document.querySelector('#filter-collection').value = '';
+        refreshBookmarks().then(() => {
+          const refreshed = document.querySelector(`[data-bookmark-id="${CSS.escape(id)}"]`);
+          refreshed?.scrollIntoView({behavior: 'smooth', block: 'center'});
+          refreshed?.querySelector('details')?.setAttribute('open', 'open');
+        });
+        return;
+      }
+      row.scrollIntoView({behavior: 'smooth', block: 'center'});
+      row.querySelector('details')?.setAttribute('open', 'open');
+    }
 
     document.querySelector('#bulk-form').addEventListener('submit', async (event) => {
       event.preventDefault();

@@ -15,6 +15,7 @@ The detailed working documents are currently German-first:
 - [Research Impact](RESEARCH_IMPACT.md)
 - [UX Research Impact](UX_RESEARCH_IMPACT.md)
 - [Dubletten, Sortierung und Kategorien](DEDUP_SORTING_CATEGORIZATION.md)
+- [Duplicate Preflight](DUPLICATE_PREFLIGHT.md)
 - [Proxmox Community-Scripts Zielbild](PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian-LXC Installationstest](DEBIAN_LXC_TEST.md)
 - [Backup und Restore](BACKUP_RESTORE.md)

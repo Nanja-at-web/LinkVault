@@ -69,6 +69,14 @@ class AuthHttpTest(unittest.TestCase):
                 bookmark = request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/a"})
                 self.assertEqual(bookmark["url"], "http://127.0.0.1:9/a")
 
+                preflight = request_json(
+                    opener,
+                    f"{base_url}/api/bookmarks/preflight",
+                    {"url": "http://127.0.0.1:9/a?utm_source=test"},
+                )
+                self.assertTrue(preflight["has_matches"])
+                self.assertEqual(preflight["matches"][0]["bookmark"]["id"], bookmark["id"])
+
                 updated = request_json(
                     opener,
                     f"{base_url}/api/bookmarks/{bookmark['id']}",
