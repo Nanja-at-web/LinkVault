@@ -37,7 +37,36 @@ Damit ist LinkVaults Kernversprechen nicht "alle Features sofort", sondern:
 sichere Link-Pflege, starke Favoriten-/Dublettenbereinigung, gute
 Selfhost-Betriebsqualitaet und schrittweise Archivtiefe.
 
+## UX-Formel Aus Der UX-Research-Sammlung
+
+Die UX-Research-Sammlung vom 19.04.2026 schaerft, wie diese Produktlinie
+bedienbar werden soll:
+
+```text
+linkding-Klarheit
++ Karakeep-Arbeitsoberflaeche
++ Linkwarden-Archiv- und Collection-Tiefe
++ Readeck-Lesemodus
++ LinkAce-Verwaltungskontrolle
++ Shiori-Betriebseinfachheit
++ community-scripts.org-Entdeckbarkeit
+```
+
+Die wichtigste UX-Regel: Pflegeaufgaben duerfen nicht versteckt sein.
+Dubletten, Inbox, Favoriten, Bulk-Organisation, Archivstatus, Sync-Konflikte
+und Betriebszustand sollen eigene sichtbare Wege bekommen.
+
 ## Kernfunktionen
+
+### Navigation und Arbeitsbereiche
+
+- Inbox fuer neue, unsortierte oder noch zu pruefende Links.
+- Favoriten fuer haeufig genutzte Links.
+- Dubletten als sichtbare Pflegezentrale.
+- Collections/Listen und Tags als getrennte Organisationsbereiche.
+- Archiv fuer gespeicherte Inhalte und Archivstatus.
+- Aktivitaet fuer Import, Bulk-Aktionen, Merge, Restore und spaeter Regeln.
+- Einstellungen fuer Setup, API-Token, Sync, Betrieb und Proxmox-Hinweise.
 
 ### Bookmarks und Inhalte
 
@@ -85,6 +114,10 @@ Ein-Klick-Risiko.
 - Merge uebernimmt Tags, Collections, Notizen, Highlights, Archivdateien,
   Favoritenstatus, Pins und Importquellen.
 - Undo-Log fuer Merge- und Loeschaktionen.
+- Duplicate-Preflight beim Speichern: vorhandenen Eintrag oeffnen,
+  aktualisieren, Archivversion anhaengen, separat speichern oder spaeter
+  pruefen.
+- Conflict Center fuer Import-, Sync- und Merge-Konflikte.
 
 ### Suche und Sortierung
 
@@ -105,6 +138,8 @@ Ein-Klick-Risiko.
 - WebDAV/OPDS fuer Lesefluss.
 - Floccus-kompatible Bridge als spaetere Ausbaustufe.
 - REST-API und Webhooks fuer Automatisierung.
+- Sync-Setup mit Test-Button, letztem Erfolg, Fehlerdetails und
+  Konfliktuebersicht.
 
 ### Benutzer, Rechte und Selfhost
 

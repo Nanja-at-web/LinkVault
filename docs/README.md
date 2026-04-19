@@ -13,6 +13,7 @@ The detailed working documents are currently German-first:
 - [Produktvision](PRODUCT_SPEC.md)
 - [Technische Architektur](ARCHITECTURE.md)
 - [Research Impact](RESEARCH_IMPACT.md)
+- [UX Research Impact](UX_RESEARCH_IMPACT.md)
 - [Dubletten, Sortierung und Kategorien](DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian-LXC Installationstest](DEBIAN_LXC_TEST.md)

@@ -11,6 +11,7 @@ Status legend:
 - [x] Define repository structure.
 - [x] Choose license: AGPL-3.0-or-later.
 - [x] Evaluate the deep research collection and derive product priorities.
+- [x] Evaluate the UX research collection and derive UX priorities.
 - [x] Add English repository entry point and English roadmap.
 - [~] Decide final backend stack: Python remains until phase 2; Go will be
   reconsidered later.
@@ -33,22 +34,29 @@ Status legend:
   tag, and collection.
 - [~] Browser bookmark HTML import.
 - [ ] API tokens for imports, extensions, and automation.
+- [ ] Rework home/navigation: inbox, favorites, duplicates, tags,
+  collections, archive, activity, settings.
+- [ ] Quick-add flow with a short default dialog and optional advanced fields.
 
 ## Phase 2: Deduplication And Favorites Cleanup
 
 - [x] URL normalization.
 - [x] Exact duplicate detection.
 - [ ] URL check endpoint inspired by linkding and Karakeep.
+- [ ] Duplicate preflight while saving: open existing item, update it, attach
+  archive version, save separately, or review later.
 - [~] Duplicate dashboard with winner suggestions.
 - [~] Merge plan with dry-run.
 - [ ] Undo for merge operations.
 - [ ] Merge execution without deletion: mark losing records and move data.
+- [ ] Conflict center for import, sync, and merge conflicts.
 - [~] Show uncategorized favorites, duplicate favorites, and dead favorites.
 - [ ] Collection health score: metadata, archive status, duplicates, dead
   links, categorization.
 
 ## Phase 3: Archiving
 
+- [ ] Show archive status in bookmark list and detail views.
 - [ ] Reader extraction and stored text content inspired by Readeck.
 - [ ] Highlights and notes in the reader.
 - [ ] Screenshot and PDF.
@@ -64,8 +72,13 @@ Status legend:
 - [~] Bulk editing: bookmark cleanup exists; archive/status bulk actions are open.
 - [ ] Smart collections.
 - [ ] Optional AI tagging.
+- [ ] Activity/audit log for imports, bulk actions, merges, deletes, restores,
+  and rules.
 - [ ] Expand public REST API.
+- [ ] API token management with test button and visible status.
 - [ ] Webhooks.
+- [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
+  and API.
 - [ ] Evaluate Floccus/browser sync bridge.
 
 ## Phase 5: Proxmox Installation
@@ -83,6 +96,8 @@ Status legend:
   ProxmoxVED first, not directly through ProxmoxVE.
 - [ ] Default/advanced mode following community-scripts.org conventions.
 - [ ] Post-install helper for updates, settings, logs, and basic diagnostics.
+- [ ] Post-install UX inspired by community-scripts.org: clearly print URL,
+  setup token, healthcheck, logs, backup, restore, and update hints.
 - [ ] Update function for installed LinkVault LXCs.
 - [~] Backup/restore documentation: SQLite MVP docs and scripts exist; real LXC
   restore test is open.

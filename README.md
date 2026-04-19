@@ -24,6 +24,7 @@ The current focus is:
 - [Product vision, German](docs/PRODUCT_SPEC.md)
 - [Technical architecture, German](docs/ARCHITECTURE.md)
 - [Deep research impact, German](docs/RESEARCH_IMPACT.md)
+- [UX research impact, German](docs/UX_RESEARCH_IMPACT.md)
 - [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox community-scripts target, German](docs/PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian LXC installation test, German](docs/DEBIAN_LXC_TEST.md)
@@ -143,9 +144,13 @@ another bookmark manager. The strongest positioning is a deliberate synthesis:
 - community-scripts.org as the operational benchmark for Proxmox LXC
   installation, logs, health checks, updates, backup, and restore
 
-This means the next steps are: single-user setup and login, a dedup dashboard,
-real LXC backup/restore testing, and better bookmark editing workflows. Archive
-workers, AI, and browser sync should come later in smaller, optional layers.
+The UX research adds another product rule: cleanup tasks must be visible, not
+hidden in APIs. LinkVault should grow toward a clear navigation with Inbox,
+Favorites, Duplicates, Collections, Tags, Archive, Activity, and Settings.
+The next product steps are URL duplicate preflight, a stronger dedup dashboard,
+real LXC backup/restore runs, and later API tokens with a sync setup flow.
+Archive workers, AI, and browser sync should come later in smaller, optional
+layers.
 
 ## License
 
@@ -176,3 +181,8 @@ examples.
 The additional deep research collection from 2026-04-19 was evaluated in
 [Research Impact](docs/RESEARCH_IMPACT.md) and reflected in the roadmap and
 product priorities.
+
+The UX research collection from 2026-04-19 was evaluated in
+[UX Research Impact](docs/UX_RESEARCH_IMPACT.md). Its main conclusion is that
+LinkVault should make duplicate cleanup, bulk organization, sync conflicts,
+archive status, and operational health visible as first-class workflows.

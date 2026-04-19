@@ -23,6 +23,7 @@ Der Schwerpunkt liegt auf:
 - [Produktvision](docs/PRODUCT_SPEC.md)
 - [Technische Architektur](docs/ARCHITECTURE.md)
 - [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
+- [Einfluss der UX-Research-Sammlung](docs/UX_RESEARCH_IMPACT.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian-LXC Installationstest](docs/DEBIAN_LXC_TEST.md)
@@ -135,9 +136,12 @@ gezielte Synthese:
 - community-scripts.org als Praxisreferenz fuer Proxmox-LXC-Installation,
   Logs, Healthcheck, Updates und Backup/Restore
 
-Daraus folgt fuer die naechsten Schritte: erst Login/Single-User-Setup,
-Dedup-Dashboard, echter LXC-Backup/Restore-Test und bessere Bookmark-Pflege;
-Archiv-Worker, AI und Browser-Sync kommen danach schrittweise.
+Die UX-Recherche ergaenzt: Pflegeaufgaben muessen sichtbar sein, nicht in APIs
+versteckt. LinkVault soll in Richtung klarer Navigation mit Inbox, Favoriten,
+Dubletten, Collections, Tags, Archiv, Aktivitaet und Einstellungen wachsen.
+Daraus folgen als naechste Produktschritte URL-Duplicate-Preflight, staerkeres
+Dedup-Dashboard, echte LXC-Backup/Restore-Laeufe und spaeter API-Token mit
+Sync-Setup. Archiv-Worker, AI und Browser-Sync kommen danach schrittweise.
 
 ## Lizenz
 
@@ -168,3 +172,8 @@ erste Dedup-Beispiele.
 Die zusaetzliche Deep-Research-Sammlung vom 19.04.2026 wurde in
 [Research Impact](docs/RESEARCH_IMPACT.md) ausgewertet und in Roadmap sowie
 Produktprioritaet uebernommen.
+
+Die UX-Research-Sammlung vom 19.04.2026 wurde in
+[UX Research Impact](docs/UX_RESEARCH_IMPACT.md) ausgewertet. Die wichtigste
+Folge: Dublettenpflege, Bulk-Organisation, Sync-Konflikte, Archivstatus und
+Betriebszustand sollen eigene sichtbare Workflows werden.
