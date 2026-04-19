@@ -90,6 +90,16 @@ class AuthHttpTest(unittest.TestCase):
                 )
                 self.assertNotEqual(duplicate_bookmark["id"], bookmark["id"])
 
+                merge = request_json(
+                    opener,
+                    f"{base_url}/api/dedup/merge",
+                    {"winner_id": bookmark["id"], "loser_ids": [duplicate_bookmark["id"]]},
+                )
+                self.assertEqual(merge["merged_count"], 1)
+                self.assertEqual(merge["deleted"], 0)
+                self.assertEqual(merge["merged_losers"][0]["status"], "merged_duplicate")
+                self.assertEqual(merge["merged_losers"][0]["merged_into"], bookmark["id"])
+
                 updated = request_json(
                     opener,
                     f"{base_url}/api/bookmarks/{bookmark['id']}",

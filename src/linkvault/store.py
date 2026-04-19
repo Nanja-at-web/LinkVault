@@ -29,6 +29,9 @@ class Bookmark:
     favorite: bool = False
     pinned: bool = False
     notes: str = ""
+    status: str = "active"
+    merged_into: str = ""
+    merged_at: str = ""
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
@@ -85,6 +88,9 @@ class BookmarkStore:
                     favorite INTEGER NOT NULL DEFAULT 0,
                     pinned INTEGER NOT NULL DEFAULT 0,
                     notes TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'active',
+                    merged_into TEXT NOT NULL DEFAULT '',
+                    merged_at TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
@@ -93,8 +99,12 @@ class BookmarkStore:
             ensure_column(connection, "bookmarks", "description", "TEXT NOT NULL DEFAULT ''")
             ensure_column(connection, "bookmarks", "domain", "TEXT NOT NULL DEFAULT ''")
             ensure_column(connection, "bookmarks", "favicon_url", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "status", "TEXT NOT NULL DEFAULT 'active'")
+            ensure_column(connection, "bookmarks", "merged_into", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "merged_at", "TEXT NOT NULL DEFAULT ''")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_normalized_url ON bookmarks(normalized_url)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_domain ON bookmarks(domain)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_status ON bookmarks(status)")
             connection.execute(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
@@ -117,7 +127,8 @@ class BookmarkStore:
             return self.search(query, filters=filters)
 
         filter_sql, values = bookmark_filter_sql(filters)
-        where = f"WHERE {' AND '.join(filter_sql)}" if filter_sql else ""
+        filter_sql.insert(0, "b.status = 'active'")
+        where = f"WHERE {' AND '.join(filter_sql)}"
         with self.connect() as connection:
             rows = connection.execute(
                 f"""
@@ -135,7 +146,7 @@ class BookmarkStore:
             return self.list(filters=filters)
 
         filter_sql, filter_values = bookmark_filter_sql(filters or BookmarkFilters())
-        clauses = ["bookmarks_fts MATCH ?", *filter_sql]
+        clauses = ["bookmarks_fts MATCH ?", "b.status = 'active'", *filter_sql]
         values: list[Any] = [fts_query, *filter_values]
         with self.connect() as connection:
             rows = connection.execute(
@@ -164,9 +175,9 @@ class BookmarkStore:
                 """
                 INSERT INTO bookmarks (
                     id, url, normalized_url, title, description, domain, favicon_url, tags, collections,
-                    favorite, pinned, notes, created_at, updated_at
+                    favorite, pinned, notes, status, merged_into, merged_at, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 bookmark_to_record(bookmark),
             )
@@ -192,11 +203,14 @@ class BookmarkStore:
             }
 
         with self.connect() as connection:
-            for row in connection.execute("SELECT * FROM bookmarks WHERE url = ?", (exact_url,)).fetchall():
+            for row in connection.execute(
+                "SELECT * FROM bookmarks WHERE url = ? AND status = 'active'",
+                (exact_url,),
+            ).fetchall():
                 add_match(bookmark_from_row(row), "exact_url", 100, "Exact URL already exists")
 
             for row in connection.execute(
-                "SELECT * FROM bookmarks WHERE normalized_url = ?",
+                "SELECT * FROM bookmarks WHERE normalized_url = ? AND status = 'active'",
                 (normalized_url,),
             ).fetchall():
                 add_match(bookmark_from_row(row), "normalized_url", 95, "Normalized URL already exists")
@@ -204,7 +218,7 @@ class BookmarkStore:
             domain = domain_for_url(normalized_url)
             if domain:
                 rows = connection.execute(
-                    "SELECT * FROM bookmarks WHERE domain = ? AND normalized_url != ?",
+                    "SELECT * FROM bookmarks WHERE domain = ? AND normalized_url != ? AND status = 'active'",
                     (domain, normalized_url),
                 ).fetchall()
                 for row in rows:
@@ -244,7 +258,8 @@ class BookmarkStore:
                 """
                 UPDATE bookmarks
                 SET url = ?, normalized_url = ?, title = ?, description = ?, domain = ?, favicon_url = ?,
-                    tags = ?, collections = ?, favorite = ?, pinned = ?, notes = ?, updated_at = ?
+                    tags = ?, collections = ?, favorite = ?, pinned = ?, notes = ?,
+                    status = ?, merged_into = ?, merged_at = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -259,6 +274,9 @@ class BookmarkStore:
                     int(bookmark.favorite),
                     int(bookmark.pinned),
                     bookmark.notes,
+                    bookmark.status,
+                    bookmark.merged_into,
+                    bookmark.merged_at,
                     bookmark.updated_at,
                     bookmark.id,
                 ),
@@ -315,6 +333,57 @@ class BookmarkStore:
             "deleted": 0,
             "not_found": not_found,
             "bookmarks": [bookmark.to_dict() for bookmark in updated],
+        }
+
+    def merge_duplicates(self, payload: dict[str, Any]) -> dict[str, Any]:
+        winner_id = str(payload.get("winner_id", "")).strip()
+        loser_ids = clean_list(payload.get("loser_ids", []))
+        if not winner_id:
+            raise ValueError("winner_id is required")
+        if not loser_ids:
+            raise ValueError("loser_ids are required")
+
+        winner = self.get(winner_id)
+        if not winner or winner.status != "active":
+            raise ValueError("winner not found")
+
+        losers = [bookmark for bookmark_id in loser_ids if (bookmark := self.get(bookmark_id))]
+        losers = [bookmark for bookmark in losers if bookmark.id != winner_id and bookmark.status == "active"]
+        if not losers:
+            raise ValueError("no active losers found")
+
+        merged_notes = merge_notes(winner, losers)
+        now = datetime.now(UTC).isoformat()
+        updated_winner_payload = {
+            "tags": sorted({tag for bookmark in [winner, *losers] for tag in bookmark.tags}),
+            "collections": sorted({collection for bookmark in [winner, *losers] for collection in bookmark.collections}),
+            "favorite": winner.favorite or any(bookmark.favorite for bookmark in losers),
+            "pinned": winner.pinned or any(bookmark.pinned for bookmark in losers),
+            "notes": merged_notes,
+        }
+        updated_winner = self.update(winner_id, updated_winner_payload, enrich_metadata=False)
+        if not updated_winner:
+            raise ValueError("winner not found")
+
+        with self.connect() as connection:
+            for loser in losers:
+                connection.execute(
+                    """
+                    UPDATE bookmarks
+                    SET status = 'merged_duplicate', merged_into = ?, merged_at = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (winner_id, now, now, loser.id),
+                )
+                connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (loser.id,))
+
+        merged_losers = [bookmark for loser in losers if (bookmark := self.get(loser.id))]
+
+        return {
+            "winner": updated_winner.to_dict(),
+            "merged_losers": [bookmark.to_dict() for bookmark in merged_losers],
+            "merged_count": len(merged_losers),
+            "deleted": 0,
         }
 
     def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:
@@ -421,7 +490,7 @@ class BookmarkStore:
         return {"groups": groups, "group_count": len(groups)}
 
     def sync_search_index(self, connection: sqlite3.Connection) -> None:
-        bookmark_count = connection.execute("SELECT COUNT(*) FROM bookmarks").fetchone()[0]
+        bookmark_count = connection.execute("SELECT COUNT(*) FROM bookmarks WHERE status = 'active'").fetchone()[0]
         fts_count = connection.execute("SELECT COUNT(*) FROM bookmarks_fts").fetchone()[0]
         if bookmark_count != fts_count:
             rebuild_search_index(connection)
@@ -450,6 +519,9 @@ def bookmark_from_payload(
         favorite=to_bool(payload.get("favorite", False)),
         pinned=to_bool(payload.get("pinned", False)),
         notes=str(payload.get("notes", "")),
+        status=str(payload.get("status", "active")),
+        merged_into=str(payload.get("merged_into", "")),
+        merged_at=str(payload.get("merged_at", "")),
         created_at=created_at,
         updated_at=updated_at,
     )
@@ -469,6 +541,9 @@ def bookmark_from_row(row: sqlite3.Row) -> Bookmark:
         favorite=bool(row["favorite"]),
         pinned=bool(row["pinned"]),
         notes=row["notes"],
+        status=row["status"],
+        merged_into=row["merged_into"],
+        merged_at=row["merged_at"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -488,6 +563,9 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
         int(bookmark.favorite),
         int(bookmark.pinned),
         bookmark.notes,
+        bookmark.status,
+        bookmark.merged_into,
+        bookmark.merged_at,
         bookmark.created_at,
         bookmark.updated_at,
     )
@@ -506,7 +584,7 @@ def upsert_search_index(connection: sqlite3.Connection, bookmark: Bookmark) -> N
 
 def rebuild_search_index(connection: sqlite3.Connection) -> None:
     connection.execute("DELETE FROM bookmarks_fts")
-    rows = connection.execute("SELECT * FROM bookmarks").fetchall()
+    rows = connection.execute("SELECT * FROM bookmarks WHERE status = 'active'").fetchall()
     for row in rows:
         upsert_search_index(connection, bookmark_from_row(row))
 
@@ -616,6 +694,15 @@ def jsonish_value(value: Any) -> str:
     if isinstance(value, list):
         return "\n".join(str(item) for item in value)
     return str(value)
+
+
+def merge_notes(winner: Bookmark, losers: list[Bookmark]) -> str:
+    parts = [winner.notes.strip()] if winner.notes.strip() else []
+    for loser in losers:
+        if not loser.notes.strip():
+            continue
+        parts.append(f"Merged from {loser.id}: {loser.notes.strip()}")
+    return "\n\n".join(parts)
 
 
 def to_bool(value: Any) -> bool:

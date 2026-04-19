@@ -63,8 +63,23 @@ Der Dry-Run zeigt nun:
   Favorite und Pin,
 - Merge-Plan ohne Loeschung.
 
+## Merge ohne hartes Loeschen
+
+Das Dedup-Dashboard kann den vorgeschlagenen Gewinner jetzt aktualisieren und
+die Verlierer als `merged_duplicate` markieren. Dabei gilt:
+
+- Tags und Collections werden vereinigt,
+- Favorite und Pin bleiben erhalten, wenn einer der Bookmarks sie gesetzt hat,
+- Notizen der Verlierer werden an die Gewinner-Notizen angehaengt,
+- Verlierer bleiben in SQLite erhalten und bekommen `merged_into` und
+  `merged_at`,
+- normale Listen, Suche, Preflight und neue Dedup-Gruppen zeigen nur aktive
+  Bookmarks.
+
+Damit ist der erste echte Merge-Schritt nutzbar, ohne Daten hart zu loeschen.
+
 ## Noch offen
 
 - Archivversionen spaeter in Preflight-Entscheidungen einbeziehen.
 - Import-Preflight fuer Browser-HTML und Tool-Migrationen ergaenzen.
-- Destruktionsfreien Merge mit Undo vorbereiten.
+- Undo fuer markierte Merges ergaenzen.

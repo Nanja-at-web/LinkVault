@@ -44,7 +44,8 @@ Status-Legende:
 - [x] Dubletten-Dashboard mit Gewinner-Vorschlag.
 - [x] Merge-Plan mit Dry-Run.
 - [ ] Undo fuer Merge.
-- [ ] Merge-Ausfuehrung ohne Loeschen: Verlierer markieren und Daten uebernehmen.
+- [x] Merge-Ausfuehrung ohne Loeschen: Gewinner aktualisieren, Verlierer als
+  `merged_duplicate` markieren und Daten uebernehmen.
 - [ ] Conflict Center fuer Import-, Sync- und Merge-Konflikte.
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 - [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.

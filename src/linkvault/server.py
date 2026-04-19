@@ -122,6 +122,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 self.send_json(store.bulk_update(payload))
+            elif path == "/api/dedup/merge":
+                if not self.require_auth(auth_store):
+                    return
+                self.send_json(store.merge_duplicates(payload))
             elif path == "/api/bookmarks/preflight":
                 if not self.require_auth(auth_store):
                     return
@@ -531,7 +535,8 @@ def index_html() -> str:
               <p>Collections danach: ${escapeHtml(group.merge_plan.move_collections.join(', ') || '-')}</p>
               <p>Favorit behalten: ${group.merge_plan.keep_favorite ? 'ja' : 'nein'}</p>
               <p>Pin behalten: ${group.merge_plan.keep_pinned ? 'ja' : 'nein'}</p>
-              <p>Loeschen: nein</p>
+              <p>Loeschen: nein, Verlierer werden als Dublette markiert</p>
+              <button type="button" data-merge>Gewinner aktualisieren und Dubletten markieren</button>
             </div>
           </div>
           <details>
@@ -540,6 +545,9 @@ def index_html() -> str:
           </details>
         `;
         section.querySelector('[data-open]').addEventListener('click', () => openBookmark(group.winner.id));
+        section.querySelector('[data-merge]').addEventListener('click', async () => {
+          await mergeDuplicates(group.merge_plan.winner_id, group.merge_plan.loser_ids);
+        });
         dedupOutput.appendChild(section);
       }
     }
@@ -571,6 +579,16 @@ def index_html() -> str:
 
     async function deleteBookmark(id) {
       await fetch(`/api/bookmarks/${id}`, {method: 'DELETE'});
+      await refreshAll();
+    }
+
+    async function mergeDuplicates(winnerId, loserIds) {
+      if (!loserIds.length) return;
+      await fetch('/api/dedup/merge', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({winner_id: winnerId, loser_ids: loserIds})
+      });
       await refreshAll();
     }
 

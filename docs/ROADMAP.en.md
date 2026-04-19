@@ -48,7 +48,8 @@ Status legend:
 - [x] Duplicate dashboard with winner suggestions.
 - [x] Merge plan with dry-run.
 - [ ] Undo for merge operations.
-- [ ] Merge execution without deletion: mark losing records and move data.
+- [x] Merge execution without deletion: update the winner, mark losing records
+  as `merged_duplicate`, and move data.
 - [ ] Conflict center for import, sync, and merge conflicts.
 - [~] Show uncategorized favorites, duplicate favorites, and dead favorites.
 - [ ] Collection health score: metadata, archive status, duplicates, dead
