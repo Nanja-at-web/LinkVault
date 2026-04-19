@@ -86,7 +86,7 @@ Status-Legende:
 - [ ] Post-Install Helper fuer Update, Einstellungen, Logs und Basisdiagnose.
 - [ ] Post-Install UX nach community-scripts.org-Vorbild: URL, Setup-Token,
   Healthcheck, Logs, Backup, Restore und Update klar ausgeben.
-- [ ] Update-Funktion fuer installierte LinkVault-LXC.
+- [~] Update-Funktion fuer installierte LinkVault-LXC: Skript und Host-Smoke-Test vorhanden, echter CT-112-Lauf offen.
 - [x] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden.
 - [x] Backup/Restore im echten Proxmox-LXC testen: CT 112 Smoke-Test am 19.04.2026 erfolgreich.
 - [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.

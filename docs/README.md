@@ -18,6 +18,7 @@ The detailed working documents are currently German-first:
 - [Proxmox Community-Scripts Zielbild](PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian-LXC Installationstest](DEBIAN_LXC_TEST.md)
 - [Backup und Restore](BACKUP_RESTORE.md)
+- [Update](UPDATE.md)
 - [MVP-Roadmap Deutsch](ROADMAP.md)
 
 Translation policy:

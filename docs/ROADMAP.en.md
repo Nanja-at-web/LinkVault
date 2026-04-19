@@ -98,7 +98,8 @@ Status legend:
 - [ ] Post-install helper for updates, settings, logs, and basic diagnostics.
 - [ ] Post-install UX inspired by community-scripts.org: clearly print URL,
   setup token, healthcheck, logs, backup, restore, and update hints.
-- [ ] Update function for installed LinkVault LXCs.
+- [~] Update function for installed LinkVault LXCs: script and host smoke test
+  exist; real CT 112 run is open.
 - [x] Backup/restore documentation: SQLite MVP docs and scripts exist.
 - [x] Test backup/restore in a real Proxmox LXC: CT 112 smoke test succeeded on
   2026-04-19.

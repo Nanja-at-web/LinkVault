@@ -157,6 +157,24 @@ Dann Restore mit dem erzeugten Archiv:
 curl -fsS http://127.0.0.1:3080/healthz
 ```
 
+## Update-Test im LXC
+
+Automatischer Update-Test vom Proxmox-Host gegen den installierten Container:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-update-test.sh -o /tmp/linkvault-update-test.sh
+bash /tmp/linkvault-update-test.sh 112
+```
+
+Direkt als Einzeiler:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-update-test.sh)" _ 112
+```
+
+Der Test legt vor dem Update einen Marker-Bookmark an, fuehrt das Update aus
+und prueft danach Healthcheck und Marker erneut.
+
 ## Ergebnis festhalten
 
 Nach einem echten Testlauf bitte dokumentieren:
@@ -171,6 +189,7 @@ Installationsskript erfolgreich:
 Healthcheck erfolgreich:
 Backup erfolgreich:
 Restore erfolgreich:
+Update erfolgreich:
 Offene Fehler:
 ```
 

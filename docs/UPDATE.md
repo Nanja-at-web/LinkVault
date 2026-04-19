@@ -1,0 +1,87 @@
+# Update
+
+## Ziel
+
+Ein installierter LinkVault-LXC soll ohne Datenverlust aktualisiert werden
+koennen. Der aktuelle MVP nutzt dazu:
+
+- `/opt/linkvault/.venv` fuer das Python-Paket,
+- `/etc/linkvault/linkvault.env` fuer Konfiguration,
+- `/var/lib/linkvault/linkvault.sqlite3` fuer Daten.
+
+Das Update-Skript ersetzt nur die installierte Anwendung und die systemd Unit.
+Die Datenbank und die Konfiguration bleiben erhalten.
+
+## Update im Container
+
+Im LinkVault-Container:
+
+```bash
+sudo ./scripts/update-linkvault.sh
+```
+
+Standardquelle:
+
+```text
+https://github.com/Nanja-at-web/LinkVault.git
+```
+
+Standard-Ref:
+
+```text
+main
+```
+
+Optional kann ein anderer Branch, Tag oder Commit getestet werden:
+
+```bash
+sudo LINKVAULT_SOURCE_REF=main ./scripts/update-linkvault.sh
+```
+
+Das Skript:
+
+1. installiert Basiswerkzeuge wie `git`, `curl` und `python3-venv`,
+2. klont die konfigurierte Quelle,
+3. stoppt den Dienst,
+4. installiert LinkVault neu in `/opt/linkvault/.venv`,
+5. installiert die systemd Unit erneut,
+6. startet den Dienst,
+7. wartet auf `/healthz`.
+
+## Proxmox-LXC Update-Smoke-Test
+
+Auf dem Proxmox-Host kann ein bestehender LinkVault-Container automatisch
+gegen ein Update getestet werden:
+
+```bash
+LINKVAULT_CTID=112 ./proxmox/linkvault-update-test.sh
+```
+
+Oder direkt vom GitHub-Branch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-update-test.sh -o /tmp/linkvault-update-test.sh
+bash /tmp/linkvault-update-test.sh 112
+```
+
+Als direkter `curl | bash`-Einzeiler:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/proxmox/linkvault-update-test.sh)" _ 112
+```
+
+Der Test:
+
+1. prueft `/healthz` im Container,
+2. laedt das Update-Skript in den Container,
+3. legt einen temporaeren Marker-Bookmark an,
+4. fuehrt das Update aus,
+5. prueft, ob der Marker noch vorhanden ist,
+6. prueft den Healthcheck erneut.
+
+## Noch offen
+
+- Update-Smoke-Test im echten Proxmox-LXC ausfuehren und Ergebnis festhalten.
+- Update von einem echten alten Release auf einen neuen Release testen.
+- Fallback-Ablauf dokumentieren: vor Update Backup erstellen, bei Fehler Restore
+  ausfuehren.
