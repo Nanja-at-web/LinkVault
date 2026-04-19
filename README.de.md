@@ -80,6 +80,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/m
 Dieser Befehl wird in der Proxmox VE Shell ausgefuehrt. Er erstellt einen
 neuen Debian-LXC, startet ihn und installiert LinkVault darin.
 
+Der offizielle Community-Scripts-Weg bleibt stufenweise: Dieses Repo behaelt
+zuerst den experimentellen Installer, neue Skript-Einreichungen sollen ueber
+`community-scripts/ProxmoxVED` laufen, und spaetere Pflege kann nach Aufnahme
+in `community-scripts/ProxmoxVE` erfolgen.
+
 Backup und Restore fuer den SQLite-MVP:
 
 ```bash

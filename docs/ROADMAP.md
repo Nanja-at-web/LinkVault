@@ -69,11 +69,17 @@ Status-Legende:
 - [x] Internes Proxmox-LXC-Testskript: Container-Smoke-Test auf Proxmox erfolgreich.
 - [~] `ct/linkvault.sh`: community-scripts-aehnlicher Proxmox-Host-Einzeiler erfolgreich getestet, offizielle Einreichung offen.
 - [~] `install/linkvault-install.sh`: experimenteller Container-Installer vorhanden, finale community-scripts.org-Konventionen offen.
-- [ ] Update-Funktion.
+- [~] Community-Scripts-Prozess klaeren: neue Skripte zuerst ueber ProxmoxVED, nicht direkt ueber ProxmoxVE.
+- [ ] Default-/Advanced-Mode nach community-scripts.org-Konventionen.
+- [ ] Post-Install Helper fuer Update, Einstellungen, Logs und Basisdiagnose.
+- [ ] Update-Funktion fuer installierte LinkVault-LXC.
 - [~] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden, echter LXC-Restore-Test offen.
 - [ ] Backup/Restore im echten Proxmox-LXC testen.
 - [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.
 - [ ] community-scripts.org-Konventionen mit `build.func`/`install.func` pruefen.
+- [ ] ProxmoxVE-Local-Kompatibilitaet pruefen.
+- [ ] ProxmoxVED-Einreichung vorbereiten.
+- [ ] Nach ProxmoxVED-Pruefung spaetere ProxmoxVE-Pflege planen.
 
 ## Phase 6: Migrationen aus bestehenden Tools
 
@@ -92,4 +98,6 @@ Status-Legende:
 - Kein Merge loescht Archivdaten ohne Undo.
 - Browser-HTML-Import funktioniert mit Tags und Ordnern.
 - Proxmox-LXC Default-Installation laeuft ohne manuelle Nacharbeit.
+- Community-Scripts-Pfad ist nachvollziehbar: interner Einzeiler, ProxmoxVED,
+  spaetere ProxmoxVE-Pflege.
 - Backup und Restore sind dokumentiert und getestet.

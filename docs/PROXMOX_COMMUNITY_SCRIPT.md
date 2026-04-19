@@ -76,6 +76,32 @@ LINKVAULT_BRIDGE=vmbr0 \
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
 ```
 
+## Stufenplan Richtung community-scripts
+
+Die Community-Scripts-Dokumentation ist gross genug, dass LinkVault dieses
+Thema schrittweise behandeln sollte. Der aktuelle Einzeiler im LinkVault-Repo
+ist ein funktionierender Proxmox-Testpfad, aber noch nicht der offizielle
+Community-Scripts-Beitrag.
+
+1. **Repo-eigener Testinstaller**: `ct/linkvault.sh` erstellt einen Debian-LXC
+   und installiert LinkVault. Diese Stufe ist fuer schnelle echte
+   Proxmox-Tests gedacht.
+2. **Betriebsreife nachweisen**: Backup, Restore, Update, Healthcheck,
+   journald-Logs und Datenpfade muessen in frischen LXC reproduzierbar
+   funktionieren.
+3. **Community-Scripts-Konventionen uebernehmen**: Host-Skript und
+   Container-Installer werden an `build.func`, `install.func`, Default-/Advanced
+   Mode, konsistente Statusausgabe, Developer-Flags und einen Post-Install
+   Helper angepasst.
+4. **Neue Script-Einreichung in ProxmoxVED**: Neue Anwendungen werden laut
+   Contribution-Hinweisen zuerst in `community-scripts/ProxmoxVED`
+   eingereicht, nicht direkt in `community-scripts/ProxmoxVE`.
+5. **Promotion und Pflege**: Nach erfolgreicher Vorpruefung kann die
+   Integration in den Hauptbestand wandern. Spaetere Fixes an einem bereits
+   existierenden LinkVault-Skript gehoeren dann in `ProxmoxVE`.
+6. **ProxmoxVE-Local pruefen**: Wenn das offizielle Skriptformat steht, sollte
+   LinkVault auch mit `community-scripts/ProxmoxVE-Local` getestet werden.
+
 ## Offizielles community-scripts-Zielbild
 
 ```bash
@@ -183,6 +209,22 @@ Vor einer Einreichung braucht das Projekt:
 - Backup-Hinweise fuer DB und `/var/lib/linkvault`
 - klare Lizenz
 
+Neue Skripte sollten zuerst gegen `community-scripts/ProxmoxVED` vorbereitet
+werden. Eine direkte neue-Script-PR gegen `community-scripts/ProxmoxVE` waere
+nach den aktuellen Contribution-Hinweisen der falsche Weg und wuerde
+voraussichtlich geschlossen.
+
+Relevante Quellen fuer die spaetere Umsetzung:
+
+- `https://github.com/community-scripts/ProxmoxVE`
+- `https://github.com/community-scripts/ProxmoxVED`
+- `https://community-scripts.github.io/ProxmoxVED/`
+- `https://community-scripts.org/docs/ct/readme`
+- `https://community-scripts.org/docs/install/readme`
+- `https://community-scripts.org/docs/misc/readme`
+- `https://community-scripts.org/docs/vm/readme`
+- `https://github.com/community-scripts/ProxmoxVE-Local`
+
 ## Aktueller Teststatus
 
 Am 19.04.2026 wurde der experimentelle Proxmox-Host-Einzeiler erfolgreich auf
@@ -198,8 +240,9 @@ Healthcheck: erfolgreich
 URL: http://192.168.1.17:3080
 ```
 
-Backup/Restore im LXC und ein Update-Test bleiben vor einer
-community-scripts.org-Einreichung offen.
+Backup/Restore im LXC, ein Update-Test, ein Post-Install Helper und die
+Umstellung auf die offiziellen Community-Scripts-Helfer bleiben vor einer
+ProxmoxVED-Einreichung offen.
 
 ## Hinweise aus aktueller Pruefung
 
@@ -207,3 +250,8 @@ Am 18.04.2026 nennt das Community-Scripts-Repository als Anforderungen
 Proxmox VE 8.4, 9.0 oder 9.1, Root-Shell-Zugriff und Netzwerkzugang. Die
 Dokumentation beschreibt `ct/*.sh` als Host-seitige Container-Skripte und
 `install/*.sh` als containerseitige Installationsskripte.
+
+Am 19.04.2026 wurde zusaetzlich festgehalten: Neue Skripte sollen zuerst in
+`community-scripts/ProxmoxVED` getestet und eingereicht werden. Der Hauptrepo
+`community-scripts/ProxmoxVE` ist fuer bestehende Skripte, Fixes und spaetere
+Pflege relevant.

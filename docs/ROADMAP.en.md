@@ -79,13 +79,20 @@ Status legend:
   successfully; official submission is open.
 - [~] `install/linkvault-install.sh`: experimental container installer exists;
   final community-scripts.org conventions are open.
-- [ ] Update function.
+- [~] Clarify the Community Scripts process: new scripts go through
+  ProxmoxVED first, not directly through ProxmoxVE.
+- [ ] Default/advanced mode following community-scripts.org conventions.
+- [ ] Post-install helper for updates, settings, logs, and basic diagnostics.
+- [ ] Update function for installed LinkVault LXCs.
 - [~] Backup/restore documentation: SQLite MVP docs and scripts exist; real LXC
   restore test is open.
 - [ ] Test backup/restore in a real Proxmox LXC.
 - [~] Test on Proxmox VE 8.4/9.x: first real Proxmox run succeeded; version
   matrix is open.
 - [ ] Check community-scripts.org conventions with `build.func`/`install.func`.
+- [ ] Test ProxmoxVE-Local compatibility.
+- [ ] Prepare ProxmoxVED submission.
+- [ ] Plan later ProxmoxVE maintenance after ProxmoxVED review.
 
 ## Phase 6: Migration From Existing Tools
 
@@ -104,4 +111,6 @@ Status legend:
 - No merge deletes archive data without undo.
 - Browser HTML import works with tags and folders.
 - Proxmox LXC default installation runs without manual cleanup.
+- Community Scripts path is traceable: internal one-liner, ProxmoxVED, later
+  ProxmoxVE maintenance.
 - Backup and restore are documented and tested.
