@@ -91,129 +91,61 @@ download_scripts() {
 }
 
 insert_marker() {
-  run_quiet "Creating restore marker bookmark" ct_exec env MARKER_ID="${MARKER_ID}" MARKER_URL="${MARKER_URL}" python3 - <<'PY'
+  run_quiet "Creating restore marker bookmark" ct_exec env MARKER_ID="${MARKER_ID}" MARKER_URL="${MARKER_URL}" /opt/linkvault/.venv/bin/python - <<'PY'
 from __future__ import annotations
 
 import os
-import sqlite3
-from datetime import UTC, datetime
-from pathlib import Path
-from urllib.parse import urlsplit
 
-env_path = Path("/etc/linkvault/linkvault.env")
-env: dict[str, str] = {}
-if env_path.exists():
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        if "=" in line and not line.lstrip().startswith("#"):
-            key, value = line.split("=", 1)
-            env[key.strip()] = value.strip().strip("'\"")
-
-data_path = env.get("LINKVAULT_DATA", "").strip()
-data_file = Path(data_path) if data_path else Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
+from linkvault.config import load_config
+from linkvault.store import BookmarkStore
 
 marker_id = os.environ["MARKER_ID"]
-marker_url = os.environ["MARKER_URL"]
-now = datetime.now(UTC).isoformat()
-domain = (urlsplit(marker_url).hostname or "").lower()
-
-connection = sqlite3.connect(data_file)
-with connection:
-    connection.execute(
-        """
-        INSERT OR REPLACE INTO bookmarks (
-            id, url, normalized_url, title, description, domain, favicon_url,
-            tags, collections, favorite, pinned, notes, created_at, updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            marker_id,
-            marker_url,
-            marker_url,
-            "LinkVault Backup Restore Marker",
-            "Temporary marker used by the Proxmox LXC restore smoke test.",
-            domain,
-            "",
-            "backup-restore-test",
-            "System",
-            1,
-            1,
-            "This bookmark must survive restore.",
-            now,
-            now,
-        ),
-    )
-    connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (marker_id,))
-    connection.execute(
-        """
-        INSERT INTO bookmarks_fts (bookmark_id, title, url, description, domain, tags, collections, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            marker_id,
-            "LinkVault Backup Restore Marker",
-            marker_url,
-            "Temporary marker used by the Proxmox LXC restore smoke test.",
-            domain,
-            "backup-restore-test",
-            "System",
-            "This bookmark must survive restore.",
-        ),
-    )
-connection.close()
+store = BookmarkStore(load_config().data_path, metadata_fetcher=None)
+store.delete(marker_id)
+bookmark = store.add(
+    {
+        "url": os.environ["MARKER_URL"],
+        "title": "LinkVault Backup Restore Marker",
+        "description": "Temporary marker used by the Proxmox LXC restore smoke test.",
+        "tags": "backup-restore-test",
+        "collections": "System",
+        "favorite": True,
+        "pinned": True,
+        "notes": "This bookmark must survive restore.",
+    },
+    enrich_metadata=False,
+)
+with store.connect() as connection:
+    connection.execute("UPDATE bookmarks SET id = ? WHERE id = ?", (marker_id, bookmark.id))
+    connection.execute("UPDATE bookmarks_fts SET bookmark_id = ? WHERE bookmark_id = ?", (marker_id, bookmark.id))
 PY
 }
 
 delete_marker() {
-  run_quiet "Deleting marker after backup" ct_exec env MARKER_ID="${MARKER_ID}" python3 - <<'PY'
+  run_quiet "Deleting marker after backup" ct_exec env MARKER_ID="${MARKER_ID}" /opt/linkvault/.venv/bin/python - <<'PY'
 from __future__ import annotations
 
 import os
-import sqlite3
-from pathlib import Path
 
-env_path = Path("/etc/linkvault/linkvault.env")
-env: dict[str, str] = {}
-if env_path.exists():
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        if "=" in line and not line.lstrip().startswith("#"):
-            key, value = line.split("=", 1)
-            env[key.strip()] = value.strip().strip("'\"")
+from linkvault.config import load_config
+from linkvault.store import BookmarkStore
 
-data_path = env.get("LINKVAULT_DATA", "").strip()
-data_file = Path(data_path) if data_path else Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
-
-connection = sqlite3.connect(data_file)
-with connection:
-    connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (os.environ["MARKER_ID"],))
-    connection.execute("DELETE FROM bookmarks WHERE id = ?", (os.environ["MARKER_ID"],))
-connection.close()
+store = BookmarkStore(load_config().data_path, metadata_fetcher=None)
+store.delete(os.environ["MARKER_ID"])
 PY
 }
 
 marker_count() {
-  ct_exec env MARKER_ID="${MARKER_ID}" python3 - <<'PY'
+  ct_exec env MARKER_ID="${MARKER_ID}" /opt/linkvault/.venv/bin/python - <<'PY'
 from __future__ import annotations
 
 import os
-import sqlite3
-from pathlib import Path
 
-env_path = Path("/etc/linkvault/linkvault.env")
-env: dict[str, str] = {}
-if env_path.exists():
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        if "=" in line and not line.lstrip().startswith("#"):
-            key, value = line.split("=", 1)
-            env[key.strip()] = value.strip().strip("'\"")
+from linkvault.config import load_config
+from linkvault.store import BookmarkStore
 
-data_path = env.get("LINKVAULT_DATA", "").strip()
-data_file = Path(data_path) if data_path else Path(env.get("LINKVAULT_DATA_DIR", "/var/lib/linkvault")) / "linkvault.sqlite3"
-
-connection = sqlite3.connect(data_file)
-count = connection.execute("SELECT COUNT(*) FROM bookmarks WHERE id = ?", (os.environ["MARKER_ID"],)).fetchone()[0]
-connection.close()
-print(count)
+store = BookmarkStore(load_config().data_path, metadata_fetcher=None)
+print(1 if store.get(os.environ["MARKER_ID"]) else 0)
 PY
 }
 
