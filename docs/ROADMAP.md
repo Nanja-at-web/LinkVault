@@ -35,8 +35,9 @@ Status-Legende:
 - [ ] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.
 - [ ] API-Token fuer Import, Extension und Automatisierung.
-- [ ] Startseite/Navigation ueberarbeiten: Inbox, Favoriten, Dubletten, Tags,
-  Collections, Archiv, Aktivitaet, Einstellungen.
+- [~] Startseite/Navigation ueberarbeiten: erste Panel-/Sprungnavigation
+  vorhanden; Inbox, Favoriten, Tags, Collections, Archiv, Aktivitaet und
+  Einstellungen offen.
 - [ ] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
   Feldern.
 

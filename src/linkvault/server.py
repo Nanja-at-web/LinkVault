@@ -263,31 +263,190 @@ def index_html() -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LinkVault</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 960px; }
-    input, textarea, button { font: inherit; padding: .55rem; }
-    input, textarea { width: 100%; box-sizing: border-box; margin: .25rem 0 .75rem; }
-    button { border: 1px solid #222; background: #fff; border-radius: 6px; cursor: pointer; margin-right: .35rem; }
-    pre { background: #f2f2f2; padding: 1rem; overflow: auto; }
-    .row { border-top: 1px solid #ddd; padding: .75rem 0; }
-    .muted { color: #555; }
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f4;
+      --panel: #ffffff;
+      --ink: #191b18;
+      --muted: #62675f;
+      --line: #d8ddd2;
+      --accent: #1f7a5b;
+      --accent-strong: #12543e;
+      --warn: #9f3d26;
+      --soft: #eef4ea;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    a { color: var(--accent-strong); overflow-wrap: anywhere; }
+    h1, h2, h3 { line-height: 1.15; margin: 0 0 .75rem; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.25rem; }
+    h3 { font-size: 1rem; }
+    input, textarea, button, select { font: inherit; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid #b9c0b1;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      padding: .65rem .7rem;
+      margin: .25rem 0 .8rem;
+    }
+    textarea { min-height: 7rem; resize: vertical; }
+    button {
+      border: 1px solid #9aa392;
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      cursor: pointer;
+      padding: .55rem .75rem;
+      margin: .2rem .25rem .2rem 0;
+    }
+    button:hover { border-color: var(--accent); color: var(--accent-strong); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.primary:hover { background: var(--accent-strong); color: #fff; }
+    pre { background: #edf0ea; padding: 1rem; overflow: auto; border-radius: 6px; }
+    label { display: block; font-weight: 650; }
+    label.check {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      font-weight: 600;
+      margin-right: .8rem;
+    }
+    label.check input, input[type="checkbox"] { width: auto; margin: 0; }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 0;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .subtitle { margin: 0; color: var(--muted); max-width: 58rem; }
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      margin: 1rem 0;
+    }
+    .nav a {
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      padding: .45rem .65rem;
+    }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1rem;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 0 1px 2px rgba(25, 27, 24, .04);
+    }
+    .panel-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: .75rem;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .75rem 1rem;
+    }
+    .full { grid-column: 1 / -1; }
+    .muted { color: var(--muted); }
     .error { color: #b00020; }
-    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .actions { margin: .65rem 0; }
-    .edit-form { margin-top: .75rem; padding: .75rem; border: 1px solid #ddd; border-radius: 6px; }
-    .edit-form textarea { min-height: 4rem; }
-    .bulk-actions { border: 1px solid #ddd; border-radius: 6px; padding: .75rem; margin: 1rem 0; }
-    .notice { border: 1px solid #bbb; border-radius: 6px; padding: .75rem; margin: 1rem 0; background: #fafafa; }
-    .duplicate-match, .dedup-group { border-top: 1px solid #ddd; padding: .75rem 0; }
-    .dedup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; }
-    .dedup-box { border: 1px solid #ddd; border-radius: 6px; padding: .75rem; }
+    .actions, .inline-actions { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+    .edit-form { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--line); }
+    .edit-form textarea { min-height: 4.5rem; }
+    .notice {
+      border: 1px solid #b8c6ae;
+      border-radius: 8px;
+      padding: .9rem;
+      margin: 1rem 0 0;
+      background: var(--soft);
+    }
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .75rem 1rem;
+      align-items: end;
+    }
+    .bulk-actions {
+      background: #fafbf8;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: .9rem;
+      margin: 1rem 0;
+    }
+    .bookmark-list { display: grid; gap: .75rem; }
+    .row {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: .9rem;
+    }
+    .bookmark-head {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: .75rem;
+      align-items: start;
+    }
+    .bookmark-title { font-size: 1.05rem; font-weight: 750; overflow-wrap: anywhere; }
+    .bookmark-url { display: inline-block; margin: .25rem 0; }
+    .meta-line { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+    .description { margin: .6rem 0; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: .1rem .4rem;
+      margin: .15rem .2rem .15rem 0;
+      font-size: .85rem;
+      background: #f7f9f5;
+    }
+    .duplicate-match, .dedup-group { border-top: 1px solid var(--line); padding: .9rem 0; }
+    .dedup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .75rem; }
+    .dedup-box { border: 1px solid var(--line); border-radius: 8px; padding: .8rem; background: #fff; }
+    .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
+    @media (max-width: 760px) {
+      .shell { padding: .75rem; }
+      .toolbar, .panel-header { display: block; }
+      .form-grid, .filters { grid-template-columns: 1fr; }
+      h1 { font-size: 1.6rem; }
+    }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
+<div class="shell">
   <div class="toolbar">
     <div>
       <h1>LinkVault MVP</h1>
-      <p>Links speichern, importieren, bearbeiten und Dubletten als Dry-Run pruefen.</p>
+      <p class="subtitle">Links speichern, importieren, bearbeiten und Dubletten sicher zusammenfuehren.</p>
     </div>
     <div id="userbar" hidden>
       <span id="current-user"></span>
@@ -295,7 +454,7 @@ def index_html() -> str:
     </div>
   </div>
 
-  <section id="auth-panel">
+  <section id="auth-panel" class="panel">
     <h2 id="auth-title">Login</h2>
     <p id="auth-help" class="muted"></p>
     <form id="setup-form" hidden>
@@ -312,70 +471,108 @@ def index_html() -> str:
     <p id="auth-error" class="error"></p>
   </section>
 
-  <main id="app" hidden>
+  <nav id="app-nav" class="nav" hidden>
+    <a href="#save">Speichern</a>
+    <a href="#import">Import</a>
+    <a href="#bookmarks-panel">Bookmarks</a>
+    <a href="#bulk">Bulk</a>
+    <a href="#dedup">Dubletten</a>
+  </nav>
 
-  <h2>Bookmark speichern</h2>
-  <form id="bookmark-form">
-    <label>URL <input name="url" required placeholder="https://example.com?utm_source=test"></label>
-    <label>Titel <input name="title" placeholder="Optional"></label>
-    <label>Beschreibung <input name="description" placeholder="Optional"></label>
-    <label>Tags <input name="tags" placeholder="proxmox, homelab"></label>
-    <label>Collections <input name="collections" placeholder="Homelab/Proxmox"></label>
-    <label><input name="favorite" type="checkbox" style="width:auto"> Favorit</label>
-    <label><input name="pinned" type="checkbox" style="width:auto"> Pin</label>
-    <button>Speichern</button>
-  </form>
-  <section id="duplicate-preflight" class="notice" hidden></section>
+  <main id="app" class="workspace" hidden>
+  <section id="save" class="panel">
+    <div class="panel-header">
+      <div>
+        <h2>Bookmark speichern</h2>
+        <p class="subtitle">Beim Speichern prueft LinkVault zuerst auf moegliche Dubletten.</p>
+      </div>
+    </div>
+    <form id="bookmark-form" class="form-grid">
+      <label class="full">URL <input name="url" required placeholder="https://example.com?utm_source=test"></label>
+      <label>Titel <input name="title" placeholder="Optional"></label>
+      <label>Beschreibung <input name="description" placeholder="Optional"></label>
+      <label>Tags <input name="tags" placeholder="proxmox, homelab"></label>
+      <label>Collections <input name="collections" placeholder="Homelab/Proxmox"></label>
+      <div class="full inline-actions">
+        <label class="check"><input name="favorite" type="checkbox"> Favorit</label>
+        <label class="check"><input name="pinned" type="checkbox"> Pin</label>
+        <button class="primary">Speichern</button>
+      </div>
+    </form>
+    <section id="duplicate-preflight" class="notice" hidden></section>
+  </section>
 
-  <h2>Browser-Bookmarks importieren</h2>
-  <form id="import-form">
-    <label>Netscape Bookmark HTML <textarea name="html" rows="6" placeholder="Exportierte Bookmark-HTML hier einfuegen"></textarea></label>
-    <button>Importieren</button>
-  </form>
-
-  <h2>Bookmarks</h2>
-  <label>Suche <input id="search" placeholder="Titel, URL, Domain, Tag, Collection"></label>
-  <div class="filters">
-    <label><input id="filter-favorite" type="checkbox" style="width:auto"> Nur Favoriten</label>
-    <label><input id="filter-pinned" type="checkbox" style="width:auto"> Nur Pins</label>
-    <label>Domain <input id="filter-domain" placeholder="github.com"></label>
-    <label>Tag <input id="filter-tag" placeholder="selfhost"></label>
-    <label>Collection <input id="filter-collection" placeholder="Development"></label>
-  </div>
-  <button id="refresh">Aktualisieren</button>
-  <section class="bulk-actions">
-    <h3>Bulk-Aktionen</h3>
-    <p class="muted"><span id="selected-count">0</span> Bookmarks ausgewaehlt.</p>
-    <button id="select-visible" type="button">Sichtbare auswaehlen</button>
-    <button id="clear-selection" type="button">Auswahl leeren</button>
-    <form id="bulk-form">
-      <label>Tags hinzufuegen <input name="add_tags" placeholder="selfhost, docs"></label>
-      <label>Tags entfernen <input name="remove_tags" placeholder="inbox, old"></label>
-      <label>Collections setzen <input name="set_collections" placeholder="Development, Reading"></label>
-      <label>Favorit
-        <select name="favorite">
-          <option value="">Nicht aendern</option>
-          <option value="true">Setzen</option>
-          <option value="false">Entfernen</option>
-        </select>
-      </label>
-      <label>Pin
-        <select name="pinned">
-          <option value="">Nicht aendern</option>
-          <option value="true">Setzen</option>
-          <option value="false">Entfernen</option>
-        </select>
-      </label>
-      <button>Auf Auswahl anwenden</button>
-      <button id="bulk-delete" type="button">Auswahl loeschen</button>
+  <section id="import" class="panel">
+    <h2>Browser-Bookmarks importieren</h2>
+    <form id="import-form">
+      <label>Netscape Bookmark HTML <textarea name="html" rows="6" placeholder="Exportierte Bookmark-HTML hier einfuegen"></textarea></label>
+      <button>Importieren</button>
     </form>
   </section>
-  <div id="bookmarks"></div>
 
-  <h2>Dubletten Dry-Run</h2>
-  <button id="dry-run">Dry-Run aktualisieren</button>
-  <div id="dedup-output" class="notice">Noch keine Daten geladen.</div>
+  <section id="bookmarks-panel" class="panel">
+    <div class="panel-header">
+      <div>
+        <h2>Bookmarks</h2>
+        <p class="subtitle">Suchen, filtern, bearbeiten und fuer Bulk-Aktionen auswaehlen.</p>
+      </div>
+      <button id="refresh" type="button">Aktualisieren</button>
+    </div>
+    <label>Suche <input id="search" placeholder="Titel, URL, Domain, Tag, Collection"></label>
+    <div class="filters">
+      <label class="check"><input id="filter-favorite" type="checkbox"> Nur Favoriten</label>
+      <label class="check"><input id="filter-pinned" type="checkbox"> Nur Pins</label>
+      <label>Domain <input id="filter-domain" placeholder="github.com"></label>
+      <label>Tag <input id="filter-tag" placeholder="selfhost"></label>
+      <label>Collection <input id="filter-collection" placeholder="Development"></label>
+    </div>
+
+    <section id="bulk" class="bulk-actions">
+      <h3>Bulk-Aktionen</h3>
+      <p class="muted"><span id="selected-count">0</span> Bookmarks ausgewaehlt.</p>
+      <div class="inline-actions">
+        <button id="select-visible" type="button">Sichtbare auswaehlen</button>
+        <button id="clear-selection" type="button">Auswahl leeren</button>
+      </div>
+      <form id="bulk-form" class="form-grid">
+        <label>Tags hinzufuegen <input name="add_tags" placeholder="selfhost, docs"></label>
+        <label>Tags entfernen <input name="remove_tags" placeholder="inbox, old"></label>
+        <label>Collections setzen <input name="set_collections" placeholder="Development, Reading"></label>
+        <label>Favorit
+          <select name="favorite">
+            <option value="">Nicht aendern</option>
+            <option value="true">Setzen</option>
+            <option value="false">Entfernen</option>
+          </select>
+        </label>
+        <label>Pin
+          <select name="pinned">
+            <option value="">Nicht aendern</option>
+            <option value="true">Setzen</option>
+            <option value="false">Entfernen</option>
+          </select>
+        </label>
+        <div class="full inline-actions">
+          <button>Auf Auswahl anwenden</button>
+          <button id="bulk-delete" type="button">Auswahl loeschen</button>
+        </div>
+      </form>
+    </section>
+    <div id="bookmarks" class="bookmark-list"></div>
+  </section>
+
+  <section id="dedup" class="panel">
+    <div class="panel-header">
+      <div>
+        <h2>Dubletten</h2>
+        <p class="subtitle">Gewinner pruefen, Daten uebernehmen und Verlierer ohne hartes Loeschen markieren.</p>
+      </div>
+      <button id="dry-run" type="button">Dry-Run aktualisieren</button>
+    </div>
+    <div id="dedup-output" class="notice">Noch keine Daten geladen.</div>
+  </section>
   </main>
+</div>
 
   <script>
     const bookmarksEl = document.querySelector('#bookmarks');
@@ -388,6 +585,7 @@ def index_html() -> str:
     const setupForm = document.querySelector('#setup-form');
     const loginForm = document.querySelector('#login-form');
     const appEl = document.querySelector('#app');
+    const appNav = document.querySelector('#app-nav');
     const userbar = document.querySelector('#userbar');
     const currentUser = document.querySelector('#current-user');
     const selectedIds = new Set();
@@ -403,6 +601,7 @@ def index_html() -> str:
       }
 
       appEl.hidden = true;
+      appNav.hidden = true;
       userbar.hidden = true;
       authPanel.hidden = false;
       if (payload.setup_required) {
@@ -425,6 +624,7 @@ def index_html() -> str:
     function showApp(user) {
       authPanel.hidden = true;
       appEl.hidden = false;
+      appNav.hidden = false;
       userbar.hidden = false;
       currentUser.textContent = user ? user.username : '';
     }
@@ -452,18 +652,27 @@ def index_html() -> str:
       bookmarksEl.innerHTML = '';
       selectedIds.clear();
       updateSelectedCount();
+      if (!payload.bookmarks.length) {
+        bookmarksEl.innerHTML = '<div class="empty">Keine Bookmarks fuer diese Suche gefunden.</div>';
+        return;
+      }
       for (const bookmark of payload.bookmarks) {
         const row = document.createElement('div');
         row.className = 'row';
         row.dataset.bookmarkId = bookmark.id;
         row.innerHTML = `
-          <label><input data-role="select-bookmark" type="checkbox" style="width:auto"> Auswaehlen</label>
-          <strong>${escapeHtml(bookmark.title)}</strong>
-          <div><a href="${escapeAttr(bookmark.url)}">${escapeHtml(bookmark.url)}</a></div>
-          <div class="muted">${escapeHtml(bookmark.domain)} · tags: ${escapeHtml(bookmark.tags.join(', ') || '-')} · collections: ${escapeHtml(bookmark.collections.join(', ') || '-')}</div>
-          <div>${escapeHtml(bookmark.description || '')}</div>
-          <div class="muted">notes: ${escapeHtml(bookmark.notes || '-')}</div>
-          <div class="muted">favicon: ${escapeHtml(bookmark.favicon_url || '-')}</div>
+          <div class="bookmark-head">
+            <label class="check"><input data-role="select-bookmark" type="checkbox"> Auswaehlen</label>
+            <div>
+              <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
+              <a class="bookmark-url" href="${escapeAttr(bookmark.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(bookmark.url)}</a>
+              <div class="meta-line">${escapeHtml(bookmark.domain || 'ohne Domain')}</div>
+              <div>${renderBadges('tag', bookmark.tags)}${renderBadges('collection', bookmark.collections)}</div>
+              ${bookmark.description ? `<p class="description">${escapeHtml(bookmark.description)}</p>` : ''}
+              ${bookmark.notes ? `<div class="meta-line">Notizen: ${escapeHtml(bookmark.notes)}</div>` : ''}
+              ${bookmark.favicon_url ? `<div class="meta-line">Favicon: ${escapeHtml(bookmark.favicon_url)}</div>` : ''}
+            </div>
+          </div>
           <div class="actions">
             <button data-action="favorite">${bookmark.favorite ? 'Favorit entfernen' : 'Favorit setzen'}</button>
             <button data-action="pin">${bookmark.pinned ? 'Pin entfernen' : 'Pin setzen'}</button>
@@ -566,6 +775,12 @@ def index_html() -> str:
 
     function formatValue(value) {
       return Array.isArray(value) ? value.join(', ') : String(value || '-');
+    }
+
+    function renderBadges(kind, values) {
+      if (!values.length) return '';
+      const prefix = kind === 'tag' ? '#' : '';
+      return values.map((value) => `<span class="badge">${prefix}${escapeHtml(value)}</span>`).join('');
     }
 
     async function patchBookmark(id, data) {

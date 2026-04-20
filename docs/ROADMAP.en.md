@@ -40,8 +40,8 @@ Status legend:
 - [ ] Store import session metadata: source, file, checksum, profile, format,
   timestamp, and result counts.
 - [ ] API tokens for imports, extensions, and automation.
-- [ ] Rework home/navigation: inbox, favorites, duplicates, tags,
-  collections, archive, activity, settings.
+- [~] Rework home/navigation: first panel/jump navigation exists; inbox,
+  favorites, tags, collections, archive, activity, and settings are open.
 - [ ] Quick-add flow with a short default dialog and optional advanced fields.
 
 ## Phase 2: Deduplication And Favorites Cleanup
