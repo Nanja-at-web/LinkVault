@@ -24,6 +24,7 @@ Der Schwerpunkt liegt auf:
 - [Technische Architektur](docs/ARCHITECTURE.md)
 - [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
 - [Einfluss der UX-Research-Sammlung](docs/UX_RESEARCH_IMPACT.md)
+- [Einfluss der Browser- und Import-Recherche](docs/BROWSER_IMPORT_RESEARCH.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian-LXC Installationstest](docs/DEBIAN_LXC_TEST.md)
@@ -114,6 +115,7 @@ Wichtige Endpunkte:
 - `POST /api/import/browser-html`
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
+- `POST /api/dedup/merge`
 
 ## Produktprioritaet Aus Der Recherche
 
@@ -178,3 +180,10 @@ Die UX-Research-Sammlung vom 19.04.2026 wurde in
 [UX Research Impact](docs/UX_RESEARCH_IMPACT.md) ausgewertet. Die wichtigste
 Folge: Dublettenpflege, Bulk-Organisation, Sync-Konflikte, Archivstatus und
 Betriebszustand sollen eigene sichtbare Workflows werden.
+
+Die zusaetzlichen Research-Pakete vom 20.04.2026 wurden in
+[Browser and Import Research Impact](docs/BROWSER_IMPORT_RESEARCH.md)
+ausgewertet. Die wichtigste Folge: Browser-Import wird als eigener,
+verlustbewusster Workflow geplant. HTML bleibt der Baseline-Import; spaeter
+kommen optionale Vendor-Anreicherungen, Import-Vorschau, Checksummen,
+Quellmetadaten und Erhaltung unbekannter Browser-Rohdaten dazu.

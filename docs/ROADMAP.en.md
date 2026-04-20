@@ -12,6 +12,8 @@ Status legend:
 - [x] Choose license: AGPL-3.0-or-later.
 - [x] Evaluate the deep research collection and derive product priorities.
 - [x] Evaluate the UX research collection and derive UX priorities.
+- [x] Evaluate the 2026-04-20 browser/API research and derive the import
+  architecture.
 - [x] Add English repository entry point and English roadmap.
 - [~] Decide final backend stack: Python remains until phase 2; Go will be
   reconsidered later.
@@ -33,6 +35,10 @@ Status legend:
 - [x] SQLite FTS5 full-text search with filters for favorite, pin, domain,
   tag, and collection.
 - [~] Browser bookmark HTML import.
+- [ ] Browser HTML import preview: show new links, duplicates, folder paths,
+  tags/collections, and conflicts before writing.
+- [ ] Store import session metadata: source, file, checksum, profile, format,
+  timestamp, and result counts.
 - [ ] API tokens for imports, extensions, and automation.
 - [ ] Rework home/navigation: inbox, favorites, duplicates, tags,
   collections, archive, activity, settings.
@@ -117,12 +123,18 @@ Status legend:
 ## Phase 6: Migration From Existing Tools
 
 - [ ] Import preview with dry-run and duplicate report.
+- [ ] Chromium JSON import as optional enrichment for HTML imports.
+- [ ] Firefox JSON/JSONLZ4 import as optional enrichment for HTML imports.
+- [ ] Safari ZIP import with `Bookmarks.html` and Reading List detection.
+- [ ] Preserve raw browser/vendor fields through `raw_vendor_payload`.
 - [ ] linkding import via API/export.
 - [ ] Karakeep import.
 - [ ] Linkwarden import.
 - [ ] LinkAce import.
 - [ ] Readeck import.
 - [ ] Shiori import.
+- [ ] Evaluate Wallabag/Shaarli/Omnivore/Grimoire/Betula as later import
+  profiles.
 
 ## Version 1 Acceptance Criteria
 
@@ -130,6 +142,8 @@ Status legend:
 - Group 1,000 duplicate candidates safely.
 - No merge deletes archive data without undo.
 - Browser HTML import works with tags and folders.
+- Import preview prevents silent overwrites and shows duplicate/conflict
+  reports.
 - Proxmox LXC default installation runs without manual cleanup.
 - Community Scripts path is traceable: internal one-liner, ProxmoxVED, later
   ProxmoxVE maintenance.

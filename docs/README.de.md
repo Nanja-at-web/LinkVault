@@ -14,6 +14,7 @@ Die detaillierten Arbeitsdokumente bleiben aktuell deutsch:
 - [Technische Architektur](ARCHITECTURE.md)
 - [Research Impact](RESEARCH_IMPACT.md)
 - [UX Research Impact](UX_RESEARCH_IMPACT.md)
+- [Browser- und Import-Research Impact](BROWSER_IMPORT_RESEARCH.md)
 - [Dubletten, Sortierung und Kategorien](DEDUP_SORTING_CATEGORIZATION.md)
 - [Duplicate Preflight](DUPLICATE_PREFLIGHT.md)
 - [Proxmox Community-Scripts Zielbild](PROXMOX_COMMUNITY_SCRIPT.md)

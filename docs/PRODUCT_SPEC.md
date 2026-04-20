@@ -56,6 +56,27 @@ Die wichtigste UX-Regel: Pflegeaufgaben duerfen nicht versteckt sein.
 Dubletten, Inbox, Favoriten, Bulk-Organisation, Archivstatus, Sync-Konflikte
 und Betriebszustand sollen eigene sichtbare Wege bekommen.
 
+## Browser-/API-Research Vom 20.04.2026
+
+Das Browser-API-Research ergaenzt die Produktlinie um eine wichtige Regel:
+Import ist nicht nur "Datei hochladen", sondern Datenpflege. LinkVault soll
+HTML als universellen Einstieg akzeptieren, aber reichere Browser-Formate
+spaeter verlustarm aufnehmen koennen.
+
+```text
+Netscape-HTML zuerst
++ Chromium-JSON als Enrichment
++ Firefox-JSON/JSONLZ4 als Enrichment
++ Safari-ZIP als Enrichment
++ Import-Vorschau und Konfliktliste
++ Rohdaten-Erhaltung fuer unbekannte Vendor-Felder
+```
+
+Sync-Daten gelten dabei nicht automatisch als Backup. LinkVault soll Quelle,
+Profil, Datei, Checksumme, Sync-Herkunft und Importzeitpunkt sichtbar halten,
+damit Nutzer spaeter nachvollziehen koennen, wo Dubletten und Konflikte
+entstanden sind.
+
 ## Kernfunktionen
 
 ### Navigation und Arbeitsbereiche
@@ -132,6 +153,12 @@ Ein-Klick-Risiko.
 
 - Browser-Bookmark-HTML.
 - Netscape Bookmark Format.
+- Import-Vorschau mit Dry-Run, Duplikatbericht und Konfliktliste.
+- Import-Sessions mit Quelle, Datei, Checksumme, Profil und Ergebniszahlen.
+- Optionales Vendor-Enrichment fuer Chromium-JSON, Firefox-JSON/JSONLZ4 und
+  Safari-ZIP.
+- Rohdaten-Erhaltung fuer unbekannte Browserfelder statt verlustbehafteter
+  Normalisierung.
 - CSV und JSON.
 - Importprofile fuer Karakeep, linkding, Linkwarden, LinkAce, Readeck und
   Shiori, sofern deren Exporte/API-Zugriffe verfuegbar sind.

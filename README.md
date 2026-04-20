@@ -25,6 +25,7 @@ The current focus is:
 - [Technical architecture, German](docs/ARCHITECTURE.md)
 - [Deep research impact, German](docs/RESEARCH_IMPACT.md)
 - [UX research impact, German](docs/UX_RESEARCH_IMPACT.md)
+- [Browser and import research impact, German](docs/BROWSER_IMPORT_RESEARCH.md)
 - [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox community-scripts target, German](docs/PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian LXC installation test, German](docs/DEBIAN_LXC_TEST.md)
@@ -124,6 +125,7 @@ Important endpoints:
 - `POST /api/import/browser-html`
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
+- `POST /api/dedup/merge`
 
 ## Product Direction
 
@@ -186,3 +188,9 @@ The UX research collection from 2026-04-19 was evaluated in
 [UX Research Impact](docs/UX_RESEARCH_IMPACT.md). Its main conclusion is that
 LinkVault should make duplicate cleanup, bulk organization, sync conflicts,
 archive status, and operational health visible as first-class workflows.
+
+The additional research packages from 2026-04-20 were evaluated in
+[Browser and Import Research Impact](docs/BROWSER_IMPORT_RESEARCH.md). Their
+main conclusion is that LinkVault should treat browser import as a dedicated,
+loss-aware workflow: HTML first, optional vendor enrichment later, import
+previews, checksums, source metadata, and raw browser payload preservation.

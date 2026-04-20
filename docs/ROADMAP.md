@@ -12,6 +12,8 @@ Status-Legende:
 - [x] Lizenz waehlen: AGPL-3.0-or-later.
 - [x] Deep-Research-Sammlung auswerten und Produktprioritaeten ableiten.
 - [x] UX-Research-Sammlung auswerten und UX-Prioritaeten ableiten.
+- [x] Browser/API-Research vom 20.04.2026 auswerten und Import-Architektur
+  ableiten.
 - [x] Englischsprachigen Repo-Einstieg und englische Roadmap anlegen.
 - [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
 - [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
@@ -28,6 +30,10 @@ Status-Legende:
 - [~] Tags, Collections, Favoriten und Pins.
 - [x] SQLite-FTS5-Volltextsuche mit Filtern fuer Favorit, Pin, Domain, Tag und Collection.
 - [~] Import aus Browser-Bookmark-HTML.
+- [ ] Import-Vorschau fuer Browser-HTML: neue Links, Dubletten, Ordnerpfade,
+  Tags/Collections und Konflikte vor dem Schreiben anzeigen.
+- [ ] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
+  Format, Zeitpunkt und Ergebniszahlen.
 - [ ] API-Token fuer Import, Extension und Automatisierung.
 - [ ] Startseite/Navigation ueberarbeiten: Inbox, Favoriten, Dubletten, Tags,
   Collections, Archiv, Aktivitaet, Einstellungen.
@@ -100,12 +106,18 @@ Status-Legende:
 ## Phase 6: Migrationen aus bestehenden Tools
 
 - [ ] Import-Vorschau mit Dry-Run und Duplikatbericht.
+- [ ] Chromium-JSON-Import als optionales Enrichment zum HTML-Import.
+- [ ] Firefox-JSON/JSONLZ4-Import als optionales Enrichment zum HTML-Import.
+- [ ] Safari-ZIP-Import mit `Bookmarks.html` und Reading-List-Erkennung.
+- [ ] Rohdaten-Erhaltung fuer Browser-/Vendor-Felder via `raw_vendor_payload`.
 - [ ] linkding Import via API/Export.
 - [ ] Karakeep Import.
 - [ ] Linkwarden Import.
 - [ ] LinkAce Import.
 - [ ] Readeck Import.
 - [ ] Shiori Import.
+- [ ] Wallabag/Shaarli/Omnivore/Grimoire/Betula als spaetere Importprofile
+  bewerten.
 
 ## Akzeptanzkriterien fuer Version 1
 
@@ -113,6 +125,8 @@ Status-Legende:
 - 1.000 Dubletten-Kandidaten sicher gruppieren.
 - Kein Merge loescht Archivdaten ohne Undo.
 - Browser-HTML-Import funktioniert mit Tags und Ordnern.
+- Import-Vorschau verhindert stille Ueberschreibungen und zeigt
+  Duplikat-/Konfliktberichte.
 - Proxmox-LXC Default-Installation laeuft ohne manuelle Nacharbeit.
 - Community-Scripts-Pfad ist nachvollziehbar: interner Einzeiler, ProxmoxVED,
   spaetere ProxmoxVE-Pflege.

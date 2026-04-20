@@ -7,6 +7,12 @@ Diese Auswertung basiert auf der lokalen Deep-Research-Sammlung
 vom 19.04.2026. Die Sammlung vergleicht Karakeep, linkding, Linkwarden,
 LinkAce, Readeck, Shiori und community-scripts.org.
 
+Am 20.04.2026 wurden zusaetzlich das `LinkVault Forschungs-Paket fuer
+Selfhosted Bookmark- und Archiv-Apps` und das `LinkVault Browser API Research
+Bundle` ausgewertet. Diese erweitern den Tool-Vergleich um Omnivore, Betula,
+Grimoire, Shaarli und Wallabag und schaerfen besonders Import, Browser-APIs,
+Sync, Vendor-Metadaten und kanonisches Import-Schema.
+
 Die wichtigste Wirkung auf LinkVault: Das Projekt sollte keine reine Kopie
 eines bestehenden Tools werden, sondern eine klare Synthese aus spezialisierten
 Staerken.
@@ -127,3 +133,52 @@ Die naechsten Schritte verschieben sich dadurch etwas:
 | SSO/Multiuser/Monitoring | LinkAce | Auth, Health Checks, API und Admin-Reife |
 | Einfacher Betrieb | Shiori/Readeck | kleine Defaults, wenig Pflichtdienste |
 | Proxmox-UX | community-scripts.org | Einzeiler, Logs, Update, Backup, Restore |
+
+## Neue Ableitungen Vom 20.04.2026
+
+### Browser-Import Ist Ein Eigenes Produktmodul
+
+Das Browser-Research zeigt: Netscape-HTML ist der breite Austauschstandard,
+aber kein vollstaendiges Datenmodell. Chrome/Chromium, Firefox und Safari
+haben jeweils eigene Zusatzformate und Sync-Eigenheiten.
+
+Konsequenz fuer LinkVault:
+
+- Browser-HTML bleibt der MVP-Baseline-Import.
+- Import-Sessions sollen Quelle, Datei, Checksumme, Profil, Format und
+  Ergebniszahlen speichern.
+- Chromium-JSON, Firefox-JSON/JSONLZ4 und Safari-ZIP werden als spaetere
+  Enrichment-Importer geplant.
+- Vendor-Rohdaten duerfen nicht verloren gehen, sondern sollen optional als
+  `raw_vendor_payload` erhalten bleiben.
+
+### Sync Ist Nicht Gleich Backup
+
+Mehrere Browser behandeln Sync als Zusammenfuehrung zwischen Geraeten, nicht
+als verlaesslichen Backup-Stand. Das passt zu LinkVaults nicht-destruktivem
+Merge-Ansatz.
+
+Konsequenz fuer LinkVault:
+
+- Sync-Importe bekommen eine eigene Herkunft (`sync_origin`).
+- Import, Sync und Merge muessen in einem Conflict Center sichtbar werden.
+- Vor jedem grossen Import braucht es Dry-Run, Snapshot und Duplikatbericht.
+
+### Vergleichsrahmen Wird Breiter
+
+Die neuen Tool-Daten zeigen weitere Vorbilder:
+
+- Wallabag: Reader-UX, Annotationen, Importvielfalt und API-Reife.
+- Shaarli: extrem niedriger Betriebsaufwand, Sticky/Pinning, API und
+  HTML-Import/Export.
+- Omnivore: Lesefluss, Highlights, Suchsyntax und Cross-Device-Ideen, aber
+  vorsichtig wegen Produktgeschichte.
+- Grimoire: moderne UI und API, aber Import/Export teils noch Roadmap.
+- Betula: Ein-Binary/SQLite und privacy-first/federierte Nische.
+
+Konsequenz fuer LinkVault:
+
+- LinkVaults Chance bleibt die Luecke zwischen leichtem Selfhosting und
+  starker Datenpflege.
+- Der naechste Import-Ausbau sollte zuerst sicher und transparent sein, nicht
+  sofort vollautomatisch.

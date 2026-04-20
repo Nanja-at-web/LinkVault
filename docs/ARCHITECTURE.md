@@ -31,6 +31,34 @@ LinkVault sollte als robuste, LXC-freundliche Web-App gebaut werden:
 | `auth` | lokale Nutzer, OIDC, Reverse-Proxy-Auth |
 | `admin` | Jobs, Logs, Backups, Updates, Diagnose |
 
+## Import-Architektur
+
+Das Browser-API-Research vom 20.04.2026 fuehrt zu einer klaren
+Import-Schichtung:
+
+```text
+source file / API
+  -> parser
+  -> canonical import record
+  -> duplicate preflight
+  -> import preview
+  -> merge/create/update plan
+  -> committed bookmark records
+```
+
+Netscape-HTML ist die gemeinsame Baseline. Vendor-Formate sollen nur
+zusaetzlich anreichern:
+
+- Chromium-Familie: HTML plus optionales Chromium-JSON.
+- Firefox/Tor Desktop: HTML plus optionales JSON/JSONLZ4.
+- Safari: ZIP mit `Bookmarks.html` plus optionale Metadaten.
+- Samsung Internet und DuckDuckGo Browser: zuerst als eingeschraenkte
+  Importquellen, keine allgemeine Bookmark-API voraussetzen.
+
+Unbekannte Felder werden nicht verworfen. Sie landen in `raw_vendor_payload`
+oder in einem spaeteren Import-Record, damit LinkVault bei Importen keine
+Browserdaten kaputt normalisiert.
+
 ## Datenmodell
 
 ```text
@@ -56,6 +84,18 @@ item_tags
 
 archives
   id, item_id, kind, storage_path, content_hash, byte_size, created_at
+
+import_sessions
+  id, owner_id, source_name, source_format, source_file_name,
+  source_file_checksum_sha256, sync_origin, imported_at,
+  created_count, duplicate_count, conflict_count, raw_summary_json
+
+import_records
+  id, session_id, item_id, source_browser, source_profile, source_device,
+  source_path, source_id, source_guid, parent_source_id, url_raw,
+  url_normalized, added_at, modified_at, last_used_at,
+  is_reading_list, is_speed_dial, is_mobile_root, is_managed,
+  raw_vendor_payload
 
 highlights
   id, item_id, user_id, text, note, locator, color, created_at
