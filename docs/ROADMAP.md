@@ -50,7 +50,8 @@ Status-Legende:
 - [x] URL-Check-Endpunkt nach linkding/Karakeep-Vorbild: `/api/bookmarks/preflight`.
 - [~] Duplicate-Preflight beim Speichern: vorhanden oeffnen, aktualisieren oder
   bewusst separat speichern vorhanden; Archivversion spaeter.
-- [x] Dubletten-Dashboard mit Gewinner-Vorschlag.
+- [x] Dubletten-Dashboard mit Gewinner-Vorschlag, Verlierer-Liste,
+  Unterschiedsansicht und klarem Zusammenfuehren-Button.
 - [x] Merge-Plan mit Dry-Run.
 - [ ] Undo fuer Merge.
 - [x] Merge-Ausfuehrung ohne Loeschen: Gewinner aktualisieren, Verlierer als

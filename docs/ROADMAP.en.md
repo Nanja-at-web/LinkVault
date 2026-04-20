@@ -53,7 +53,8 @@ Status legend:
 - [x] URL check endpoint inspired by linkding and Karakeep: `/api/bookmarks/preflight`.
 - [~] Duplicate preflight while saving: open existing item, update it, or
   intentionally save separately exists; archive version comes later.
-- [x] Duplicate dashboard with winner suggestions.
+- [x] Duplicate dashboard with winner suggestions, loser list, difference view,
+  and clear merge button.
 - [x] Merge plan with dry-run.
 - [ ] Undo for merge operations.
 - [x] Merge execution without deletion: update the winner, mark losing records

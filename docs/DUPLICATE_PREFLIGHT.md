@@ -59,9 +59,11 @@ Der Dry-Run zeigt nun:
 
 - Dublettengruppen,
 - Gewinner-Vorschlag,
+- Verlierer, die nur markiert und nicht geloescht werden,
 - Feldunterschiede fuer URL, Titel, Beschreibung, Tags, Collections, Notizen,
   Favorite und Pin,
-- Merge-Plan ohne Loeschung.
+- Merge-Plan ohne Loeschung,
+- klaren Button `Zusammenfuehren`.
 
 ## Merge ohne hartes Loeschen
 

@@ -440,9 +440,20 @@ def index_html() -> str:
       font-size: .85rem;
       background: #f7f9f5;
     }
-    .duplicate-match, .dedup-group { border-top: 1px solid var(--line); padding: .9rem 0; }
-    .dedup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .75rem; }
+    .duplicate-match { border-top: 1px solid var(--line); padding: .9rem 0; }
+    .dedup-group { border-top: 1px solid var(--line); padding: 1rem 0; }
+    .dedup-header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; margin-bottom: .8rem; }
+    .dedup-title { margin: 0; }
+    .dedup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .75rem; }
     .dedup-box { border: 1px solid var(--line); border-radius: 8px; padding: .8rem; background: #fff; }
+    .dedup-winner { border-color: #8cad7a; background: #fbfdf8; }
+    .dedup-item { border-top: 1px solid var(--line); padding-top: .65rem; margin-top: .65rem; }
+    .dedup-item:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+    .dedup-diff { margin-top: .85rem; }
+    .diff-row { display: grid; grid-template-columns: minmax(8rem, .7fr) minmax(0, 1.3fr); gap: .75rem; padding: .55rem 0; border-top: 1px solid var(--line); }
+    .diff-row:first-child { border-top: 0; }
+    .diff-values { display: grid; gap: .35rem; }
+    .diff-winner { font-weight: 700; }
     .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
     @media (max-width: 760px) {
       .shell { padding: .75rem; }
@@ -750,36 +761,41 @@ def index_html() -> str:
         dedupOutput.textContent = 'Keine Dubletten gefunden.';
         return;
       }
-      dedupOutput.innerHTML = `<p><strong>${payload.group_count}</strong> Dublettengruppe(n) gefunden. Es wird noch nichts geloescht.</p>`;
+      dedupOutput.innerHTML = `<p><strong>${payload.group_count}</strong> Dublettengruppe(n) gefunden. Gewinner werden aktualisiert, Verlierer bleiben erhalten und werden nur als Dublette markiert.</p>`;
       for (const group of payload.groups) {
+        const losers = group.items.filter((item) => item.id !== group.winner.id);
         const section = document.createElement('section');
         section.className = 'dedup-group';
         section.innerHTML = `
-          <h3>${escapeHtml(group.reason)} (${group.score})</h3>
-          <p class="muted">${escapeHtml(group.normalized_url)}</p>
+          <div class="dedup-header">
+            <div>
+              <h3 class="dedup-title">${escapeHtml(group.reason)}</h3>
+              <p class="muted">${escapeHtml(group.normalized_url)} · Score ${group.score} · ${group.items.length} Bookmarks</p>
+            </div>
+            <button type="button" class="primary" data-merge>Zusammenfuehren</button>
+          </div>
           <div class="dedup-grid">
-            <div class="dedup-box">
+            <div class="dedup-box dedup-winner">
               <strong>Gewinner-Vorschlag</strong>
-              <p>${escapeHtml(group.winner.title)}</p>
-              <p><a href="${escapeAttr(group.winner.url)}">${escapeHtml(group.winner.url)}</a></p>
-              <button type="button" data-open="${escapeAttr(group.winner.id)}">Oeffnen</button>
+              ${renderDedupItem(group.winner, true)}
             </div>
             <div class="dedup-box">
-              <strong>Merge-Plan</strong>
-              <p>Tags danach: ${escapeHtml(group.merge_plan.move_tags.join(', ') || '-')}</p>
-              <p>Collections danach: ${escapeHtml(group.merge_plan.move_collections.join(', ') || '-')}</p>
-              <p>Favorit behalten: ${group.merge_plan.keep_favorite ? 'ja' : 'nein'}</p>
-              <p>Pin behalten: ${group.merge_plan.keep_pinned ? 'ja' : 'nein'}</p>
-              <p>Loeschen: nein, Verlierer werden als Dublette markiert</p>
-              <button type="button" data-merge>Gewinner aktualisieren und Dubletten markieren</button>
+              <strong>Verlierer werden markiert</strong>
+              ${losers.map((item) => renderDedupItem(item, false)).join('')}
+            </div>
+            <div class="dedup-box">
+              <strong>Merge-Aktion</strong>
+              ${renderMergePlan(group.merge_plan, losers.length)}
             </div>
           </div>
-          <details>
-            <summary>Unterschiede anzeigen</summary>
-            ${renderDifferences(group.differences)}
+          <details class="dedup-diff" open>
+            <summary>Unterschiede: Titel, Beschreibung, Tags, Collections, Notizen, Favorite/Pin</summary>
+            ${renderDifferences(group.differences, group.winner.id)}
           </details>
         `;
-        section.querySelector('[data-open]').addEventListener('click', () => openBookmark(group.winner.id));
+        section.querySelectorAll('[data-open-item]').forEach((button) => {
+          button.addEventListener('click', () => openBookmark(button.dataset.openItem));
+        });
         section.querySelector('[data-merge]').addEventListener('click', async () => {
           await mergeDuplicates(group.merge_plan.winner_id, group.merge_plan.loser_ids);
         });
@@ -787,16 +803,58 @@ def index_html() -> str:
       }
     }
 
-    function renderDifferences(differences) {
-      if (!differences.length) return '<p>Keine Feldunterschiede.</p>';
+    function renderDedupItem(bookmark, isWinner) {
+      return `
+        <div class="dedup-item">
+          <p><strong>${escapeHtml(bookmark.title || bookmark.url)}</strong></p>
+          <p><a href="${escapeAttr(bookmark.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(bookmark.url)}</a></p>
+          <p class="muted">${escapeHtml(bookmark.domain || 'ohne Domain')} · ${bookmark.favorite ? 'Favorit' : 'kein Favorit'} · ${bookmark.pinned ? 'Pin' : 'kein Pin'}</p>
+          <p>${renderBadges('tag', bookmark.tags)}${renderBadges('collection', bookmark.collections)}</p>
+          ${bookmark.description ? `<p>${escapeHtml(bookmark.description)}</p>` : ''}
+          ${bookmark.notes ? `<p class="muted">Notizen: ${escapeHtml(bookmark.notes)}</p>` : ''}
+          <button type="button" data-open-item="${escapeAttr(bookmark.id)}">${isWinner ? 'Gewinner oeffnen' : 'Verlierer oeffnen'}</button>
+        </div>
+      `;
+    }
+
+    function renderMergePlan(plan, loserCount) {
+      return `
+        <p>${loserCount} Verlierer werden als <code>merged_duplicate</code> markiert.</p>
+        <p>Tags danach: ${escapeHtml(plan.move_tags.join(', ') || '-')}</p>
+        <p>Collections danach: ${escapeHtml(plan.move_collections.join(', ') || '-')}</p>
+        <p>Notizen: Verlierer-Notizen werden angehaengt.</p>
+        <p>Favorite: ${plan.keep_favorite ? 'ja' : 'nein'} · Pin: ${plan.keep_pinned ? 'ja' : 'nein'}</p>
+        <p><strong>Hartes Loeschen: nein.</strong> Originaldaten bleiben erhalten.</p>
+      `;
+    }
+
+    function renderDifferences(differences, winnerId) {
+      if (!differences.length) return '<p>Keine Feldunterschiede. Der Merge markiert trotzdem die doppelten URLs.</p>';
       return differences.map((difference) => `
-        <div>
-          <strong>${escapeHtml(difference.field)}</strong>
-          <ul>
-            ${difference.values.map((item) => `<li><code>${escapeHtml(item.id.slice(0, 8))}</code>: ${escapeHtml(formatValue(item.value))}</li>`).join('')}
-          </ul>
+        <div class="diff-row">
+          <strong>${escapeHtml(fieldLabel(difference.field))}</strong>
+          <div class="diff-values">
+            ${difference.values.map((item) => `
+              <div class="${item.id === winnerId ? 'diff-winner' : ''}">
+                <code>${escapeHtml(item.id.slice(0, 8))}</code>${item.id === winnerId ? ' Gewinner' : ' Verlierer'}: ${escapeHtml(formatValue(item.value))}
+              </div>
+            `).join('')}
+          </div>
         </div>
       `).join('');
+    }
+
+    function fieldLabel(field) {
+      return {
+        url: 'URL',
+        title: 'Titel',
+        description: 'Beschreibung',
+        tags: 'Tags',
+        collections: 'Collections',
+        notes: 'Notizen',
+        favorite: 'Favorite',
+        pinned: 'Pin'
+      }[field] || field;
     }
 
     function formatValue(value) {
