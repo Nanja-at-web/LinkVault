@@ -82,6 +82,15 @@ die Verlierer als `merged_duplicate` markieren. Dabei gilt:
   spaeter direkt bearbeitet, wird er nicht versehentlich wieder in die Suche
   aufgenommen. Fuer den Statusfilter `merged_duplicate` nutzt LinkVault eine
   einfache SQLite-Suche, damit markierte Dubletten trotzdem auffindbar bleiben.
+- Jeder Merge schreibt einen Eintrag in `merge_events`. Darin liegen Snapshots
+  von Gewinner-vorher, Verlierern-vorher und Gewinner-nachher. Das ist die
+  technische Grundlage fuer Undo und Audit-Ansichten.
+
+Die Merge-Historie ist ueber die API abrufbar:
+
+```bash
+curl http://127.0.0.1:3080/api/dedup/merges
+```
 
 Damit ist der erste echte Merge-Schritt nutzbar, ohne Daten hart zu loeschen.
 

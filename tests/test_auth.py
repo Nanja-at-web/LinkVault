@@ -99,6 +99,10 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertEqual(merge["deleted"], 0)
                 self.assertEqual(merge["merged_losers"][0]["status"], "merged_duplicate")
                 self.assertEqual(merge["merged_losers"][0]["merged_into"], bookmark["id"])
+                merge_history = get_json(opener, f"{base_url}/api/dedup/merges")
+                self.assertEqual(merge_history["events"][0]["id"], merge["merge_event_id"])
+                self.assertEqual(merge_history["events"][0]["winner_id"], bookmark["id"])
+                self.assertEqual(merge_history["events"][0]["loser_ids"], [duplicate_bookmark["id"]])
 
                 updated = request_json(
                     opener,
@@ -139,6 +143,11 @@ def request_json(opener: urllib.request.OpenerDirector, url: str, payload: dict,
         method=method,
     )
     with opener.open(request, timeout=5) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def get_json(opener: urllib.request.OpenerDirector, url: str) -> dict:
+    with opener.open(url, timeout=5) as response:
         return json.loads(response.read().decode("utf-8"))
 
 

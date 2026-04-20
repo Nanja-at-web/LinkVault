@@ -78,6 +78,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json(store.dedup_dry_run())
+        elif path == "/api/dedup/merges":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json({"events": store.merge_history()})
         elif path == "/":
             self.send_html(index_html())
         else:

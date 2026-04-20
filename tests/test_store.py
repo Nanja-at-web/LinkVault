@@ -135,6 +135,7 @@ class StoreTest(unittest.TestCase):
 
             self.assertEqual(result["deleted"], 0)
             self.assertEqual(result["merged_count"], 1)
+            self.assertTrue(result["merge_event_id"])
             updated_winner = store.get(winner.id)
             merged_loser = store.get(loser.id)
             self.assertEqual(updated_winner.tags, ["keep", "merge"])
@@ -161,8 +162,17 @@ class StoreTest(unittest.TestCase):
                 {winner.id},
             )
             self.assertEqual(store.dedup_dry_run()["group_count"], 0)
+            history = store.merge_history()
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["id"], result["merge_event_id"])
+            self.assertEqual(history[0]["winner_id"], winner.id)
+            self.assertEqual(history[0]["loser_ids"], [loser.id])
+            self.assertEqual(history[0]["winner_before"]["notes"], "Winner note")
+            self.assertEqual(history[0]["losers_before"][0]["title"], "Loser Unique Title")
+            self.assertIn("Loser note", history[0]["winner_after"]["notes"])
             reopened_store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             self.assertEqual(reopened_store.search("Loser Unique Title"), [])
+            self.assertEqual(reopened_store.merge_history()[0]["id"], result["merge_event_id"])
 
     def test_inactive_bookmarks_are_not_reindexed_by_update(self):
         with tempfile.TemporaryDirectory() as tmp:

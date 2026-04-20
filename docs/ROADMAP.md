@@ -56,6 +56,8 @@ Status-Legende:
 - [x] Merge-Ausfuehrung ohne Loeschen: Gewinner aktualisieren, Verlierer als
   `merged_duplicate` markieren und Daten uebernehmen.
 - [x] Statusfilter fuer aktive und gemergte Dubletten in API/UI.
+- [x] Merge-Historie mit Snapshots fuer Gewinner-vorher, Verlierer-vorher und
+  Gewinner-nachher.
 - [ ] Conflict Center fuer Import-, Sync- und Merge-Konflikte.
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 - [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.

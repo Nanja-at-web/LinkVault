@@ -117,6 +117,7 @@ Wichtige Endpunkte:
 - `POST /api/import/browser-html`
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
+- `GET /api/dedup/merges`
 - `POST /api/dedup/merge`
 
 ## Produktprioritaet Aus Der Recherche

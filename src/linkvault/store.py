@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
@@ -106,6 +107,22 @@ class BookmarkStore:
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_normalized_url ON bookmarks(normalized_url)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_domain ON bookmarks(domain)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_status ON bookmarks(status)")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS merge_events (
+                    id TEXT PRIMARY KEY,
+                    action TEXT NOT NULL,
+                    winner_id TEXT NOT NULL,
+                    loser_ids TEXT NOT NULL,
+                    winner_before_json TEXT NOT NULL,
+                    losers_before_json TEXT NOT NULL,
+                    winner_after_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_events_winner_id ON merge_events(winner_id)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_events_created_at ON merge_events(created_at)")
             connection.execute(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
@@ -402,10 +419,13 @@ class BookmarkStore:
             "pinned": winner.pinned or any(bookmark.pinned for bookmark in losers),
             "notes": merged_notes,
         }
+        winner_before = winner.to_dict()
+        losers_before = [loser.to_dict() for loser in losers]
         updated_winner = self.update(winner_id, updated_winner_payload, enrich_metadata=False)
         if not updated_winner:
             raise ValueError("winner not found")
 
+        merge_event_id = uuid4().hex
         with self.connect() as connection:
             for loser in losers:
                 connection.execute(
@@ -417,15 +437,48 @@ class BookmarkStore:
                     (winner_id, now, now, loser.id),
                 )
                 connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (loser.id,))
+            connection.execute(
+                """
+                INSERT INTO merge_events (
+                    id, action, winner_id, loser_ids, winner_before_json,
+                    losers_before_json, winner_after_json, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    merge_event_id,
+                    "merge_duplicates",
+                    winner_id,
+                    json.dumps([loser.id for loser in losers], sort_keys=True),
+                    json.dumps(winner_before, sort_keys=True),
+                    json.dumps(losers_before, sort_keys=True),
+                    json.dumps(updated_winner.to_dict(), sort_keys=True),
+                    now,
+                ),
+            )
 
         merged_losers = [bookmark for loser in losers if (bookmark := self.get(loser.id))]
 
         return {
+            "merge_event_id": merge_event_id,
             "winner": updated_winner.to_dict(),
             "merged_losers": [bookmark.to_dict() for bookmark in merged_losers],
             "merged_count": len(merged_losers),
             "deleted": 0,
         }
+
+    def merge_history(self, limit: int = 50) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM merge_events
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [merge_event_from_row(row) for row in rows]
 
     def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:
         if not enrich_metadata or not self.metadata_fetcher:
@@ -618,6 +671,19 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
         bookmark.created_at,
         bookmark.updated_at,
     )
+
+
+def merge_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "action": row["action"],
+        "winner_id": row["winner_id"],
+        "loser_ids": json.loads(row["loser_ids"]),
+        "winner_before": json.loads(row["winner_before_json"]),
+        "losers_before": json.loads(row["losers_before_json"]),
+        "winner_after": json.loads(row["winner_after_json"]),
+        "created_at": row["created_at"],
+    }
 
 
 def upsert_search_index(connection: sqlite3.Connection, bookmark: Bookmark) -> None:
