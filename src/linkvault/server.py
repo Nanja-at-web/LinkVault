@@ -322,18 +322,13 @@ def index_html() -> str:
       margin-right: .8rem;
     }
     label.check input, input[type="checkbox"] { width: auto; margin: 0; }
-    .shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+    .shell { max-width: 1240px; margin: 0 auto; padding: 1.25rem; }
     .toolbar {
-      position: sticky;
-      top: 0;
-      z-index: 10;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 1rem 0;
-      background: color-mix(in srgb, var(--bg) 92%, transparent);
-      backdrop-filter: blur(10px);
+      padding: 1rem 0 .9rem;
       border-bottom: 1px solid var(--line);
     }
     .subtitle { margin: 0; color: var(--muted); max-width: 58rem; }
@@ -409,13 +404,26 @@ def index_html() -> str:
       padding: .9rem;
     }
     .bookmark-head {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: .75rem;
+      display: flex;
+      justify-content: space-between;
+      gap: .9rem;
       align-items: start;
     }
+    .bookmark-main { min-width: 0; flex: 1; }
     .bookmark-title { font-size: 1.05rem; font-weight: 750; overflow-wrap: anywhere; }
     .bookmark-url { display: inline-block; margin: .25rem 0; }
+    .select-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      min-width: max-content;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: .25rem .45rem;
+      background: #f7f9f5;
+      font-size: .9rem;
+      font-weight: 650;
+    }
     .meta-line { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
     .description { margin: .6rem 0; }
     .badge {
@@ -436,6 +444,8 @@ def index_html() -> str:
       .shell { padding: .75rem; }
       .toolbar, .panel-header { display: block; }
       .form-grid, .filters { grid-template-columns: 1fr; }
+      .bookmark-head { display: block; }
+      .select-pill { margin-top: .65rem; }
       h1 { font-size: 1.6rem; }
     }
     [hidden] { display: none !important; }
@@ -514,7 +524,7 @@ def index_html() -> str:
     <div class="panel-header">
       <div>
         <h2>Bookmarks</h2>
-        <p class="subtitle">Suchen, filtern, bearbeiten und fuer Bulk-Aktionen auswaehlen.</p>
+        <p class="subtitle"><span id="bookmark-count">0</span> Treffer. Suchen, filtern, bearbeiten und fuer Bulk-Aktionen auswaehlen.</p>
       </div>
       <button id="refresh" type="button">Aktualisieren</button>
     </div>
@@ -588,6 +598,7 @@ def index_html() -> str:
     const appNav = document.querySelector('#app-nav');
     const userbar = document.querySelector('#userbar');
     const currentUser = document.querySelector('#current-user');
+    const bookmarkCount = document.querySelector('#bookmark-count');
     const selectedIds = new Set();
 
     async function loadAuth() {
@@ -652,6 +663,7 @@ def index_html() -> str:
       bookmarksEl.innerHTML = '';
       selectedIds.clear();
       updateSelectedCount();
+      bookmarkCount.textContent = String(payload.bookmarks.length);
       if (!payload.bookmarks.length) {
         bookmarksEl.innerHTML = '<div class="empty">Keine Bookmarks fuer diese Suche gefunden.</div>';
         return;
@@ -662,8 +674,7 @@ def index_html() -> str:
         row.dataset.bookmarkId = bookmark.id;
         row.innerHTML = `
           <div class="bookmark-head">
-            <label class="check"><input data-role="select-bookmark" type="checkbox"> Auswaehlen</label>
-            <div>
+            <div class="bookmark-main">
               <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
               <a class="bookmark-url" href="${escapeAttr(bookmark.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(bookmark.url)}</a>
               <div class="meta-line">${escapeHtml(bookmark.domain || 'ohne Domain')}</div>
@@ -672,6 +683,7 @@ def index_html() -> str:
               ${bookmark.notes ? `<div class="meta-line">Notizen: ${escapeHtml(bookmark.notes)}</div>` : ''}
               ${bookmark.favicon_url ? `<div class="meta-line">Favicon: ${escapeHtml(bookmark.favicon_url)}</div>` : ''}
             </div>
+            <label class="select-pill"><input data-role="select-bookmark" type="checkbox"> Auswaehlen</label>
           </div>
           <div class="actions">
             <button data-action="favorite">${bookmark.favorite ? 'Favorit entfernen' : 'Favorit setzen'}</button>
