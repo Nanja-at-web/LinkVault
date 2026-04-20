@@ -1,5 +1,21 @@
 # Technische Architektur
 
+## Betriebsphilosophie
+
+Das Installation-Research vom 20.04.2026 bestaetigt: LinkVault sollte im
+Standardpfad klein bleiben und schwere Archiv-/Crawler-/AI-Funktionen als
+optionale Profile behandeln. Der Core-MVP orientiert sich betrieblich eher an
+linkding, Readeck, Shiori, Betula und Shaarli als an Karakeep, Linkwarden oder
+Omnivore.
+
+Installationsprofile:
+
+| Profil | Zweck | Pflichtdienste |
+|---|---|---|
+| Core MVP | Bookmarks, Login, SQLite, FTS5, Dedup, Backup/Restore, Update | ein systemd Service |
+| Archive Worker | Reader-Extrakt, Single-HTML, Screenshot/PDF, Assets | optionaler Worker, Browser-/Archivtools |
+| Platform Mode | grosse Installationen, externe Suche, Worker-Trennung | spaeter PostgreSQL/Search/Queue bewerten |
+
 ## Empfohlener Stack
 
 LinkVault sollte als robuste, LXC-freundliche Web-App gebaut werden:
@@ -7,12 +23,13 @@ LinkVault sollte als robuste, LXC-freundliche Web-App gebaut werden:
 - Backend: Go oder TypeScript/Node. Empfehlung: Go fuer kleine Binaries,
   einfache LXC-Installation und Shiori-aehnliche Leichtigkeit.
 - Frontend: React mit serverseitig ausgeliefertem Build.
-- Datenbank: SQLite fuer den Python-MVP, PostgreSQL spaeter als Default.
-- Suche: SQLite FTS5 im Python-MVP, spaeter PostgreSQL Full Text Search,
-  Meilisearch oder Tantivy-basierter Index.
+- Datenbank: SQLite fuer den Python-MVP und kleine Installationen,
+  PostgreSQL spaeter nur fuer groessere Installationen oder Platform Mode.
+- Suche: SQLite FTS5 im Core-MVP, spaeter PostgreSQL Full Text Search,
+  Meilisearch oder Tantivy-basierter Index als optionales Profil.
 - Queue: eingebaute Job-Tabelle fuer MVP, spaeter Redis optional.
 - Archivierung: Readability-Extraktion, Single-HTML, Screenshot/PDF ueber
-  Playwright oder Browserless-kompatiblen Worker.
+  Playwright oder Browserless-kompatiblen Worker, aber nicht als Core-Pflicht.
 - AI: Provider-Abstraktion. Lokal via Ollama/OpenAI-kompatible API,
   remote optional, komplett abschaltbar.
 
@@ -171,12 +188,17 @@ Default ist `delete_losers: false`: Verlierer werden zuerst als
 Aktueller Python-MVP:
 
 - Debian 13 LXC
+- 2 vCPU empfohlen
+- 768 MB RAM Minimum, 1024 MB empfohlen
+- 16 GB LXC-Disk als aktueller Default
 - systemd Service `linkvault`
 - Konfiguration ueber `/etc/linkvault/linkvault.env`
 - App unter `/opt/linkvault`
 - Daten unter `/var/lib/linkvault/linkvault.sqlite3`
 - Logs ueber journald/stdout
 - Healthcheck ueber `/healthz`
+- Requirements-Check ueber `linkvault-requirements` oder
+  `linkvault-helper requirements`
 
 Spaeteres Default-Ziel:
 

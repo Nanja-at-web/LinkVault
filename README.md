@@ -26,6 +26,7 @@ The current focus is:
 - [Deep research impact, German](docs/RESEARCH_IMPACT.md)
 - [UX research impact, German](docs/UX_RESEARCH_IMPACT.md)
 - [Browser and import research impact, German](docs/BROWSER_IMPORT_RESEARCH.md)
+- [Installation requirements impact, German](docs/INSTALLATION_REQUIREMENTS.md)
 - [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox community-scripts target, German](docs/PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian LXC installation test, German](docs/DEBIAN_LXC_TEST.md)
@@ -75,6 +76,7 @@ uses `/var/lib/linkvault` as the data directory, and enables
 ```bash
 sudo ./scripts/install-debian.sh
 curl http://127.0.0.1:3080/healthz
+linkvault-requirements
 ```
 
 For internal LXC tests, use `proxmox/linkvault-lxc-test.sh`. This is not an

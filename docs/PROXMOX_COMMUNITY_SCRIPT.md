@@ -38,6 +38,8 @@ noetige Dienst-Vorarbeit:
 - `scripts/restore-linkvault.sh`: Restore mit Dienststopp und Vorher-Kopie.
 - `scripts/update-linkvault.sh`: Update aus GitHub-Quelle mit Service-Neustart und Healthcheck.
 - `scripts/linkvault-helper.sh`: lokaler Helper fuer Status, Logs, Healthcheck, Backup, Restore, Update und Setup-Token.
+- `scripts/check-requirements.sh`: Requirements-Check fuer Debian/LXC, RAM,
+  Disk, systemd, Python, venv und SQLite FTS5.
 - `ct/linkvault.sh`: community-scripts-aehnlicher Proxmox-Host-Einzeiler fuer neuen Debian-LXC.
 - `install/linkvault-install.sh`: community-scripts-aehnlicher Installer innerhalb des Containers.
 - `proxmox/linkvault-lxc-test.sh`: interner Smoke-Test in einem Debian-LXC.
@@ -70,6 +72,14 @@ prueft am Ende den Healthcheck.
 Die Ausgabe ist inzwischen bewusst community-scripts-aehnlich: kurzer Header,
 `[OK]`-Statuszeilen, lange `apt`, `pct` und `pip`-Ausgaben in
 `/tmp/linkvault-ct-install.log`, danach URL und Healthcheck-Befehl.
+
+Der Container-Installer fuehrt nach den Basispaketen einen Requirements-Check
+aus. Nach der Installation kann derselbe Check erneut aufgerufen werden:
+
+```bash
+pct exec 112 -- linkvault-requirements
+pct exec 112 -- linkvault-helper requirements
+```
 
 Optionale Overrides:
 
@@ -217,6 +227,7 @@ Vor einer Einreichung braucht das Projekt:
 
 - oeffentliches Release-Artefakt fuer Linux amd64/arm64
 - dokumentierte Port- und Datenpfade
+- dokumentierte Mindestanforderungen und einen pruefbaren Requirements-Check
 - Update-Befehl oder Update-Funktion
 - Healthcheck-Endpunkt, z. B. `/healthz`
 - systemd Unit

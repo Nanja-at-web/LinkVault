@@ -81,10 +81,11 @@ main() {
   msg_info "Installing ${APP}"
 
   run_quiet "Installing Dependencies" bash -lc \
-    "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates"
+    "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates python3 python3-venv"
 
   rm -rf "${WORKDIR}"
   run_quiet "Cloning LinkVault" git clone --branch "${BRANCH}" --depth 1 "${REPO_URL}" "${WORKDIR}"
+  run_quiet "Checking Requirements" "${WORKDIR}/scripts/check-requirements.sh"
   run_quiet "Installing LinkVault Service" "${WORKDIR}/scripts/install-debian.sh"
   wait_for_linkvault
 

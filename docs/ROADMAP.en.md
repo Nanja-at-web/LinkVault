@@ -14,6 +14,8 @@ Status legend:
 - [x] Evaluate the UX research collection and derive UX priorities.
 - [x] Evaluate the 2026-04-20 browser/API research and derive the import
   architecture.
+- [x] Evaluate the 2026-04-20 installation/requirements research and derive
+  operating profiles.
 - [x] Add English repository entry point and English roadmap.
 - [~] Decide final backend stack: Python remains until phase 2; Go will be
   reconsidered later.
@@ -117,6 +119,10 @@ Status legend:
   matrix is open.
 - [ ] Check community-scripts.org conventions with `build.func`/`install.func`.
 - [ ] Test ProxmoxVE-Local compatibility.
+- [x] Requirements check for Debian/LXC, RAM, disk, systemd, Python, venv, and
+  SQLite FTS5.
+- [ ] Specify the archive-worker profile with extra packages and resource
+  values.
 - [ ] Prepare ProxmoxVED submission.
 - [ ] Plan later ProxmoxVE maintenance after ProxmoxVED review.
 

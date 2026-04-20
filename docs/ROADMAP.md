@@ -14,6 +14,8 @@ Status-Legende:
 - [x] UX-Research-Sammlung auswerten und UX-Prioritaeten ableiten.
 - [x] Browser/API-Research vom 20.04.2026 auswerten und Import-Architektur
   ableiten.
+- [x] Installations-/Requirements-Research vom 20.04.2026 auswerten und
+  Betriebsprofile ableiten.
 - [x] Englischsprachigen Repo-Einstieg und englische Roadmap anlegen.
 - [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
 - [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
@@ -101,6 +103,10 @@ Status-Legende:
 - [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.
 - [ ] community-scripts.org-Konventionen mit `build.func`/`install.func` pruefen.
 - [ ] ProxmoxVE-Local-Kompatibilitaet pruefen.
+- [x] Requirements-Check fuer Debian/LXC, RAM, Disk, systemd, Python, venv und
+  SQLite FTS5.
+- [ ] Archive-Worker-Profil mit zusaetzlichen Paketen und Ressourcenwerten
+  spezifizieren.
 - [ ] ProxmoxVED-Einreichung vorbereiten.
 - [ ] Nach ProxmoxVED-Pruefung spaetere ProxmoxVE-Pflege planen.
 

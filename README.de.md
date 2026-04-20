@@ -25,6 +25,7 @@ Der Schwerpunkt liegt auf:
 - [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
 - [Einfluss der UX-Research-Sammlung](docs/UX_RESEARCH_IMPACT.md)
 - [Einfluss der Browser- und Import-Recherche](docs/BROWSER_IMPORT_RESEARCH.md)
+- [Einfluss der Installations- und Requirements-Recherche](docs/INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
 - [Debian-LXC Installationstest](docs/DEBIAN_LXC_TEST.md)
@@ -67,6 +68,7 @@ aktiviert `deploy/linkvault.service`.
 ```bash
 sudo ./scripts/install-debian.sh
 curl http://127.0.0.1:3080/healthz
+linkvault-requirements
 ```
 
 Fuer interne LXC-Tests gibt es `proxmox/linkvault-lxc-test.sh`. Das ist noch

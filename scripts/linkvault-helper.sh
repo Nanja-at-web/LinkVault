@@ -9,6 +9,7 @@ HEALTH_URL="${LINKVAULT_HEALTH_URL:-http://127.0.0.1:3080/healthz}"
 BACKUP_CMD="${LINKVAULT_BACKUP_CMD:-/usr/local/bin/backup-linkvault.sh}"
 RESTORE_CMD="${LINKVAULT_RESTORE_CMD:-/usr/local/bin/restore-linkvault.sh}"
 UPDATE_CMD="${LINKVAULT_UPDATE_CMD:-/usr/local/bin/update-linkvault.sh}"
+REQUIREMENTS_CMD="${LINKVAULT_REQUIREMENTS_CMD:-/usr/local/bin/linkvault-requirements}"
 
 if [[ -f "${CONFIG_FILE}" ]]; then
   # shellcheck disable=SC1090
@@ -130,6 +131,14 @@ run_update() {
   "${UPDATE_CMD}"
 }
 
+run_requirements() {
+  if [[ ! -x "${REQUIREMENTS_CMD}" ]]; then
+    echo "Requirements command not found or not executable: ${REQUIREMENTS_CMD}" >&2
+    exit 1
+  fi
+  "${REQUIREMENTS_CMD}"
+}
+
 print_usage() {
   cat <<EOF
 Usage: linkvault-helper [command]
@@ -143,6 +152,8 @@ Commands:
   backup     Create a LinkVault backup.
   restore    Restore a backup archive. Optional: linkvault-helper restore /path/archive.tar.gz
   update     Update LinkVault from the configured Git source.
+  requirements
+             Check OS, RAM, disk, Python, SQLite FTS5, systemd, and core commands.
   token      Print the initial setup token.
   help       Show this help.
 EOF
@@ -160,8 +171,9 @@ menu() {
 4) Create backup
 5) Restore latest backup
 6) Update LinkVault
-7) Show setup token
-8) Exit
+7) Check requirements
+8) Show setup token
+9) Exit
 EOF
     printf "\nChoose an option: "
     read -r choice || exit 0
@@ -173,8 +185,9 @@ EOF
       4) run_backup; pause ;;
       5) run_restore; pause ;;
       6) run_update; pause ;;
-      7) show_token; pause ;;
-      8|q|Q) exit 0 ;;
+      7) run_requirements; pause ;;
+      8) show_token; pause ;;
+      9|q|Q) exit 0 ;;
       *) echo "Unknown option: ${choice}"; pause ;;
     esac
   done
@@ -190,6 +203,7 @@ case "${command}" in
   backup) run_backup ;;
   restore) shift || true; run_restore "${1:-}" ;;
   update) run_update ;;
+  requirements) run_requirements ;;
   token) show_token ;;
   help|-h|--help) print_usage ;;
   *) echo "Unknown command: ${command}" >&2; print_usage >&2; exit 1 ;;

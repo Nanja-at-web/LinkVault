@@ -23,6 +23,8 @@ echo "Installing LinkVault from ${SOURCE_DIR}"
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv curl ca-certificates
 
+"${SOURCE_DIR}/scripts/check-requirements.sh"
+
 if ! getent group "${APP_GROUP}" >/dev/null; then
   groupadd --system "${APP_GROUP}"
 fi
@@ -64,10 +66,12 @@ install -m 0755 "${SOURCE_DIR}/scripts/backup-linkvault.sh" "/usr/local/bin/back
 install -m 0755 "${SOURCE_DIR}/scripts/restore-linkvault.sh" "/usr/local/bin/restore-linkvault.sh"
 install -m 0755 "${SOURCE_DIR}/scripts/update-linkvault.sh" "/usr/local/bin/update-linkvault.sh"
 install -m 0755 "${SOURCE_DIR}/scripts/linkvault-helper.sh" "/usr/local/bin/linkvault-helper"
+install -m 0755 "${SOURCE_DIR}/scripts/check-requirements.sh" "/usr/local/bin/linkvault-requirements"
 ln -sf /usr/local/bin/backup-linkvault.sh /usr/bin/backup-linkvault.sh
 ln -sf /usr/local/bin/restore-linkvault.sh /usr/bin/restore-linkvault.sh
 ln -sf /usr/local/bin/update-linkvault.sh /usr/bin/update-linkvault.sh
 ln -sf /usr/local/bin/linkvault-helper /usr/bin/linkvault-helper
+ln -sf /usr/local/bin/linkvault-requirements /usr/bin/linkvault-requirements
 
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
@@ -76,3 +80,4 @@ echo "LinkVault installed."
 echo "Healthcheck: curl http://127.0.0.1:3080/healthz"
 echo "Setup token: ${SETUP_TOKEN}"
 echo "Helper: linkvault-helper"
+echo "Requirements: linkvault-requirements"

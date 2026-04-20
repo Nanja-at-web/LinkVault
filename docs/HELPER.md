@@ -27,7 +27,8 @@ Das Menue bietet:
 4. Backup erstellen,
 5. letztes Backup wiederherstellen,
 6. LinkVault aktualisieren,
-7. Setup-Token anzeigen.
+7. Requirements pruefen,
+8. Setup-Token anzeigen.
 
 ## Direkte Befehle
 
@@ -41,10 +42,13 @@ linkvault-helper health
 linkvault-helper backup
 linkvault-helper restore /var/backups/linkvault/linkvault-backup-YYYYmmdd-HHMMSS.tar.gz
 linkvault-helper update
+linkvault-helper requirements
 linkvault-helper token
 ```
 
 Backup, Restore und Update muessen als `root` laufen.
+Der Requirements-Check prueft OS, RAM, Disk, systemd, Python, venv und SQLite
+FTS5 fuer den aktuellen Core-MVP.
 
 ## Letzter erfolgreicher echter Proxmox-LXC-Test
 
