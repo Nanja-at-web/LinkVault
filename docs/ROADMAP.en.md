@@ -58,6 +58,7 @@ Status legend:
 - [ ] Undo for merge operations.
 - [x] Merge execution without deletion: update the winner, mark losing records
   as `merged_duplicate`, and move data.
+- [x] Status filter for active and merged duplicates in the API/UI.
 - [ ] Conflict center for import, sync, and merge conflicts.
 - [~] Show uncategorized favorites, duplicate favorites, and dead favorites.
 - [ ] Collection health score: metadata, archive status, duplicates, dead

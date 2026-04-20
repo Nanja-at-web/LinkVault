@@ -75,6 +75,13 @@ die Verlierer als `merged_duplicate` markieren. Dabei gilt:
   `merged_at`,
 - normale Listen, Suche, Preflight und neue Dedup-Gruppen zeigen nur aktive
   Bookmarks.
+- Die Bookmark-Liste hat einen Statusfilter fuer `active`,
+  `merged_duplicate` und `all`, damit markierte Dubletten kontrollierbar
+  bleiben, aber nicht mehr den normalen Arbeitsfluss stoeren.
+- Der Suchindex enthaelt nur aktive Bookmarks. Wird ein markierter Verlierer
+  spaeter direkt bearbeitet, wird er nicht versehentlich wieder in die Suche
+  aufgenommen. Fuer den Statusfilter `merged_duplicate` nutzt LinkVault eine
+  einfache SQLite-Suche, damit markierte Dubletten trotzdem auffindbar bleiben.
 
 Damit ist der erste echte Merge-Schritt nutzbar, ohne Daten hart zu loeschen.
 

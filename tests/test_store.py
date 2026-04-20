@@ -147,6 +147,14 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(merged_loser.merged_into, winner.id)
             self.assertTrue(merged_loser.merged_at)
             self.assertEqual([bookmark.id for bookmark in store.list()], [winner.id])
+            self.assertEqual(
+                [bookmark.id for bookmark in store.list(filters=BookmarkFilters(status="merged_duplicate"))],
+                [loser.id],
+            )
+            self.assertEqual(
+                {bookmark.id for bookmark in store.list(filters=BookmarkFilters(status="all"))},
+                {winner.id, loser.id},
+            )
             self.assertEqual(store.search("Loser Unique Title"), [])
             self.assertEqual(
                 {match["bookmark"]["id"] for match in store.duplicate_preflight(loser.url)["matches"]},
@@ -155,6 +163,26 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(store.dedup_dry_run()["group_count"], 0)
             reopened_store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             self.assertEqual(reopened_store.search("Loser Unique Title"), [])
+
+    def test_inactive_bookmarks_are_not_reindexed_by_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            winner = store.add({"url": "https://example.com/a", "title": "Winner"})
+            loser = store.add({"url": "https://example.com/a?utm_source=news", "title": "Loser Unique Title"})
+
+            store.merge_duplicates({"winner_id": winner.id, "loser_ids": [loser.id]})
+            updated_loser = store.update(loser.id, {"title": "Still Hidden"}, enrich_metadata=False)
+
+            self.assertEqual(updated_loser.status, "merged_duplicate")
+            self.assertEqual(store.search("Still Hidden"), [])
+            self.assertEqual(
+                [bookmark.id for bookmark in store.search("Still Hidden", filters=BookmarkFilters(status="merged_duplicate"))],
+                [loser.id],
+            )
+            self.assertEqual(
+                [bookmark.id for bookmark in store.list(filters=BookmarkFilters(status="merged_duplicate"))],
+                [loser.id],
+            )
 
     def test_duplicate_preflight_finds_exact_normalized_and_similar_urls(self):
         with tempfile.TemporaryDirectory() as tmp:

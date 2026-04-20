@@ -46,6 +46,7 @@ class BookmarkFilters:
     domain: str = ""
     tag: str = ""
     collection: str = ""
+    status: str = "active"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -127,7 +128,9 @@ class BookmarkStore:
             return self.search(query, filters=filters)
 
         filter_sql, values = bookmark_filter_sql(filters)
-        filter_sql.insert(0, "b.status = 'active'")
+        status_clause, status_values = bookmark_status_sql(filters.status)
+        filter_sql.insert(0, status_clause)
+        values = [*status_values, *values]
         where = f"WHERE {' AND '.join(filter_sql)}"
         with self.connect() as connection:
             rows = connection.execute(
@@ -141,13 +144,18 @@ class BookmarkStore:
         return [bookmark_from_row(row) for row in rows]
 
     def search(self, query: str, filters: BookmarkFilters | None = None) -> list[Bookmark]:
+        filters = filters or BookmarkFilters()
+        if filters.status.strip().lower() != "active":
+            return self.simple_search(query, filters=filters)
+
         fts_query = build_fts_query(query)
         if not fts_query:
             return self.list(filters=filters)
 
-        filter_sql, filter_values = bookmark_filter_sql(filters or BookmarkFilters())
-        clauses = ["bookmarks_fts MATCH ?", "b.status = 'active'", *filter_sql]
-        values: list[Any] = [fts_query, *filter_values]
+        filter_sql, filter_values = bookmark_filter_sql(filters)
+        status_clause, status_values = bookmark_status_sql(filters.status)
+        clauses = ["bookmarks_fts MATCH ?", status_clause, *filter_sql]
+        values: list[Any] = [fts_query, *status_values, *filter_values]
         with self.connect() as connection:
             rows = connection.execute(
                 f"""
@@ -156,6 +164,39 @@ class BookmarkStore:
                 JOIN bookmarks b ON b.id = bookmarks_fts.bookmark_id
                 WHERE {' AND '.join(clauses)}
                 ORDER BY search_rank ASC, b.favorite DESC, b.pinned DESC, b.updated_at DESC, b.title ASC
+                """,
+                values,
+            ).fetchall()
+        return [bookmark_from_row(row) for row in rows]
+
+    def simple_search(self, query: str, filters: BookmarkFilters) -> list[Bookmark]:
+        terms = [term.strip().lower() for term in query.split() if term.strip()]
+        filter_sql, values = bookmark_filter_sql(filters)
+        status_clause, status_values = bookmark_status_sql(filters.status)
+        clauses = [status_clause, *filter_sql]
+        values = [*status_values, *values]
+        for term in terms:
+            clauses.append(
+                """
+                (
+                    LOWER(b.title) LIKE ?
+                    OR LOWER(b.url) LIKE ?
+                    OR LOWER(b.description) LIKE ?
+                    OR LOWER(b.domain) LIKE ?
+                    OR LOWER(b.tags) LIKE ?
+                    OR LOWER(b.collections) LIKE ?
+                    OR LOWER(b.notes) LIKE ?
+                )
+                """
+            )
+            values.extend([f"%{term}%"] * 7)
+
+        with self.connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM bookmarks b
+                WHERE {' AND '.join(clauses)}
+                ORDER BY favorite DESC, pinned DESC, created_at DESC, title ASC
                 """,
                 values,
             ).fetchall()
@@ -492,7 +533,15 @@ class BookmarkStore:
     def sync_search_index(self, connection: sqlite3.Connection) -> None:
         bookmark_count = connection.execute("SELECT COUNT(*) FROM bookmarks WHERE status = 'active'").fetchone()[0]
         fts_count = connection.execute("SELECT COUNT(*) FROM bookmarks_fts").fetchone()[0]
-        if bookmark_count != fts_count:
+        stale_count = connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM bookmarks_fts
+            LEFT JOIN bookmarks b ON b.id = bookmarks_fts.bookmark_id
+            WHERE b.id IS NULL OR b.status != 'active'
+            """
+        ).fetchone()[0]
+        if bookmark_count != fts_count or stale_count:
             rebuild_search_index(connection)
 
 
@@ -573,6 +622,8 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
 
 def upsert_search_index(connection: sqlite3.Connection, bookmark: Bookmark) -> None:
     connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (bookmark.id,))
+    if bookmark.status != "active":
+        return
     connection.execute(
         """
         INSERT INTO bookmarks_fts (bookmark_id, title, url, description, domain, tags, collections, notes)
@@ -631,6 +682,15 @@ def bookmark_filter_sql(filters: BookmarkFilters) -> tuple[list[str], list[Any]]
         clauses.append("('\n' || b.collections || '\n') LIKE ?")
         values.append(f"%\n{filters.collection.strip()}\n%")
     return clauses, values
+
+
+def bookmark_status_sql(status: str) -> tuple[str, list[Any]]:
+    status = status.strip().lower()
+    if status == "all":
+        return "1 = 1", []
+    if status in {"active", "merged_duplicate"}:
+        return "b.status = ?", [status]
+    return "b.status = ?", ["active"]
 
 
 def clean_list(value: Any) -> list[str]:

@@ -535,6 +535,13 @@ def index_html() -> str:
       <label>Domain <input id="filter-domain" placeholder="github.com"></label>
       <label>Tag <input id="filter-tag" placeholder="selfhost"></label>
       <label>Collection <input id="filter-collection" placeholder="Development"></label>
+      <label>Status
+        <select id="filter-status">
+          <option value="active">Aktive Bookmarks</option>
+          <option value="merged_duplicate">Gemergte Dubletten</option>
+          <option value="all">Alle anzeigen</option>
+        </select>
+      </label>
     </div>
 
     <section id="bulk" class="bulk-actions">
@@ -646,6 +653,8 @@ def index_html() -> str:
       if (query) params.set('q', query);
       if (document.querySelector('#filter-favorite').checked) params.set('favorite', 'true');
       if (document.querySelector('#filter-pinned').checked) params.set('pinned', 'true');
+      const status = document.querySelector('#filter-status').value;
+      if (status && status !== 'active') params.set('status', status);
       for (const [param, selector] of [
         ['domain', '#filter-domain'],
         ['tag', '#filter-tag'],
@@ -678,6 +687,7 @@ def index_html() -> str:
               <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
               <a class="bookmark-url" href="${escapeAttr(bookmark.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(bookmark.url)}</a>
               <div class="meta-line">${escapeHtml(bookmark.domain || 'ohne Domain')}</div>
+              ${bookmark.status !== 'active' ? `<div class="meta-line">Status: ${escapeHtml(bookmark.status)}${bookmark.merged_into ? ` · zusammengefuehrt in ${escapeHtml(bookmark.merged_into.slice(0, 8))}` : ''}</div>` : ''}
               <div>${renderBadges('tag', bookmark.tags)}${renderBadges('collection', bookmark.collections)}</div>
               ${bookmark.description ? `<p class="description">${escapeHtml(bookmark.description)}</p>` : ''}
               ${bookmark.notes ? `<div class="meta-line">Notizen: ${escapeHtml(bookmark.notes)}</div>` : ''}
@@ -927,6 +937,7 @@ def index_html() -> str:
         document.querySelector('#filter-domain').value = '';
         document.querySelector('#filter-tag').value = '';
         document.querySelector('#filter-collection').value = '';
+        document.querySelector('#filter-status').value = 'all';
         refreshBookmarks().then(() => {
           const refreshed = document.querySelector(`[data-bookmark-id="${CSS.escape(id)}"]`);
           refreshed?.scrollIntoView({behavior: 'smooth', block: 'center'});
@@ -1045,6 +1056,7 @@ def index_html() -> str:
     document.querySelector('#filter-domain').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-tag').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-collection').addEventListener('input', refreshBookmarks);
+    document.querySelector('#filter-status').addEventListener('change', refreshBookmarks);
     loadAuth();
   </script>
 </body>
@@ -1071,6 +1083,7 @@ def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
         domain=get_query_param(params, "domain"),
         tag=get_query_param(params, "tag"),
         collection=get_query_param(params, "collection"),
+        status=get_query_param(params, "status") or "active",
     )
 
 

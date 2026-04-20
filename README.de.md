@@ -108,7 +108,7 @@ Wichtige Endpunkte:
 - `GET /api/me`
 - `GET /api/bookmarks`
 - `GET /api/bookmarks?q=suchbegriff`
-- `GET /api/bookmarks?q=suchbegriff&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development`
+- `GET /api/bookmarks?q=suchbegriff&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development&status=active`
 - `POST /api/bookmarks`
 - `POST /api/bookmarks/bulk`
 - `GET /api/bookmarks/{id}`
