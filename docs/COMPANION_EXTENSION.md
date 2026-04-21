@@ -112,6 +112,8 @@ Aktueller Funktionsumfang:
 - Verbindung gegen `/healthz` und `/api/bookmarks` testen.
 - aktuellen Tab als Bookmark speichern.
 - Browser-Bookmark-Baum ueber die WebExtensions-`bookmarks`-API lesen.
+- Alle Browser-Bookmarks oder einen einzelnen Browser-Ordner fuer
+  Vorschau/Import auswaehlen.
 - Import-Vorschau an LinkVault senden.
 - Browser-Bookmarks nach LinkVault importieren.
 - Interne Browser-URLs wie `about:`, `place:` oder `moz-extension:` werden
@@ -123,10 +125,14 @@ die vorhandenen LinkVault-Endpunkte:
 - `POST /api/import/browser-html/preview`
 - `POST /api/import/browser-html`
 
+Die Ordnerauswahl importiert den gewaehlten Ordner inklusive Unterordnern.
+Eine feinere Einzel-Link-Auswahl ist als naechster Schritt sinnvoll, sobald
+der Ordner-Import in Firefox und Chromium stabil getestet ist.
+
 ## Naechste Umsetzungsschritte
 
 - Bessere Vorschau in der Extension mit Detailzeilen statt nur Zaehlern.
-- Import von einzelnen Ordnern statt immer gesamtem Bookmark-Baum.
+- Einzelne Links innerhalb eines Ordners vor dem Import auswaehlen.
 - Duplicate-Entscheidung fuer aktuellen Tab direkt in der Extension anzeigen.
 - Paketierung fuer Firefox/Chromium vorbereiten.
 

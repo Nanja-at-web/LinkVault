@@ -8,6 +8,7 @@ Developer preview for importing browser bookmarks directly into LinkVault.
 - Test LinkVault health and token access.
 - Save the current tab as a bookmark.
 - Read browser bookmarks with the WebExtensions `bookmarks` API.
+- Select all browser bookmarks or one browser folder before preview/import.
 - Send a browser-bookmark import preview to LinkVault.
 - Import browser bookmarks into LinkVault.
 
@@ -39,6 +40,8 @@ This first version is intentionally one-way:
 - No history, password, form-fill or profile import.
 - Internal browser URLs such as `about:`, `place:` or `moz-extension:` are
   skipped because LinkVault only stores regular HTTP/HTTPS bookmarks.
+- Folder selection imports the selected folder and its subfolders. Individual
+  per-link selection is planned after the folder-based flow is stable.
 
 ## Troubleshooting
 

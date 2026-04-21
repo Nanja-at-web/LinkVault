@@ -36,8 +36,14 @@
 
     <section class="panel">
       <h2>Browser bookmarks</h2>
-      <p class="muted">Read this browser's bookmarks and send them to LinkVault's import preview.</p>
+      <p class="muted">Choose all browser bookmarks or one folder before sending them to LinkVault's import preview.</p>
+      <label>Import source
+        <select id="bookmark-source">
+          <option value="">All browser bookmarks</option>
+        </select>
+      </label>
       <div class="actions">
+        <button id="refresh-bookmark-sources" type="button">Refresh folders</button>
         <button id="preview-bookmarks" type="button">Preview import</button>
         <button id="import-bookmarks" type="button">Import</button>
       </div>

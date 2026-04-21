@@ -36,6 +36,15 @@ function getBookmarkTree() {
   });
 }
 
+function getBookmarkSubTree(id) {
+  if (globalThis.browser?.bookmarks) {
+    return globalThis.browser.bookmarks.getSubTree(id);
+  }
+  return new Promise((resolve) => {
+    linkvaultRuntime.bookmarks.getSubTree(id, resolve);
+  });
+}
+
 function requestPermissions(permissions) {
   if (!linkvaultRuntime.permissions?.request) {
     return Promise.resolve(true);
@@ -164,24 +173,24 @@ async function saveCurrentTab(extra = {}) {
   });
 }
 
-async function previewBrowserBookmarks() {
-  const html = await browserBookmarksToNetscapeHtml();
+async function previewBrowserBookmarks(options = {}) {
+  const html = await browserBookmarksToNetscapeHtml(options);
   return linkvaultRequest("/api/import/browser-html/preview", {
     method: "POST",
     body: JSON.stringify({data: html})
   });
 }
 
-async function importBrowserBookmarks() {
-  const html = await browserBookmarksToNetscapeHtml();
+async function importBrowserBookmarks(options = {}) {
+  const html = await browserBookmarksToNetscapeHtml(options);
   return linkvaultRequest("/api/import/browser-html", {
     method: "POST",
     body: JSON.stringify({data: html})
   });
 }
 
-async function browserBookmarksToNetscapeHtml() {
-  const tree = await getBookmarkTree();
+async function browserBookmarksToNetscapeHtml(options = {}) {
+  const tree = options.rootId ? await getBookmarkSubTree(options.rootId) : await getBookmarkTree();
   const lines = [
     "<!DOCTYPE NETSCAPE-Bookmark-file-1>",
     '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
@@ -190,10 +199,49 @@ async function browserBookmarksToNetscapeHtml() {
     "<DL><p>"
   ];
   for (const node of tree) {
-    appendBookmarkNode(lines, node, 1, true);
+    appendBookmarkNode(lines, node, 1, !options.rootId);
   }
   lines.push("</DL><p>");
   return lines.join("\n");
+}
+
+async function browserBookmarkFolders() {
+  const tree = await getBookmarkTree();
+  const folders = [];
+  for (const node of tree) {
+    appendBookmarkFolder(folders, node, []);
+  }
+  return folders.filter((folder) => folder.count > 0);
+}
+
+function appendBookmarkFolder(folders, node, path) {
+  if (node.url) return countWebBookmarks(node);
+
+  const title = String(node.title || "").trim();
+  const nextPath = title ? [...path, title] : path;
+  const children = Array.isArray(node.children) ? node.children : [];
+  let count = 0;
+
+  for (const child of children) {
+    count += appendBookmarkFolder(folders, child, nextPath);
+  }
+
+  if (title && count > 0) {
+    folders.push({
+      id: node.id,
+      title,
+      path: nextPath.join(" / "),
+      count
+    });
+  }
+
+  return count;
+}
+
+function countWebBookmarks(node) {
+  if (node.url) return isRegularWebUrl(node.url) ? 1 : 0;
+  const children = Array.isArray(node.children) ? node.children : [];
+  return children.reduce((total, child) => total + countWebBookmarks(child), 0);
 }
 
 function appendBookmarkNode(lines, node, depth, isRoot = false) {

@@ -69,6 +69,7 @@ label {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid #aeb8a8;

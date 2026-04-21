@@ -41,10 +41,13 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("/api/import/browser-html", shared)
         self.assertIn("/api/bookmarks", shared)
         self.assertIn("bookmarks.getTree", shared)
+        self.assertIn("bookmarks.getSubTree", shared)
+        self.assertIn("browserBookmarkFolders", shared)
         self.assertIn("requestLinkVaultHostPermission", shared)
         self.assertIn("hostPermissionPattern", shared)
         self.assertIn("isRegularWebUrl", shared)
         self.assertIn("saveCurrentTab", popup)
+        self.assertIn("selectedBookmarkSource", popup)
         self.assertIn("testLinkVaultConnection", options)
 
 
