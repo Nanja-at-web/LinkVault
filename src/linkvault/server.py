@@ -193,6 +193,26 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 data = str(payload.get("data", ""))
                 self.send_json(store.preview_chromium_json_import(data))
+            elif path == "/api/import/firefox-json":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.import_firefox_json(data), HTTPStatus.CREATED)
+            elif path == "/api/import/firefox-json/preview":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.preview_firefox_json_import(data))
+            elif path == "/api/import/safari-zip":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.import_safari_zip(data), HTTPStatus.CREATED)
+            elif path == "/api/import/safari-zip/preview":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.preview_safari_zip_import(data))
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
         except ValueError as exc:
@@ -670,9 +690,12 @@ def index_html() -> str:
         <select name="format">
           <option value="browser-html">Browser-HTML / Netscape</option>
           <option value="chromium-json">Chromium-JSON: Chrome, Edge, Brave, Vivaldi, Opera</option>
+          <option value="firefox-json">Firefox-JSON: bookmarks backup</option>
+          <option value="safari-zip">Safari-ZIP: archive with Bookmarks.html</option>
         </select>
       </label>
-      <label class="full">Importdaten <textarea name="data" rows="8" placeholder="Bookmark-HTML oder Chromium-Bookmarks-JSON hier einfuegen"></textarea></label>
+      <label class="full">Importdatei <input name="file" type="file"></label>
+      <label class="full">Importdaten <textarea name="data" rows="8" placeholder="Bookmark-HTML, Chromium-JSON oder Firefox-JSON hier einfuegen. Safari-ZIP bitte als Datei auswaehlen."></textarea></label>
       <div class="inline-actions">
         <button id="import-preview-button" type="button">Vorschau pruefen</button>
         <button>Importieren</button>
@@ -1239,8 +1262,38 @@ def index_html() -> str:
     }
 
     function importEndpoint(format, preview = false) {
-      const base = format === 'chromium-json' ? '/api/import/chromium-json' : '/api/import/browser-html';
+      const endpoints = {
+        'browser-html': '/api/import/browser-html',
+        'chromium-json': '/api/import/chromium-json',
+        'firefox-json': '/api/import/firefox-json',
+        'safari-zip': '/api/import/safari-zip'
+      };
+      const base = endpoints[format] || '/api/import/browser-html';
       return preview ? `${base}/preview` : base;
+    }
+
+    async function importPayloadFromForm(form) {
+      const data = Object.fromEntries(new FormData(form));
+      const file = form.elements.file?.files?.[0];
+      if (file) {
+        data.data = data.format === 'safari-zip'
+          ? await readFileAsBase64(file)
+          : await file.text();
+      }
+      delete data.file;
+      return data;
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          resolve(result.includes(',') ? result.split(',', 2)[1] : result);
+        };
+        reader.onerror = () => reject(reader.error || new Error('Datei konnte nicht gelesen werden.'));
+        reader.readAsDataURL(file);
+      });
     }
 
     function renderOperations(health, setup, mergeEvents, apiTokens) {
@@ -1550,7 +1603,7 @@ def index_html() -> str:
     });
 
     document.querySelector('#import-preview-button').addEventListener('click', async () => {
-      const data = Object.fromEntries(new FormData(document.querySelector('#import-form')));
+      const data = await importPayloadFromForm(document.querySelector('#import-form'));
       const response = await fetch(importEndpoint(data.format, true), {
         method: 'POST',
         headers: {'content-type': 'application/json'},
@@ -1561,7 +1614,7 @@ def index_html() -> str:
 
     document.querySelector('#import-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.target));
+      const data = await importPayloadFromForm(event.target);
       const response = await fetch(importEndpoint(data.format), {
         method: 'POST',
         headers: {'content-type': 'application/json'},

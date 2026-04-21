@@ -150,8 +150,11 @@ Status legend:
   previews exist; import sessions/conflict center are still open.
 - [x] Chromium JSON import for Chrome, Edge, Brave, Vivaldi, and Opera with
   preview, folder paths, duplicate checks, and import.
-- [ ] Firefox JSON/JSONLZ4 import as optional enrichment for HTML imports.
-- [ ] Safari ZIP import with `Bookmarks.html` and Reading List detection.
+- [~] Firefox JSON/JSONLZ4 import as optional enrichment for HTML imports:
+  JSON parser exists; JSONLZ4 is still open.
+- [~] Safari ZIP import with `Bookmarks.html` and Reading List detection:
+  ZIP with `Bookmarks.html` exists; Reading List detection is still open.
+- [ ] CSV/JSON import for other bookmark tools as generic migration profiles.
 - [ ] Preserve raw browser/vendor fields through `raw_vendor_payload`.
 - [ ] linkding import via API/export.
 - [ ] Karakeep import.

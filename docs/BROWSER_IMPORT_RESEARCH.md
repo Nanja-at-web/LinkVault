@@ -102,8 +102,8 @@ Konsequenz:
 1. Browser-HTML bleibt der erste Importpfad.
 2. Danach kommt eine Import-Vorschau mit Dry-Run, Duplikatbericht und
    Konfliktliste.
-3. Danach sollten Chromium-JSON, Firefox-JSON/JSONLZ4 und Safari-ZIP als
-   Enrichment-Importer geplant werden.
+3. Chromium-JSON, Firefox-JSON und Safari-ZIP sind direkte Enrichment-Importer;
+   Firefox-JSONLZ4 bleibt ein eigener Schritt wegen Kompression.
 4. API-Token sind vor Browser-Extension- und Mobile-Share-Flows wichtig.
 5. Browser-Sync wird nicht als erstes als Zwei-Wege-Sync gebaut, sondern erst
    als nachvollziehbarer Import-/Export-/Konfliktworkflow.

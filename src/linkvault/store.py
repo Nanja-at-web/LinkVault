@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import base64
+import io
 import json
 import sqlite3
+import zipfile
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -519,6 +522,12 @@ class BookmarkStore:
     def import_chromium_json(self, data: str) -> dict[str, Any]:
         return self.import_items(parse_chromium_json(data))
 
+    def import_firefox_json(self, data: str) -> dict[str, Any]:
+        return self.import_items(parse_firefox_json(data))
+
+    def import_safari_zip(self, data: str) -> dict[str, Any]:
+        return self.import_items(parse_safari_zip(data))
+
     def import_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         created = 0
         duplicates = 0
@@ -552,6 +561,12 @@ class BookmarkStore:
 
     def preview_chromium_json_import(self, data: str) -> dict[str, Any]:
         return self.preview_import_items(parse_chromium_json(data))
+
+    def preview_firefox_json_import(self, data: str) -> dict[str, Any]:
+        return self.preview_import_items(parse_firefox_json(data))
+
+    def preview_safari_zip_import(self, data: str) -> dict[str, Any]:
+        return self.preview_import_items(parse_safari_zip(data))
 
     def preview_import_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         existing = {
@@ -1053,6 +1068,83 @@ def parse_chromium_json(data: str) -> list[dict[str, Any]]:
             walk_chromium_bookmark_node(node, [root_name] if root_name else [], items)
 
     return items
+
+
+def parse_firefox_json(data: str) -> list[dict[str, Any]]:
+    try:
+        payload = json.loads(data)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid Firefox bookmarks JSON.") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Firefox bookmarks JSON must contain an object.")
+
+    items: list[dict[str, Any]] = []
+    walk_firefox_bookmark_node(payload, [], items)
+    return items
+
+
+def walk_firefox_bookmark_node(
+    node: dict[str, Any],
+    folder_path: list[str],
+    items: list[dict[str, Any]],
+) -> None:
+    node_type = str(node.get("type", "")).lower()
+    url = str(node.get("uri") or node.get("url") or "").strip()
+    title = str(node.get("title") or url).strip()
+
+    if node_type in {"text/x-moz-place", "url"} and url:
+        tags = clean_list(node.get("tags", []))
+        keyword = str(node.get("keyword", "")).strip()
+        if keyword:
+            tags = clean_list([*tags, keyword])
+        items.append(
+            {
+                "url": url,
+                "title": title or url,
+                "tags": tags,
+                "collections": folder_path,
+            }
+        )
+        return
+
+    children = node.get("children", [])
+    if not isinstance(children, list):
+        return
+
+    next_path = folder_path
+    if title and node_type in {"text/x-moz-place-container", "folder", ""} and title.lower() not in {"root", "places"}:
+        next_path = [*folder_path, title]
+
+    for child in children:
+        if isinstance(child, dict):
+            walk_firefox_bookmark_node(child, next_path, items)
+
+
+def parse_safari_zip(data: str) -> list[dict[str, Any]]:
+    try:
+        archive_bytes = base64.b64decode(data, validate=True)
+    except ValueError as exc:
+        raise ValueError("Safari ZIP import expects base64 encoded ZIP data.") from exc
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
+            bookmark_name = safari_bookmarks_name(archive.namelist())
+            with archive.open(bookmark_name) as bookmark_file:
+                html = bookmark_file.read().decode("utf-8", errors="replace")
+    except zipfile.BadZipFile as exc:
+        raise ValueError("Invalid Safari ZIP archive.") from exc
+    except KeyError as exc:
+        raise ValueError("Safari ZIP archive must contain Bookmarks.html.") from exc
+
+    return parse_browser_html(html)
+
+
+def safari_bookmarks_name(names: list[str]) -> str:
+    for name in names:
+        if name.rsplit("/", 1)[-1].lower() == "bookmarks.html":
+            return name
+    raise KeyError("Bookmarks.html")
 
 
 def walk_chromium_bookmark_node(

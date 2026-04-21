@@ -133,6 +133,10 @@ Important endpoints:
 - `POST /api/import/browser-html`
 - `POST /api/import/chromium-json/preview`
 - `POST /api/import/chromium-json`
+- `POST /api/import/firefox-json/preview`
+- `POST /api/import/firefox-json`
+- `POST /api/import/safari-zip/preview`
+- `POST /api/import/safari-zip`
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
 - `GET /api/dedup/merges`

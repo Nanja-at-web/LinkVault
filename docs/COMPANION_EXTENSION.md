@@ -129,6 +129,10 @@ Die Ordnerauswahl importiert den gewaehlten Ordner inklusive Unterordnern.
 Eine feinere Einzel-Link-Auswahl ist als naechster Schritt sinnvoll, sobald
 der Ordner-Import in Firefox und Chromium stabil getestet ist.
 
+Dateibasierte Browser-Exporte laufen nicht ueber die Extension, sondern ueber
+den LinkVault-Import-Tab. Dort sind Browser-HTML, Chromium-JSON, Firefox-JSON
+und Safari-ZIP mit `Bookmarks.html` die ersten unterstuetzten Formate.
+
 ## Naechste Umsetzungsschritte
 
 - Bessere Vorschau in der Extension mit Detailzeilen statt nur Zaehlern.

@@ -123,6 +123,10 @@ Wichtige Endpunkte:
 - `POST /api/import/browser-html`
 - `POST /api/import/chromium-json/preview`
 - `POST /api/import/chromium-json`
+- `POST /api/import/firefox-json/preview`
+- `POST /api/import/firefox-json`
+- `POST /api/import/safari-zip/preview`
+- `POST /api/import/safari-zip`
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
 - `GET /api/dedup/merges`
@@ -131,6 +135,16 @@ Wichtige Endpunkte:
 API-Token koennen API-Aufrufe mit `Authorization: Bearer <token>` oder
 `X-LinkVault-Token: <token>` authentifizieren. Token-Erstellung und
 Token-Loeschung brauchen weiterhin einen aktiven Browser-Login.
+
+Importformate im MVP:
+
+- Browser-HTML / Netscape
+- Chromium-JSON fuer Chrome, Edge, Brave, Vivaldi und Opera
+- Firefox-JSON aus Lesezeichen-Backups
+- Safari-ZIP mit `Bookmarks.html`
+
+Firefox-JSONLZ4 sowie generische CSV-/JSON-Importe fuer andere Bookmark-Tools
+bleiben als naechste Ausbaustufen offen.
 
 ## Produktprioritaet Aus Der Recherche
 

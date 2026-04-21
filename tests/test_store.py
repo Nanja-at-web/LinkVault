@@ -1,5 +1,8 @@
+import base64
+import io
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from linkvault.metadata import PageMetadata
@@ -190,6 +193,78 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(result["created"], 1)
             self.assertEqual(result["duplicates_skipped"], 1)
             self.assertEqual(store.list()[0].collections, ["Bookmarks Bar", "Dev"])
+
+    def test_import_firefox_json_preview_and_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            data = """
+            {
+              "type": "text/x-moz-place-container",
+              "title": "root",
+              "children": [
+                {
+                  "type": "text/x-moz-place-container",
+                  "title": "Bookmarks Menu",
+                  "children": [
+                    {
+                      "type": "text/x-moz-place-container",
+                      "title": "Dev",
+                      "children": [
+                        {
+                          "type": "text/x-moz-place",
+                          "title": "LinkVault",
+                          "uri": "https://github.com/Nanja-at-web/LinkVault",
+                          "tags": "selfhost,bookmarks"
+                        },
+                        {
+                          "type": "text/x-moz-place",
+                          "title": "LinkVault duplicate",
+                          "uri": "https://github.com/Nanja-at-web/LinkVault?utm_source=firefox"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """
+
+            preview = store.preview_firefox_json_import(data)
+            result = store.import_firefox_json(data)
+
+            self.assertEqual(preview["total"], 2)
+            self.assertEqual(preview["create"], 1)
+            self.assertEqual(preview["duplicate_in_import"], 1)
+            self.assertEqual(preview["records"][0]["collections"], ["Bookmarks Menu", "Dev"])
+            self.assertEqual(preview["records"][0]["tags"], ["bookmarks", "selfhost"])
+            self.assertEqual(result["created"], 1)
+            self.assertEqual(result["duplicates_skipped"], 1)
+
+    def test_import_safari_zip_preview_and_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            html = """
+            <!DOCTYPE NETSCAPE-Bookmark-file-1>
+            <DL><p>
+              <DT><H3>Safari Favorites</H3>
+              <DL><p>
+                <DT><A HREF="https://example.com/safari">Safari Link</A>
+              </DL><p>
+            </DL><p>
+            """
+            archive = io.BytesIO()
+            with zipfile.ZipFile(archive, "w") as zip_archive:
+                zip_archive.writestr("Safari Bookmarks/Bookmarks.html", html)
+            data = base64.b64encode(archive.getvalue()).decode("ascii")
+
+            preview = store.preview_safari_zip_import(data)
+            result = store.import_safari_zip(data)
+
+            self.assertEqual(preview["total"], 1)
+            self.assertEqual(preview["create"], 1)
+            self.assertEqual(preview["records"][0]["collections"], ["Safari Favorites"])
+            self.assertEqual(result["created"], 1)
+            self.assertEqual(store.list()[0].url, "https://example.com/safari")
 
     def test_dedup_dry_run_preserves_tags_collections_and_flags(self):
         with tempfile.TemporaryDirectory() as tmp:

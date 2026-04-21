@@ -133,8 +133,12 @@ Status-Legende:
   Extension-Vorschau vorhanden, Import-Session/Conflict-Center offen.
 - [x] Chromium-JSON-Import fuer Chrome, Edge, Brave, Vivaldi und Opera mit
   Vorschau, Ordnerpfaden, Dublettencheck und Import.
-- [ ] Firefox-JSON/JSONLZ4-Import als optionales Enrichment zum HTML-Import.
-- [ ] Safari-ZIP-Import mit `Bookmarks.html` und Reading-List-Erkennung.
+- [~] Firefox-JSON/JSONLZ4-Import als optionales Enrichment zum HTML-Import:
+  JSON-Parser vorhanden, JSONLZ4 offen.
+- [~] Safari-ZIP-Import mit `Bookmarks.html` und Reading-List-Erkennung:
+  ZIP mit `Bookmarks.html` vorhanden, Reading-List-Erkennung offen.
+- [ ] CSV-/JSON-Import fuer andere Bookmark-Tools als generische
+  Migrationsprofile.
 - [ ] Rohdaten-Erhaltung fuer Browser-/Vendor-Felder via `raw_vendor_payload`.
 - [ ] linkding Import via API/Export.
 - [ ] Karakeep Import.
