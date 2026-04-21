@@ -52,3 +52,7 @@ If `Test connection` fails:
    LinkVault `Betrieb`.
 6. If the normal tab cannot open `/healthz`, the problem is network, IP,
    container status or firewall, not the extension.
+
+Firefox requires the permission prompt to happen directly from the button
+click. If permission errors persist after updating the extension, remove the
+temporary add-on and load it again from `manifest.json`.

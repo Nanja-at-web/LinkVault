@@ -105,10 +105,6 @@ async function testLinkVaultConnection() {
   if (!settings.linkvaultUrl) {
     throw new Error("LinkVault URL is required.");
   }
-  const granted = await requestLinkVaultHostPermission(settings.linkvaultUrl);
-  if (!granted) {
-    throw new Error("Browser host permission for LinkVault was not granted.");
-  }
   let response;
   try {
     response = await fetch(`${settings.linkvaultUrl}/healthz`, {

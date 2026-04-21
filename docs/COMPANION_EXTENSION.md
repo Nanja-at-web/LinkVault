@@ -142,3 +142,7 @@ Wenn `Test connection` in der Extension fehlschlaegt:
    existiert.
 6. Wenn `/healthz` im normalen Tab nicht erreichbar ist, liegt es an IP,
    Netzwerk, Containerstatus oder Firewall, nicht an der Extension.
+
+Firefox verlangt, dass die Berechtigungsabfrage direkt aus dem Button-Klick
+kommt. Wenn Berechtigungsfehler nach einem Update bleiben, temporaeres Add-on
+entfernen und neu ueber `manifest.json` laden.

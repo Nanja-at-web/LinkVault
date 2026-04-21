@@ -25,15 +25,16 @@ optionsForm.addEventListener("submit", async (event) => {
 document.querySelector("#test-connection").addEventListener("click", async () => {
   try {
     const data = Object.fromEntries(new FormData(optionsForm));
-    await storageSet({
-      linkvaultUrl: normalizeBaseUrl(data.linkvaultUrl),
-      apiToken: data.apiToken.trim()
-    });
-    const granted = await requestLinkVaultHostPermission(data.linkvaultUrl);
+    const linkvaultUrl = normalizeBaseUrl(data.linkvaultUrl);
+    const granted = await requestLinkVaultHostPermission(linkvaultUrl);
     if (!granted) {
       showStatus("Browser host permission for LinkVault was not granted.", "error");
       return;
     }
+    await storageSet({
+      linkvaultUrl,
+      apiToken: data.apiToken.trim()
+    });
     const health = await testLinkVaultConnection();
     await linkvaultRequest("/api/bookmarks");
     showStatus(`Connected. LinkVault ${health.version || ""}`.trim(), "ok");
