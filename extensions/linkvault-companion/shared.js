@@ -79,14 +79,34 @@ async function testLinkVaultConnection() {
   }
   let response;
   try {
-    response = await fetch(`${settings.linkvaultUrl}/healthz`);
+    response = await fetch(`${settings.linkvaultUrl}/healthz`, {
+      method: "GET",
+      cache: "no-store"
+    });
   } catch (error) {
-    throw new Error(`Cannot reach LinkVault at ${settings.linkvaultUrl}. Check the URL, network, and whether LinkVault was updated for extension CORS support.`);
+    await diagnoseReachability(settings.linkvaultUrl);
+    throw new Error(
+      `Cannot reach LinkVault at ${settings.linkvaultUrl}. Open ${settings.linkvaultUrl}/healthz in a normal browser tab. If it works there, reload the extension and check host permissions.`
+    );
   }
   if (!response.ok) {
     throw new Error(`Healthcheck failed with ${response.status}.`);
   }
   return response.json();
+}
+
+async function diagnoseReachability(baseUrl) {
+  try {
+    await fetch(`${baseUrl}/healthz`, {
+      method: "GET",
+      mode: "no-cors",
+      cache: "no-store"
+    });
+  } catch (error) {
+    throw new Error(
+      `Network cannot reach ${baseUrl}/healthz from the extension. Check the IP address, LXC status, firewall, and whether the browser can open the health URL directly.`
+    );
+  }
 }
 
 async function currentTabBookmarkPayload(extra = {}) {

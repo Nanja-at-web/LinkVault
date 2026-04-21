@@ -37,3 +37,16 @@ This first version is intentionally one-way:
 - No browser bookmark deletion.
 - No two-way sync.
 - No history, password, form-fill or profile import.
+
+## Troubleshooting
+
+If `Test connection` fails:
+
+1. Open `http://YOUR-LINKVAULT-IP:3080/healthz` in a normal browser tab.
+   It should return JSON with `"ok": true`.
+2. Update LinkVault in the LXC so the CORS/OPTIONS support is present.
+3. Remove and reload the temporary extension after each extension code update.
+4. Check that the API token was copied completely and still exists under
+   LinkVault `Betrieb`.
+5. If the normal tab cannot open `/healthz`, the problem is network, IP,
+   container status or firewall, not the extension.

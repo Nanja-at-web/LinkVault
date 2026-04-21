@@ -127,3 +127,16 @@ die vorhandenen LinkVault-Endpunkte:
 - Import von einzelnen Ordnern statt immer gesamtem Bookmark-Baum.
 - Duplicate-Entscheidung fuer aktuellen Tab direkt in der Extension anzeigen.
 - Paketierung fuer Firefox/Chromium vorbereiten.
+
+## Fehlersuche
+
+Wenn `Test connection` in der Extension fehlschlaegt:
+
+1. `http://LINKVAULT-IP:3080/healthz` in einem normalen Browser-Tab oeffnen.
+   Dort muss JSON mit `"ok": true` erscheinen.
+2. LinkVault im LXC aktualisieren, damit CORS/OPTIONS-Unterstuetzung aktiv ist.
+3. Temporaere Extension nach Code-Aenderungen entfernen und neu laden.
+4. API-Token komplett neu kopieren und pruefen, ob er unter `Betrieb` noch
+   existiert.
+5. Wenn `/healthz` im normalen Tab nicht erreichbar ist, liegt es an IP,
+   Netzwerk, Containerstatus oder Firewall, nicht an der Extension.
