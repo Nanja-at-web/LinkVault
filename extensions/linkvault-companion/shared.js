@@ -77,7 +77,12 @@ async function testLinkVaultConnection() {
   if (!settings.linkvaultUrl) {
     throw new Error("LinkVault URL is required.");
   }
-  const response = await fetch(`${settings.linkvaultUrl}/healthz`);
+  let response;
+  try {
+    response = await fetch(`${settings.linkvaultUrl}/healthz`);
+  } catch (error) {
+    throw new Error(`Cannot reach LinkVault at ${settings.linkvaultUrl}. Check the URL, network, and whether LinkVault was updated for extension CORS support.`);
+  }
   if (!response.ok) {
     throw new Error(`Healthcheck failed with ${response.status}.`);
   }

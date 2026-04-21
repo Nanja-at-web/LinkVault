@@ -58,6 +58,36 @@ class AuthStoreTest(unittest.TestCase):
 
 
 class AuthHttpTest(unittest.TestCase):
+    def test_options_request_returns_cors_headers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            previous_data = os.environ.get("LINKVAULT_DATA")
+            os.environ["LINKVAULT_DATA"] = str(Path(tmp) / "linkvault.sqlite3")
+            server = ThreadingHTTPServer(("127.0.0.1", 0), LinkVaultHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base_url = f"http://127.0.0.1:{server.server_port}"
+
+            try:
+                request = urllib.request.Request(
+                    f"{base_url}/api/bookmarks",
+                    method="OPTIONS",
+                    headers={
+                        "origin": "moz-extension://linkvault",
+                        "access-control-request-method": "POST",
+                        "access-control-request-headers": "authorization, content-type",
+                    },
+                )
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    self.assertEqual(response.status, 204)
+                    self.assertEqual(response.headers["access-control-allow-origin"], "*")
+                    self.assertIn("authorization", response.headers["access-control-allow-headers"])
+                    self.assertIn("OPTIONS", response.headers["access-control-allow-methods"])
+            finally:
+                server.shutdown()
+                thread.join(timeout=2)
+                server.server_close()
+                restore_env("LINKVAULT_DATA", previous_data)
+
     def test_bookmark_api_requires_login(self):
         with tempfile.TemporaryDirectory() as tmp:
             previous_data = os.environ.get("LINKVAULT_DATA")

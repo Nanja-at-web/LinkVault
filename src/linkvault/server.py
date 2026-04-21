@@ -24,6 +24,12 @@ def make_auth_store() -> AuthStore:
 class LinkVaultHandler(BaseHTTPRequestHandler):
     server_version = f"LinkVault/{__version__}"
 
+    def do_OPTIONS(self) -> None:
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self.send_cors_headers()
+        self.send_header("content-length", "0")
+        self.end_headers()
+
     def do_GET(self) -> None:
         store = make_store()
         auth_store = make_auth_store()
@@ -295,6 +301,7 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("content-type", "application/json; charset=utf-8")
         self.send_header("content-length", str(len(body)))
+        self.send_cors_headers()
         for name, value in headers or []:
             self.send_header(name, value)
         self.end_headers()
@@ -305,8 +312,15 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("content-type", "text/html; charset=utf-8")
         self.send_header("content-length", str(len(encoded)))
+        self.send_cors_headers()
         self.end_headers()
         self.wfile.write(encoded)
+
+    def send_cors_headers(self) -> None:
+        self.send_header("access-control-allow-origin", "*")
+        self.send_header("access-control-allow-methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+        self.send_header("access-control-allow-headers", "content-type, authorization, x-linkvault-token")
+        self.send_header("access-control-max-age", "86400")
 
 
 def index_html() -> str:
