@@ -24,6 +24,8 @@ class StoreTest(unittest.TestCase):
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
             bookmark = store.add({"url": "https://example.com", "title": "Example"})
 
+            self.assertEqual(bookmark.collections, ["Inbox"])
+
             updated = store.update(
                 bookmark.id,
                 {
@@ -45,6 +47,25 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(updated.notes, "Keep this one.")
             self.assertTrue(store.delete(bookmark.id))
             self.assertIsNone(store.get(bookmark.id))
+
+    def test_category_suggestions_from_domain_and_keywords(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+
+            suggestions = store.category_suggestions(
+                {
+                    "url": "https://github.com/Nanja-at-web/LinkVault",
+                    "title": "LinkVault Proxmox backup guide",
+                    "description": "Selfhost LXC restore documentation",
+                }
+            )
+
+            self.assertIn("github", suggestions["suggested_tags"])
+            self.assertIn("proxmox", suggestions["suggested_tags"])
+            self.assertIn("backup", suggestions["suggested_tags"])
+            self.assertIn("Development", suggestions["suggested_collections"])
+            self.assertIn("Homelab/Proxmox", suggestions["suggested_collections"])
+            self.assertTrue(suggestions["inbox_default"])
 
     def test_import_browser_html_skips_duplicates_and_keeps_collection(self):
         with tempfile.TemporaryDirectory() as tmp:

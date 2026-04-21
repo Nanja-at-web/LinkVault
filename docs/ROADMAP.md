@@ -42,6 +42,10 @@ Status-Legende:
   Collections, Archiv, Aktivitaet und Einstellungen offen.
 - [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
   Arbeitsleisten auslagern.
+- [x] Inbox/Unsortiert: neue Links ohne Collection landen automatisch in
+  `Inbox`.
+- [x] Regelbasierte Vorschlaege fuer Tags/Collections aus Domain, Titel,
+  Beschreibung und URL.
 - [ ] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
   Feldern.
 
@@ -69,6 +73,8 @@ Status-Legende:
 
 - [ ] Archivstatus in Bookmark-Liste und Detailansicht sichtbar machen.
 - [ ] Reader-Extrakt und gespeicherter Textinhalt nach Readeck-Vorbild.
+- [ ] Optionales Archive-Worker-Profil: Seite abrufen und lesbaren Text
+  speichern, spaeter Screenshot/PDF.
 - [ ] Highlights und Notizen im Reader.
 - [ ] Screenshot und PDF.
 - [ ] Single-HTML.

@@ -297,6 +297,10 @@ class BookmarkStore:
             "matches": ordered[:10],
         }
 
+    def category_suggestions(self, payload: dict[str, Any]) -> dict[str, Any]:
+        enriched = self.with_metadata(payload, enrich_metadata=False)
+        return category_suggestions(enriched)
+
     def update(self, bookmark_id: str, payload: dict[str, Any], *, enrich_metadata: bool = True) -> Bookmark | None:
         existing = self.get(bookmark_id)
         if not existing:
@@ -608,6 +612,7 @@ def bookmark_from_payload(
     url = str(payload.get("url", "")).strip()
     normalized_url = normalize_url(url)
     title = str(payload.get("title") or url).strip()
+    collections = clean_list(payload.get("collections", [])) or ["Inbox"]
     return Bookmark(
         id=bookmark_id,
         url=url,
@@ -617,7 +622,7 @@ def bookmark_from_payload(
         domain=domain_for_url(normalized_url),
         favicon_url=str(payload.get("favicon_url", "")),
         tags=clean_list(payload.get("tags", [])),
-        collections=clean_list(payload.get("collections", [])),
+        collections=collections,
         favorite=to_bool(payload.get("favorite", False)),
         pinned=to_bool(payload.get("pinned", False)),
         notes=str(payload.get("notes", "")),
@@ -757,6 +762,93 @@ def bookmark_status_sql(status: str) -> tuple[str, list[Any]]:
     if status in {"active", "merged_duplicate"}:
         return "b.status = ?", [status]
     return "b.status = ?", ["active"]
+
+
+DOMAIN_CATEGORY_RULES: dict[str, tuple[list[str], list[str]]] = {
+    "github.com": (["code", "github"], ["Development"]),
+    "gitlab.com": (["code", "gitlab"], ["Development"]),
+    "docs.python.org": (["python", "docs"], ["Development", "Documentation"]),
+    "developer.mozilla.org": (["web", "docs"], ["Development", "Documentation"]),
+    "stackoverflow.com": (["code", "qa"], ["Development"]),
+    "community-scripts.org": (["proxmox", "selfhost"], ["Homelab/Proxmox"]),
+    "reddit.com": (["community"], ["Reading"]),
+    "news.ycombinator.com": (["tech", "news"], ["Reading"]),
+    "youtube.com": (["video"], ["Watch Later"]),
+}
+
+KEYWORD_CATEGORY_RULES: dict[str, tuple[list[str], list[str]]] = {
+    "proxmox": (["proxmox", "homelab"], ["Homelab/Proxmox"]),
+    "lxc": (["proxmox", "container"], ["Homelab/Proxmox"]),
+    "selfhost": (["selfhost"], ["Homelab"]),
+    "docker": (["docker", "container"], ["Development"]),
+    "python": (["python"], ["Development"]),
+    "sqlite": (["sqlite", "database"], ["Development"]),
+    "backup": (["backup"], ["Operations"]),
+    "restore": (["backup"], ["Operations"]),
+    "security": (["security"], ["Security"]),
+    "auth": (["auth", "security"], ["Security"]),
+    "api": (["api"], ["Development"]),
+    "documentation": (["docs"], ["Documentation"]),
+    "docs": (["docs"], ["Documentation"]),
+    "tutorial": (["learning"], ["Reading"]),
+    "guide": (["learning"], ["Reading"]),
+}
+
+
+def category_suggestions(payload: dict[str, Any]) -> dict[str, Any]:
+    url = str(payload.get("url", "")).strip()
+    normalized_url = normalize_url(url)
+    domain = domain_for_url(normalized_url)
+    text = " ".join(
+        [
+            normalized_url,
+            str(payload.get("title", "")),
+            str(payload.get("description", "")),
+            str(payload.get("notes", "")),
+        ]
+    ).lower()
+    existing_tags = set(clean_list(payload.get("tags", [])))
+    existing_collections = set(clean_list(payload.get("collections", [])))
+    suggested_tags: set[str] = set()
+    suggested_collections: set[str] = set()
+    reasons: list[str] = []
+
+    domain_candidates = domain_candidates_for(domain)
+    for candidate in domain_candidates:
+        if candidate in DOMAIN_CATEGORY_RULES:
+            tags, collections = DOMAIN_CATEGORY_RULES[candidate]
+            suggested_tags.update(tags)
+            suggested_collections.update(collections)
+            reasons.append(f"Domain: {candidate}")
+            break
+
+    for keyword, (tags, collections) in KEYWORD_CATEGORY_RULES.items():
+        if keyword in text:
+            suggested_tags.update(tags)
+            suggested_collections.update(collections)
+            reasons.append(f"Keyword: {keyword}")
+
+    if not suggested_collections and not existing_collections:
+        suggested_collections.add("Inbox")
+        reasons.append("No collection yet: Inbox")
+
+    return {
+        "url": url,
+        "normalized_url": normalized_url,
+        "domain": domain,
+        "suggested_tags": sorted(suggested_tags - existing_tags),
+        "suggested_collections": sorted(suggested_collections - existing_collections),
+        "reasons": reasons,
+        "inbox_default": not existing_collections,
+    }
+
+
+def domain_candidates_for(domain: str) -> list[str]:
+    parts = [part for part in domain.split(".") if part]
+    candidates = []
+    for index in range(len(parts)):
+        candidates.append(".".join(parts[index:]))
+    return candidates
 
 
 def clean_list(value: Any) -> list[str]:

@@ -77,6 +77,14 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertTrue(preflight["has_matches"])
                 self.assertEqual(preflight["matches"][0]["bookmark"]["id"], bookmark["id"])
 
+                suggestions = request_json(
+                    opener,
+                    f"{base_url}/api/bookmarks/suggestions",
+                    {"url": "https://github.com/Nanja-at-web/LinkVault", "title": "Proxmox backup"},
+                )
+                self.assertIn("github", suggestions["suggested_tags"])
+                self.assertIn("Development", suggestions["suggested_collections"])
+
                 with self.assertRaises(urllib.error.HTTPError) as duplicate:
                     request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/a"})
                 self.assertEqual(duplicate.exception.code, 409)

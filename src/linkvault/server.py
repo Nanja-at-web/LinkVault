@@ -139,6 +139,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                         exclude_id=str(payload.get("exclude_id", "")),
                     )
                 )
+            elif path == "/api/bookmarks/suggestions":
+                if not self.require_auth(auth_store):
+                    return
+                self.send_json(store.category_suggestions(payload))
             elif path == "/api/bookmarks":
                 if not self.require_auth(auth_store):
                     return
@@ -392,6 +396,16 @@ def index_html() -> str:
       margin: 1rem 0 0;
       background: var(--soft);
     }
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin-top: .5rem;
+    }
+    .suggestions button {
+      margin: 0;
+      padding: .4rem .55rem;
+    }
     .filters {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -580,9 +594,11 @@ def index_html() -> str:
       <div class="full inline-actions">
         <label class="check"><input name="favorite" type="checkbox"> Favorit</label>
         <label class="check"><input name="pinned" type="checkbox"> Pin</label>
+        <button id="suggest-categories" type="button">Vorschlaege</button>
         <button class="primary">Speichern</button>
       </div>
     </form>
+    <section id="category-suggestions" class="notice" hidden></section>
     <section id="duplicate-preflight" class="notice" hidden></section>
   </section>
 
@@ -698,6 +714,7 @@ def index_html() -> str:
     const bookmarksEl = document.querySelector('#bookmarks');
     const dedupOutput = document.querySelector('#dedup-output');
     const duplicatePreflight = document.querySelector('#duplicate-preflight');
+    const categorySuggestions = document.querySelector('#category-suggestions');
     const authPanel = document.querySelector('#auth-panel');
     const authTitle = document.querySelector('#auth-title');
     const authHelp = document.querySelector('#auth-help');
@@ -990,6 +1007,44 @@ def index_html() -> str:
       return values.map((value) => `<span class="badge">${prefix}${escapeHtml(value)}</span>`).join('');
     }
 
+    async function loadCategorySuggestions(form) {
+      const formData = Object.fromEntries(new FormData(form));
+      const response = await fetch('/api/bookmarks/suggestions', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(formData)
+      });
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      renderCategorySuggestions(await response.json(), form);
+    }
+
+    function renderCategorySuggestions(payload, form) {
+      categorySuggestions.hidden = false;
+      const tagButtons = payload.suggested_tags.map((tag) => `<button type="button" data-suggest-kind="tags" data-suggest-value="${escapeAttr(tag)}">#${escapeHtml(tag)}</button>`).join('');
+      const collectionButtons = payload.suggested_collections.map((collection) => `<button type="button" data-suggest-kind="collections" data-suggest-value="${escapeAttr(collection)}">${escapeHtml(collection)}</button>`).join('');
+      categorySuggestions.innerHTML = `
+        <h3>Sortier-Vorschlaege</h3>
+        <p class="muted">${escapeHtml(payload.domain || 'ohne Domain')} · ${payload.reasons.map(escapeHtml).join(' · ') || 'Noch keine Regel gefunden.'}</p>
+        <p>Neue Links ohne Collection landen automatisch in <strong>Inbox</strong>.</p>
+        <div class="suggestions">${tagButtons || '<span class="muted">Keine neuen Tags.</span>'}</div>
+        <div class="suggestions">${collectionButtons || '<span class="muted">Keine neuen Collections.</span>'}</div>
+      `;
+      categorySuggestions.querySelectorAll('[data-suggest-kind]').forEach((button) => {
+        button.addEventListener('click', () => {
+          addCommaValue(form.elements[button.dataset.suggestKind], button.dataset.suggestValue);
+        });
+      });
+    }
+
+    function addCommaValue(input, value) {
+      const values = input.value.split(',').map((item) => item.trim()).filter(Boolean);
+      if (!values.includes(value)) values.push(value);
+      input.value = values.join(', ');
+    }
+
     async function patchBookmark(id, data) {
       await fetch(`/api/bookmarks/${id}`, {
         method: 'PATCH',
@@ -1111,6 +1166,7 @@ def index_html() -> str:
         }
       });
       event.target.reset();
+      categorySuggestions.hidden = true;
       await refreshAll();
     });
 
@@ -1145,6 +1201,7 @@ def index_html() -> str:
         row.querySelector('[data-action="update"]').addEventListener('click', async () => {
           await patchBookmark(bookmark.id, formData);
           form.reset();
+          categorySuggestions.hidden = true;
           duplicatePreflight.hidden = true;
         });
         duplicatePreflight.appendChild(row);
@@ -1160,6 +1217,7 @@ def index_html() -> str:
           body: JSON.stringify(formData)
         });
         form.reset();
+        categorySuggestions.hidden = true;
         duplicatePreflight.hidden = true;
         await refreshAll();
       });
@@ -1273,6 +1331,10 @@ def index_html() -> str:
     document.querySelector('#logout').addEventListener('click', async () => {
       await fetch('/api/logout', {method: 'POST'});
       await loadAuth();
+    });
+
+    document.querySelector('#suggest-categories').addEventListener('click', async () => {
+      await loadCategorySuggestions(document.querySelector('#bookmark-form'));
     });
 
     document.querySelector('#import-form').addEventListener('submit', async (event) => {

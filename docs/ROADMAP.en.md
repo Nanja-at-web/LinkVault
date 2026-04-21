@@ -47,6 +47,10 @@ Status legend:
   and settings are still open.
 - [x] Make the bookmark list more compact and move filters/bulk actions into
   collapsible work bars.
+- [x] Inbox/unsorted: new links without a collection automatically land in
+  `Inbox`.
+- [x] Rule-based tag/collection suggestions from domain, title, description,
+  and URL.
 - [ ] Quick-add flow with a short default dialog and optional advanced fields.
 
 ## Phase 2: Deduplication And Favorites Cleanup
@@ -74,6 +78,8 @@ Status legend:
 
 - [ ] Show archive status in bookmark list and detail views.
 - [ ] Reader extraction and stored text content inspired by Readeck.
+- [ ] Optional archive-worker profile: fetch the page and store readable text,
+  later screenshot/PDF.
 - [ ] Highlights and notes in the reader.
 - [ ] Screenshot and PDF.
 - [ ] Single-HTML.
