@@ -36,6 +36,18 @@ function getBookmarkTree() {
   });
 }
 
+function requestPermissions(permissions) {
+  if (!linkvaultRuntime.permissions?.request) {
+    return Promise.resolve(true);
+  }
+  if (globalThis.browser?.permissions) {
+    return globalThis.browser.permissions.request(permissions);
+  }
+  return new Promise((resolve) => {
+    linkvaultRuntime.permissions.request(permissions, resolve);
+  });
+}
+
 async function getSettings() {
   const settings = await storageGet(["linkvaultUrl", "apiToken"]);
   return {
@@ -46,6 +58,22 @@ async function getSettings() {
 
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
+}
+
+async function requestLinkVaultHostPermission(baseUrl) {
+  const pattern = hostPermissionPattern(baseUrl);
+  if (!pattern) return true;
+  return requestPermissions({origins: [pattern]});
+}
+
+function hostPermissionPattern(baseUrl) {
+  try {
+    const parsed = new URL(baseUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "";
+    return `${parsed.protocol}//${parsed.hostname}/*`;
+  } catch (error) {
+    return "";
+  }
 }
 
 async function linkvaultRequest(path, options = {}) {
@@ -76,6 +104,10 @@ async function testLinkVaultConnection() {
   const settings = await getSettings();
   if (!settings.linkvaultUrl) {
     throw new Error("LinkVault URL is required.");
+  }
+  const granted = await requestLinkVaultHostPermission(settings.linkvaultUrl);
+  if (!granted) {
+    throw new Error("Browser host permission for LinkVault was not granted.");
   }
   let response;
   try {

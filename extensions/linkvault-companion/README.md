@@ -46,7 +46,9 @@ If `Test connection` fails:
    It should return JSON with `"ok": true`.
 2. Update LinkVault in the LXC so the CORS/OPTIONS support is present.
 3. Remove and reload the temporary extension after each extension code update.
-4. Check that the API token was copied completely and still exists under
+4. When Firefox asks for host/network permission, allow access to the
+   LinkVault host.
+5. Check that the API token was copied completely and still exists under
    LinkVault `Betrieb`.
-5. If the normal tab cannot open `/healthz`, the problem is network, IP,
+6. If the normal tab cannot open `/healthz`, the problem is network, IP,
    container status or firewall, not the extension.

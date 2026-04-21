@@ -26,6 +26,8 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertEqual(manifest["manifest_version"], 3)
         self.assertIn("bookmarks", manifest["permissions"])
         self.assertIn("storage", manifest["permissions"])
+        self.assertIn("http://*/*", manifest["host_permissions"])
+        self.assertIn("http://*/*", manifest["optional_host_permissions"])
         self.assertEqual(manifest["action"]["default_popup"], "popup.html")
 
     def test_extension_uses_linkvault_api_and_bookmarks_api(self):
@@ -37,6 +39,8 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("/api/import/browser-html", shared)
         self.assertIn("/api/bookmarks", shared)
         self.assertIn("bookmarks.getTree", shared)
+        self.assertIn("requestLinkVaultHostPermission", shared)
+        self.assertIn("hostPermissionPattern", shared)
         self.assertIn("saveCurrentTab", popup)
         self.assertIn("testLinkVaultConnection", options)
 

@@ -13,6 +13,10 @@
     "http://*/*",
     "https://*/*"
   ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "action": {
     "default_title": "LinkVault",
     "default_popup": "popup.html"

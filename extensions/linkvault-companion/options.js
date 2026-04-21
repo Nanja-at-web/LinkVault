@@ -29,6 +29,11 @@ document.querySelector("#test-connection").addEventListener("click", async () =>
       linkvaultUrl: normalizeBaseUrl(data.linkvaultUrl),
       apiToken: data.apiToken.trim()
     });
+    const granted = await requestLinkVaultHostPermission(data.linkvaultUrl);
+    if (!granted) {
+      showStatus("Browser host permission for LinkVault was not granted.", "error");
+      return;
+    }
     const health = await testLinkVaultConnection();
     await linkvaultRequest("/api/bookmarks");
     showStatus(`Connected. LinkVault ${health.version || ""}`.trim(), "ok");

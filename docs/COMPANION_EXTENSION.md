@@ -136,7 +136,9 @@ Wenn `Test connection` in der Extension fehlschlaegt:
    Dort muss JSON mit `"ok": true` erscheinen.
 2. LinkVault im LXC aktualisieren, damit CORS/OPTIONS-Unterstuetzung aktiv ist.
 3. Temporaere Extension nach Code-Aenderungen entfernen und neu laden.
-4. API-Token komplett neu kopieren und pruefen, ob er unter `Betrieb` noch
+4. Wenn Firefox nach Host-/Netzwerkberechtigung fragt, Zugriff auf den
+   LinkVault-Host erlauben.
+5. API-Token komplett neu kopieren und pruefen, ob er unter `Betrieb` noch
    existiert.
-5. Wenn `/healthz` im normalen Tab nicht erreichbar ist, liegt es an IP,
+6. Wenn `/healthz` im normalen Tab nicht erreichbar ist, liegt es an IP,
    Netzwerk, Containerstatus oder Firewall, nicht an der Extension.
