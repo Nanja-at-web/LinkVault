@@ -143,6 +143,13 @@ Wenn `Test connection` in der Extension fehlschlaegt:
 6. Wenn `/healthz` im normalen Tab nicht erreichbar ist, liegt es an IP,
    Netzwerk, Containerstatus oder Firewall, nicht an der Extension.
 
+LinkVault laeuft im Homelab/LXC-Standard bewusst per HTTP. Die Extension
+erlaubt deshalb HTTP-Verbindungen zu lokalen/selfhosted LinkVault-Instanzen
+explizit im Manifest. Wenn Firefox in den Entwicklerwerkzeugen meldet, dass
+`http://.../healthz` auf `https://.../healthz` hochgestuft wird, ist noch eine
+alte temporaere Extension-Version geladen. Dann die temporaere Extension
+entfernen und neu ueber `extensions/linkvault-companion/manifest.json` laden.
+
 Firefox verlangt, dass die Berechtigungsabfrage direkt aus dem Button-Klick
 kommt. Wenn Berechtigungsfehler nach einem Update bleiben, temporaeres Add-on
 entfernen und neu ueber `manifest.json` laden.

@@ -17,6 +17,9 @@
     "http://*/*",
     "https://*/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src http://*/* https://*/*"
+  },
   "action": {
     "default_title": "LinkVault",
     "default_popup": "popup.html"

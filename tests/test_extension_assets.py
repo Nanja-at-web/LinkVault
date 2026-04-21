@@ -28,6 +28,8 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("storage", manifest["permissions"])
         self.assertIn("http://*/*", manifest["host_permissions"])
         self.assertIn("http://*/*", manifest["optional_host_permissions"])
+        extension_csp = manifest["content_security_policy"]["extension_pages"]
+        self.assertIn("connect-src http://*/* https://*/*", extension_csp)
         self.assertEqual(manifest["action"]["default_popup"], "popup.html")
 
     def test_extension_uses_linkvault_api_and_bookmarks_api(self):
