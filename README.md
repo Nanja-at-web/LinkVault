@@ -116,6 +116,9 @@ Important endpoints:
 - `POST /api/login`
 - `POST /api/logout`
 - `GET /api/me`
+- `GET /api/tokens`
+- `POST /api/tokens`
+- `DELETE /api/tokens/{id}`
 - `GET /api/bookmarks`
 - `GET /api/bookmarks?q=query`
 - `GET /api/bookmarks?q=query&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development&status=active`
@@ -133,6 +136,10 @@ Important endpoints:
 - `GET /api/dedup/dry-run`
 - `GET /api/dedup/merges`
 - `POST /api/dedup/merge`
+
+API tokens can authenticate API calls with either `Authorization: Bearer
+<token>` or `X-LinkVault-Token: <token>`. Token creation and deletion require
+an active browser login.
 
 ## Product Direction
 

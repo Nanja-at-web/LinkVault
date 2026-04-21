@@ -106,6 +106,9 @@ Wichtige Endpunkte:
 - `POST /api/login`
 - `POST /api/logout`
 - `GET /api/me`
+- `GET /api/tokens`
+- `POST /api/tokens`
+- `DELETE /api/tokens/{id}`
 - `GET /api/bookmarks`
 - `GET /api/bookmarks?q=suchbegriff`
 - `GET /api/bookmarks?q=suchbegriff&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development&status=active`
@@ -123,6 +126,10 @@ Wichtige Endpunkte:
 - `GET /api/dedup/dry-run`
 - `GET /api/dedup/merges`
 - `POST /api/dedup/merge`
+
+API-Token koennen API-Aufrufe mit `Authorization: Bearer <token>` oder
+`X-LinkVault-Token: <token>` authentifizieren. Token-Erstellung und
+Token-Loeschung brauchen weiterhin einen aktiven Browser-Login.
 
 ## Produktprioritaet Aus Der Recherche
 

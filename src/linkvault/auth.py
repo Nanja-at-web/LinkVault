@@ -26,6 +26,18 @@ class User:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class ApiToken:
+    id: str
+    name: str
+    token_prefix: str
+    created_at: str
+    last_used_at: str
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
 class AuthStore:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -68,6 +80,19 @@ class AuthStore:
             )
             connection.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS api_tokens (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    token_prefix TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    last_used_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)")
 
     def setup_required(self) -> bool:
         with self.connect() as connection:
@@ -145,6 +170,67 @@ class AuthStore:
         with self.connect() as connection:
             connection.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
 
+    def create_api_token(self, name: str) -> dict[str, str | dict[str, str]]:
+        name = clean_token_name(name)
+        now = datetime.now(UTC).isoformat()
+        token = f"lv_pat_{secrets.token_urlsafe(32)}"
+        api_token = ApiToken(
+            id=secrets.token_hex(16),
+            name=name,
+            token_prefix=token[:14],
+            created_at=now,
+            last_used_at="",
+        )
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO api_tokens (id, name, token_hash, token_prefix, created_at, last_used_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    api_token.id,
+                    api_token.name,
+                    hash_api_token(token),
+                    api_token.token_prefix,
+                    api_token.created_at,
+                    api_token.last_used_at,
+                ),
+            )
+        return {"token": token, "api_token": api_token.to_dict()}
+
+    def list_api_tokens(self) -> list[ApiToken]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, name, token_prefix, created_at, last_used_at
+                FROM api_tokens
+                ORDER BY created_at DESC
+                """
+            ).fetchall()
+        return [api_token_from_row(row) for row in rows]
+
+    def delete_api_token(self, token_id: str) -> bool:
+        with self.connect() as connection:
+            cursor = connection.execute("DELETE FROM api_tokens WHERE id = ?", (token_id,))
+        return cursor.rowcount > 0
+
+    def user_for_api_token(self, token: str) -> User | None:
+        if not token:
+            return None
+
+        token_hash = hash_api_token(token)
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            token_row = connection.execute(
+                "SELECT id FROM api_tokens WHERE token_hash = ?",
+                (token_hash,),
+            ).fetchone()
+            if not token_row:
+                return None
+            connection.execute("UPDATE api_tokens SET last_used_at = ? WHERE id = ?", (now, token_row["id"]))
+            user_row = connection.execute("SELECT * FROM users ORDER BY created_at ASC LIMIT 1").fetchone()
+        return user_from_row(user_row) if user_row else None
+
 
 def clean_username(username: str) -> str:
     cleaned = username.strip()
@@ -152,6 +238,15 @@ def clean_username(username: str) -> str:
         raise ValueError("username is required")
     if len(cleaned) > 80:
         raise ValueError("username is too long")
+    return cleaned
+
+
+def clean_token_name(name: str) -> str:
+    cleaned = name.strip()
+    if not cleaned:
+        raise ValueError("token name is required")
+    if len(cleaned) > 120:
+        raise ValueError("token name is too long")
     return cleaned
 
 
@@ -178,5 +273,19 @@ def verify_password(password: str, password_hash: str) -> bool:
     return hmac.compare_digest(digest.hex(), expected)
 
 
+def hash_api_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def user_from_row(row: sqlite3.Row) -> User:
     return User(id=row["id"], username=row["username"], created_at=row["created_at"], updated_at=row["updated_at"])
+
+
+def api_token_from_row(row: sqlite3.Row) -> ApiToken:
+    return ApiToken(
+        id=row["id"],
+        name=row["name"],
+        token_prefix=row["token_prefix"],
+        created_at=row["created_at"],
+        last_used_at=row["last_used_at"],
+    )

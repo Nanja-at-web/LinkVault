@@ -36,7 +36,7 @@ Status-Legende:
   Tags/Collections und Konflikte vor dem Schreiben anzeigen.
 - [ ] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.
-- [ ] API-Token fuer Import, Extension und Automatisierung.
+- [x] API-Token fuer Import, Extension und Automatisierung.
 - [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
   Bookmarks, Dubletten und Betrieb vorhanden; Favoriten, Tags,
   Collections, Archiv, Aktivitaet und Einstellungen offen.
@@ -93,8 +93,9 @@ Status-Legende:
 - [ ] AI-Tagging optional.
 - [ ] Activity/Audit-Log fuer Import, Bulk, Merge, Delete, Restore und Regeln.
 - [ ] Public REST-API ausbauen.
-- [ ] API-Token-Verwaltung mit Test-Button und sichtbarem Status.
+- [~] API-Token-Verwaltung mit sichtbarem Status vorhanden; Test-Button offen.
 - [ ] Webhooks.
+- [~] Companion-Extension-Plan fuer Browser-Import vorbereitet; Umsetzung offen.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
 - [ ] Floccus-/Browser-Sync-Bridge pruefen.
 

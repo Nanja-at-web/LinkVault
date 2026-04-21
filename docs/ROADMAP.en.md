@@ -41,7 +41,7 @@ Status legend:
   tags/collections, and conflicts before writing.
 - [ ] Store import session metadata: source, file, checksum, profile, format,
   timestamp, and result counts.
-- [ ] API tokens for imports, extensions, and automation.
+- [x] API tokens for imports, extensions, and automation.
 - [~] Rework home/navigation: tabs for save, import, bookmarks, dedup, and
   operations exist; favorites, tags, collections, archive, activity, and
   settings are still open.
@@ -99,8 +99,9 @@ Status legend:
 - [ ] Activity/audit log for imports, bulk actions, merges, deletes, restores,
   and rules.
 - [ ] Expand public REST API.
-- [ ] API token management with test button and visible status.
+- [~] API token management with visible status exists; test button is still open.
 - [ ] Webhooks.
+- [~] Companion extension plan for browser import prepared; implementation is open.
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
   and API.
 - [ ] Evaluate Floccus/browser sync bridge.

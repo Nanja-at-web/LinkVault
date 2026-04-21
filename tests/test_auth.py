@@ -40,6 +40,22 @@ class AuthStoreTest(unittest.TestCase):
             auth.delete_session(session_id)
             self.assertIsNone(auth.user_for_session(session_id))
 
+    def test_api_token_lifecycle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = AuthStore(Path(tmp) / "linkvault.sqlite3")
+            user = auth.create_initial_user("admin", "very-long-password", "", "")
+
+            created = auth.create_api_token("Firefox")
+            token = created["token"]
+            listed = auth.list_api_tokens()
+
+            self.assertEqual(len(listed), 1)
+            self.assertEqual(listed[0].name, "Firefox")
+            self.assertEqual(auth.user_for_api_token(token).id, user.id)
+            self.assertEqual(auth.user_for_api_token("wrong"), None)
+            self.assertTrue(auth.delete_api_token(listed[0].id))
+            self.assertEqual(auth.user_for_api_token(token), None)
+
 
 class AuthHttpTest(unittest.TestCase):
     def test_bookmark_api_requires_login(self):
@@ -131,10 +147,31 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertEqual(bulk["bookmarks"][0]["collections"], ["Inbox"])
                 self.assertTrue(bulk["bookmarks"][0]["favorite"])
 
+                token_payload = request_json(opener, f"{base_url}/api/tokens", {"name": "Firefox extension"})
+                self.assertTrue(token_payload["token"].startswith("lv_pat_"))
+                token_list = get_json(opener, f"{base_url}/api/tokens")
+                self.assertEqual(token_list["tokens"][0]["name"], "Firefox extension")
+                api_bookmark = request_json(
+                    opener,
+                    f"{base_url}/api/bookmarks",
+                    {"url": "http://127.0.0.1:9/token"},
+                    headers={"authorization": f"Bearer {token_payload['token']}"},
+                )
+                self.assertEqual(api_bookmark["url"], "http://127.0.0.1:9/token")
+
                 request_json(opener, f"{base_url}/api/logout", {})
                 with self.assertRaises(urllib.error.HTTPError) as logged_out:
                     request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/b"})
                 self.assertEqual(logged_out.exception.code, 401)
+                token_bookmarks = get_json(
+                    opener,
+                    f"{base_url}/api/bookmarks",
+                    headers={"x-linkvault-token": token_payload["token"]},
+                )
+                self.assertTrue(token_bookmarks["bookmarks"])
+                with self.assertRaises(urllib.error.HTTPError) as token_management:
+                    get_json(opener, f"{base_url}/api/tokens", headers={"authorization": f"Bearer {token_payload['token']}"})
+                self.assertEqual(token_management.exception.code, 401)
             finally:
                 server.shutdown()
                 thread.join(timeout=2)
@@ -143,19 +180,26 @@ class AuthHttpTest(unittest.TestCase):
                 restore_env("LINKVAULT_SETUP_TOKEN", previous_token)
 
 
-def request_json(opener: urllib.request.OpenerDirector, url: str, payload: dict, method: str = "POST") -> dict:
+def request_json(
+    opener: urllib.request.OpenerDirector,
+    url: str,
+    payload: dict,
+    method: str = "POST",
+    headers: dict[str, str] | None = None,
+) -> dict:
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"content-type": "application/json"},
+        headers={"content-type": "application/json", **(headers or {})},
         method=method,
     )
     with opener.open(request, timeout=5) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def get_json(opener: urllib.request.OpenerDirector, url: str) -> dict:
-    with opener.open(url, timeout=5) as response:
+def get_json(opener: urllib.request.OpenerDirector, url: str, headers: dict[str, str] | None = None) -> dict:
+    request = urllib.request.Request(url, headers=headers or {})
+    with opener.open(request, timeout=5) as response:
         return json.loads(response.read().decode("utf-8"))
 
 

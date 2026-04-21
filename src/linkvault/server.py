@@ -82,6 +82,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json({"events": store.merge_history()})
+        elif path == "/api/tokens":
+            if not self.require_session_auth(auth_store):
+                return
+            self.send_json({"tokens": [token.to_dict() for token in auth_store.list_api_tokens()]})
         elif path == "/":
             self.send_html(index_html())
         else:
@@ -122,6 +126,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             elif path == "/api/logout":
                 auth_store.delete_session(self.session_cookie())
                 self.send_json({"logged_out": True}, headers=[expired_session_cookie_header()])
+            elif path == "/api/tokens":
+                if not self.require_session_auth(auth_store):
+                    return
+                self.send_json(auth_store.create_api_token(str(payload.get("name", ""))), HTTPStatus.CREATED)
             elif path == "/api/bookmarks/bulk":
                 if not self.require_auth(auth_store):
                     return
@@ -192,6 +200,16 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path
+        if path.startswith("/api/tokens/"):
+            auth_store = make_auth_store()
+            if not self.require_session_auth(auth_store):
+                return
+            deleted = auth_store.delete_api_token(path.rsplit("/", 1)[-1])
+            if not deleted:
+                self.send_json({"error": "api token not found"}, HTTPStatus.NOT_FOUND)
+                return
+            self.send_json({"deleted": True})
+            return
         if not path.startswith("/api/bookmarks/"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -236,7 +254,7 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         return payload
 
     def current_user(self, auth_store: AuthStore) -> User | None:
-        return auth_store.user_for_session(self.session_cookie())
+        return auth_store.user_for_session(self.session_cookie()) or auth_store.user_for_api_token(self.api_token())
 
     def require_auth(self, auth_store: AuthStore) -> User | None:
         user = self.current_user(auth_store)
@@ -244,6 +262,19 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             return user
         self.send_json({"error": "authentication required"}, HTTPStatus.UNAUTHORIZED)
         return None
+
+    def require_session_auth(self, auth_store: AuthStore) -> User | None:
+        user = auth_store.user_for_session(self.session_cookie())
+        if user:
+            return user
+        self.send_json({"error": "browser login required"}, HTTPStatus.UNAUTHORIZED)
+        return None
+
+    def api_token(self) -> str:
+        authorization = self.headers.get("authorization", "").strip()
+        if authorization.lower().startswith("bearer "):
+            return authorization.split(" ", 1)[1].strip()
+        return self.headers.get("x-linkvault-token", "").strip()
 
     def session_cookie(self) -> str:
         cookie_header = self.headers.get("cookie", "")
@@ -732,6 +763,16 @@ def index_html() -> str:
     <div class="stack">
       <div class="mini-grid" id="operations-status"></div>
       <section class="mini-card">
+        <h3>API-Token fuer Companion Extension</h3>
+        <p class="muted">Token erlauben Import und Automatisierung ohne Browser-Login. Der Klartext wird nur einmal angezeigt.</p>
+        <form id="api-token-form" class="inline-actions">
+          <label>Name <input name="name" placeholder="Firefox auf MacBook" required></label>
+          <button>Token erstellen</button>
+        </form>
+        <div id="api-token-created" class="notice" hidden></div>
+        <div id="api-token-list" class="history-list"></div>
+      </section>
+      <section class="mini-card">
         <h3>Letzte Merge-Aktionen</h3>
         <div id="merge-history" class="history-list"></div>
       </section>
@@ -760,6 +801,9 @@ def index_html() -> str:
     const filterSummary = document.querySelector('#filter-summary');
     const operationsStatus = document.querySelector('#operations-status');
     const mergeHistoryEl = document.querySelector('#merge-history');
+    const apiTokenForm = document.querySelector('#api-token-form');
+    const apiTokenCreated = document.querySelector('#api-token-created');
+    const apiTokenList = document.querySelector('#api-token-list');
     const selectedIds = new Set();
     let activeTab = 'bookmarks';
 
@@ -935,19 +979,21 @@ def index_html() -> str:
     }
 
     async function refreshOperations() {
-      const [healthResponse, setupResponse, mergeResponse] = await Promise.all([
+      const [healthResponse, setupResponse, mergeResponse, tokenResponse] = await Promise.all([
         fetch('/healthz'),
         fetch('/api/setup/status'),
-        fetch('/api/dedup/merges')
+        fetch('/api/dedup/merges'),
+        fetch('/api/tokens')
       ]);
-      if (mergeResponse.status === 401) {
+      if (mergeResponse.status === 401 || tokenResponse.status === 401) {
         await loadAuth();
         return;
       }
       const health = await healthResponse.json();
       const setup = await setupResponse.json();
       const mergeHistory = await mergeResponse.json();
-      renderOperations(health, setup, mergeHistory.events || []);
+      const tokens = await tokenResponse.json();
+      renderOperations(health, setup, mergeHistory.events || [], tokens.tokens || []);
     }
 
     function renderDedupDryRun(payload) {
@@ -1180,7 +1226,7 @@ def index_html() -> str:
       return preview ? `${base}/preview` : base;
     }
 
-    function renderOperations(health, setup, mergeEvents) {
+    function renderOperations(health, setup, mergeEvents, apiTokens) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
           <h3>Health</h3>
@@ -1197,7 +1243,14 @@ def index_html() -> str:
           <p><strong>${mergeEvents.length}</strong> letzte Ereignisse</p>
           <p class="muted">Nicht-destruktive Merge-Historie</p>
         </div>
+        <div class="mini-card">
+          <h3>API-Token</h3>
+          <p><strong>${apiTokens.length}</strong> aktiv</p>
+          <p class="muted">Fuer Extension, Importer und Automatisierung</p>
+        </div>
       `;
+
+      renderApiTokens(apiTokens);
 
       if (!mergeEvents.length) {
         mergeHistoryEl.innerHTML = '<div class="empty">Noch keine Merge-Aktionen vorhanden.</div>';
@@ -1213,6 +1266,26 @@ def index_html() -> str:
           <p>Notizen: ${escapeHtml(event.winner_after.notes || '-')}</p>
         </div>
       `).join('');
+    }
+
+    function renderApiTokens(tokens) {
+      if (!tokens.length) {
+        apiTokenList.innerHTML = '<div class="empty">Noch keine API-Token vorhanden.</div>';
+        return;
+      }
+      apiTokenList.innerHTML = tokens.map((token) => `
+        <div class="mini-card">
+          <p><strong>${escapeHtml(token.name)}</strong></p>
+          <p class="muted">Prefix ${escapeHtml(token.token_prefix)}... · erstellt ${escapeHtml(token.created_at)} · zuletzt genutzt ${escapeHtml(token.last_used_at || 'nie')}</p>
+          <button type="button" data-delete-token="${escapeAttr(token.id)}">Token loeschen</button>
+        </div>
+      `).join('');
+      apiTokenList.querySelectorAll('[data-delete-token]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          await fetch(`/api/tokens/${button.dataset.deleteToken}`, {method: 'DELETE'});
+          await refreshOperations();
+        });
+      });
     }
 
     function updateSelectedCount() {
@@ -1426,6 +1499,28 @@ def index_html() -> str:
       event.target.reset();
       showApp(payload.user);
       await refreshAll();
+    });
+
+    apiTokenForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const response = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(Object.fromEntries(new FormData(event.target)))
+      });
+      const payload = await response.json();
+      apiTokenCreated.hidden = false;
+      if (!response.ok) {
+        apiTokenCreated.innerHTML = `<strong>Token konnte nicht erstellt werden.</strong><p>${escapeHtml(payload.error || 'Unbekannter Fehler')}</p>`;
+        return;
+      }
+      apiTokenCreated.innerHTML = `
+        <strong>Token erstellt. Jetzt kopieren.</strong>
+        <p class="muted">LinkVault zeigt diesen Token nur einmal an.</p>
+        <code>${escapeHtml(payload.token)}</code>
+      `;
+      event.target.reset();
+      await refreshOperations();
     });
 
     document.querySelector('#logout').addEventListener('click', async () => {
