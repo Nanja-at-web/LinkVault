@@ -342,13 +342,18 @@ def index_html() -> str:
       gap: .45rem;
       margin: 1rem 0;
     }
-    .nav a {
-      text-decoration: none;
+    .nav button {
       border: 1px solid var(--line);
       border-radius: 6px;
       background: #fff;
       color: var(--ink);
       padding: .45rem .65rem;
+      margin: 0;
+    }
+    .nav button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
     }
     .workspace {
       display: grid;
@@ -393,6 +398,19 @@ def index_html() -> str:
       gap: .75rem 1rem;
       align-items: end;
     }
+    .tab-panel[hidden] { display: none !important; }
+    .stack { display: grid; gap: 1rem; }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .75rem;
+    }
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: .8rem;
+      background: #fff;
+    }
     .bulk-actions {
       background: #fafbf8;
       border: 1px solid var(--line);
@@ -405,7 +423,7 @@ def index_html() -> str:
       background: #fff;
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: .9rem;
+      padding: .8rem;
     }
     .bookmark-head {
       display: flex;
@@ -414,8 +432,8 @@ def index_html() -> str:
       align-items: start;
     }
     .bookmark-main { min-width: 0; flex: 1; }
-    .bookmark-title { font-size: 1.05rem; font-weight: 750; overflow-wrap: anywhere; }
-    .bookmark-url { display: inline-block; margin: .25rem 0; }
+    .bookmark-title { font-size: 1rem; font-weight: 750; overflow-wrap: anywhere; margin-bottom: .15rem; }
+    .bookmark-url { display: inline-block; margin: .1rem 0 .2rem; font-size: .95rem; }
     .select-pill {
       display: inline-flex;
       align-items: center;
@@ -429,7 +447,7 @@ def index_html() -> str:
       font-weight: 650;
     }
     .meta-line { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
-    .description { margin: .6rem 0; }
+    .description { margin: .45rem 0; font-size: .95rem; }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -440,6 +458,21 @@ def index_html() -> str:
       font-size: .85rem;
       background: #f7f9f5;
     }
+    .bookmark-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: .8rem;
+      align-items: start;
+    }
+    .bookmark-side {
+      display: grid;
+      gap: .4rem;
+      justify-items: end;
+      min-width: 9.5rem;
+    }
+    .bookmark-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .45rem; }
+    .bookmark-actions button { margin: 0; padding: .45rem .6rem; }
+    .bookmark-meta { display: grid; gap: .15rem; }
     .duplicate-match { border-top: 1px solid var(--line); padding: .9rem 0; }
     .dedup-group { border-top: 1px solid var(--line); padding: 1rem 0; }
     .dedup-header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; margin-bottom: .8rem; }
@@ -454,12 +487,14 @@ def index_html() -> str:
     .diff-row:first-child { border-top: 0; }
     .diff-values { display: grid; gap: .35rem; }
     .diff-winner { font-weight: 700; }
+    .history-list { display: grid; gap: .6rem; }
     .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
     @media (max-width: 760px) {
       .shell { padding: .75rem; }
       .toolbar, .panel-header { display: block; }
       .form-grid, .filters { grid-template-columns: 1fr; }
-      .bookmark-head { display: block; }
+      .bookmark-head, .bookmark-layout { display: block; }
+      .bookmark-side { justify-items: start; min-width: 0; margin-top: .65rem; }
       .select-pill { margin-top: .65rem; }
       h1 { font-size: 1.6rem; }
     }
@@ -497,15 +532,15 @@ def index_html() -> str:
   </section>
 
   <nav id="app-nav" class="nav" hidden>
-    <a href="#save">Speichern</a>
-    <a href="#import">Import</a>
-    <a href="#bookmarks-panel">Bookmarks</a>
-    <a href="#bulk">Bulk</a>
-    <a href="#dedup">Dubletten</a>
+    <button type="button" data-tab-trigger="save">Speichern</button>
+    <button type="button" data-tab-trigger="import">Import</button>
+    <button type="button" data-tab-trigger="bookmarks">Bookmarks</button>
+    <button type="button" data-tab-trigger="dedup">Dubletten</button>
+    <button type="button" data-tab-trigger="operations">Betrieb</button>
   </nav>
 
   <main id="app" class="workspace" hidden>
-  <section id="save" class="panel">
+  <section id="save" class="panel tab-panel" data-tab-panel="save">
     <div class="panel-header">
       <div>
         <h2>Bookmark speichern</h2>
@@ -527,7 +562,7 @@ def index_html() -> str:
     <section id="duplicate-preflight" class="notice" hidden></section>
   </section>
 
-  <section id="import" class="panel">
+  <section id="import" class="panel tab-panel" data-tab-panel="import" hidden>
     <h2>Browser-Bookmarks importieren</h2>
     <form id="import-form">
       <label>Netscape Bookmark HTML <textarea name="html" rows="6" placeholder="Exportierte Bookmark-HTML hier einfuegen"></textarea></label>
@@ -535,11 +570,11 @@ def index_html() -> str:
     </form>
   </section>
 
-  <section id="bookmarks-panel" class="panel">
+  <section id="bookmarks-panel" class="panel tab-panel" data-tab-panel="bookmarks" hidden>
     <div class="panel-header">
       <div>
         <h2>Bookmarks</h2>
-        <p class="subtitle"><span id="bookmark-count">0</span> Treffer. Suchen, filtern, bearbeiten und fuer Bulk-Aktionen auswaehlen.</p>
+        <p class="subtitle"><span id="bookmark-count">0</span> Treffer. Standardansicht zeigt aktive Bookmarks; gemergte Dubletten lassen sich optional einblenden.</p>
       </div>
       <button id="refresh" type="button">Aktualisieren</button>
     </div>
@@ -593,7 +628,7 @@ def index_html() -> str:
     <div id="bookmarks" class="bookmark-list"></div>
   </section>
 
-  <section id="dedup" class="panel">
+  <section id="dedup" class="panel tab-panel" data-tab-panel="dedup" hidden>
     <div class="panel-header">
       <div>
         <h2>Dubletten</h2>
@@ -602,6 +637,23 @@ def index_html() -> str:
       <button id="dry-run" type="button">Dry-Run aktualisieren</button>
     </div>
     <div id="dedup-output" class="notice">Noch keine Daten geladen.</div>
+  </section>
+
+  <section id="operations" class="panel tab-panel" data-tab-panel="operations" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Betrieb</h2>
+        <p class="subtitle">Gesundheit, Setup-Status und letzte Merge-Aktionen an einem Ort.</p>
+      </div>
+      <button id="refresh-operations" type="button">Aktualisieren</button>
+    </div>
+    <div class="stack">
+      <div class="mini-grid" id="operations-status"></div>
+      <section class="mini-card">
+        <h3>Letzte Merge-Aktionen</h3>
+        <div id="merge-history" class="history-list"></div>
+      </section>
+    </div>
   </section>
   </main>
 </div>
@@ -621,7 +673,10 @@ def index_html() -> str:
     const userbar = document.querySelector('#userbar');
     const currentUser = document.querySelector('#current-user');
     const bookmarkCount = document.querySelector('#bookmark-count');
+    const operationsStatus = document.querySelector('#operations-status');
+    const mergeHistoryEl = document.querySelector('#merge-history');
     const selectedIds = new Set();
+    let activeTab = 'bookmarks';
 
     async function loadAuth() {
       authError.textContent = '';
@@ -660,6 +715,17 @@ def index_html() -> str:
       appNav.hidden = false;
       userbar.hidden = false;
       currentUser.textContent = user ? user.username : '';
+      setActiveTab(activeTab);
+    }
+
+    function setActiveTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('[data-tab-panel]').forEach((panel) => {
+        panel.hidden = panel.dataset.tabPanel !== tab;
+      });
+      document.querySelectorAll('[data-tab-trigger]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.tabTrigger === tab);
+      });
     }
 
     async function refreshBookmarks() {
@@ -697,23 +763,26 @@ def index_html() -> str:
         row.className = 'row';
         row.dataset.bookmarkId = bookmark.id;
         row.innerHTML = `
-          <div class="bookmark-head">
+          <div class="bookmark-layout">
             <div class="bookmark-main">
               <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
               <a class="bookmark-url" href="${escapeAttr(bookmark.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(bookmark.url)}</a>
-              <div class="meta-line">${escapeHtml(bookmark.domain || 'ohne Domain')}</div>
-              ${bookmark.status !== 'active' ? `<div class="meta-line">Status: ${escapeHtml(bookmark.status)}${bookmark.merged_into ? ` · zusammengefuehrt in ${escapeHtml(bookmark.merged_into.slice(0, 8))}` : ''}</div>` : ''}
+              <div class="bookmark-meta">
+                <div class="meta-line">${escapeHtml(bookmark.domain || 'ohne Domain')}</div>
+                ${bookmark.status !== 'active' ? `<div class="meta-line">Status: ${escapeHtml(bookmark.status)}${bookmark.merged_into ? ` · zusammengefuehrt in ${escapeHtml(bookmark.merged_into.slice(0, 8))}` : ''}</div>` : ''}
+              </div>
               <div>${renderBadges('tag', bookmark.tags)}${renderBadges('collection', bookmark.collections)}</div>
               ${bookmark.description ? `<p class="description">${escapeHtml(bookmark.description)}</p>` : ''}
               ${bookmark.notes ? `<div class="meta-line">Notizen: ${escapeHtml(bookmark.notes)}</div>` : ''}
-              ${bookmark.favicon_url ? `<div class="meta-line">Favicon: ${escapeHtml(bookmark.favicon_url)}</div>` : ''}
             </div>
-            <label class="select-pill"><input data-role="select-bookmark" type="checkbox"> Auswaehlen</label>
-          </div>
-          <div class="actions">
-            <button data-action="favorite">${bookmark.favorite ? 'Favorit entfernen' : 'Favorit setzen'}</button>
-            <button data-action="pin">${bookmark.pinned ? 'Pin entfernen' : 'Pin setzen'}</button>
-            <button data-action="delete">Loeschen</button>
+            <div class="bookmark-side">
+              <label class="select-pill"><input data-role="select-bookmark" type="checkbox"> Auswaehlen</label>
+              <div class="bookmark-actions">
+                <button data-action="favorite">${bookmark.favorite ? 'Favorit aus' : 'Favorit an'}</button>
+                <button data-action="pin">${bookmark.pinned ? 'Pin aus' : 'Pin an'}</button>
+                <button data-action="delete">Loeschen</button>
+              </div>
+            </div>
           </div>
           <details>
             <summary>Bearbeiten</summary>
@@ -754,6 +823,22 @@ def index_html() -> str:
         return;
       }
       renderDedupDryRun(await response.json());
+    }
+
+    async function refreshOperations() {
+      const [healthResponse, setupResponse, mergeResponse] = await Promise.all([
+        fetch('/healthz'),
+        fetch('/api/setup/status'),
+        fetch('/api/dedup/merges')
+      ]);
+      if (mergeResponse.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const health = await healthResponse.json();
+      const setup = await setupResponse.json();
+      const mergeHistory = await mergeResponse.json();
+      renderOperations(health, setup, mergeHistory.events || []);
     }
 
     function renderDedupDryRun(payload) {
@@ -894,6 +979,42 @@ def index_html() -> str:
     async function refreshAll() {
       await refreshBookmarks();
       await refreshDryRun();
+      await refreshOperations();
+    }
+
+    function renderOperations(health, setup, mergeEvents) {
+      operationsStatus.innerHTML = `
+        <div class="mini-card">
+          <h3>Health</h3>
+          <p><strong>${health.ok ? 'OK' : 'Fehler'}</strong></p>
+          <p class="muted">Version ${escapeHtml(health.version || '-')}</p>
+        </div>
+        <div class="mini-card">
+          <h3>Setup</h3>
+          <p><strong>${setup.setup_required ? 'Erforderlich' : 'Abgeschlossen'}</strong></p>
+          <p class="muted">Setup-Token Pflicht: ${setup.setup_token_required ? 'ja' : 'nein'}</p>
+        </div>
+        <div class="mini-card">
+          <h3>Dubletten-Merges</h3>
+          <p><strong>${mergeEvents.length}</strong> letzte Ereignisse</p>
+          <p class="muted">Nicht-destruktive Merge-Historie</p>
+        </div>
+      `;
+
+      if (!mergeEvents.length) {
+        mergeHistoryEl.innerHTML = '<div class="empty">Noch keine Merge-Aktionen vorhanden.</div>';
+        return;
+      }
+
+      mergeHistoryEl.innerHTML = mergeEvents.map((event) => `
+        <div class="mini-card">
+          <p><strong>${escapeHtml(event.winner_after.title || event.winner_after.url)}</strong></p>
+          <p class="muted">Gewinner ${escapeHtml(event.winner_id.slice(0, 8))} · ${event.loser_ids.length} Verlierer · ${escapeHtml(event.created_at)}</p>
+          <p>Tags: ${escapeHtml((event.winner_after.tags || []).join(', ') || '-')}</p>
+          <p>Collections: ${escapeHtml((event.winner_after.collections || []).join(', ') || '-')}</p>
+          <p>Notizen: ${escapeHtml(event.winner_after.notes || '-')}</p>
+        </div>
+      `).join('');
     }
 
     function updateSelectedCount() {
@@ -991,6 +1112,7 @@ def index_html() -> str:
     }
 
     function openBookmark(id) {
+      setActiveTab('bookmarks');
       const row = document.querySelector(`[data-bookmark-id="${CSS.escape(id)}"]`);
       if (!row) {
         document.querySelector('#search').value = '';
@@ -1112,6 +1234,7 @@ def index_html() -> str:
 
     document.querySelector('#refresh').addEventListener('click', refreshBookmarks);
     document.querySelector('#dry-run').addEventListener('click', refreshDryRun);
+    document.querySelector('#refresh-operations').addEventListener('click', refreshOperations);
     document.querySelector('#search').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-favorite').addEventListener('change', refreshBookmarks);
     document.querySelector('#filter-pinned').addEventListener('change', refreshBookmarks);
@@ -1119,6 +1242,9 @@ def index_html() -> str:
     document.querySelector('#filter-tag').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-collection').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-status').addEventListener('change', refreshBookmarks);
+    document.querySelectorAll('[data-tab-trigger]').forEach((button) => {
+      button.addEventListener('click', () => setActiveTab(button.dataset.tabTrigger));
+    });
     loadAuth();
   </script>
 </body>
