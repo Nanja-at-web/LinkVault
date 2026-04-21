@@ -164,6 +164,11 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 html = str(payload.get("html", ""))
                 self.send_json(store.import_browser_html(html), HTTPStatus.CREATED)
+            elif path == "/api/import/browser-html/preview":
+                if not self.require_auth(auth_store):
+                    return
+                html = str(payload.get("html", ""))
+                self.send_json(store.preview_browser_html_import(html))
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
         except ValueError as exc:
@@ -607,8 +612,12 @@ def index_html() -> str:
     <h2>Browser-Bookmarks importieren</h2>
     <form id="import-form">
       <label>Netscape Bookmark HTML <textarea name="html" rows="6" placeholder="Exportierte Bookmark-HTML hier einfuegen"></textarea></label>
-      <button>Importieren</button>
+      <div class="inline-actions">
+        <button id="import-preview-button" type="button">Vorschau pruefen</button>
+        <button>Importieren</button>
+      </div>
     </form>
+    <section id="import-preview-output" class="notice" hidden></section>
   </section>
 
   <section id="bookmarks-panel" class="panel tab-panel" data-tab-panel="bookmarks" hidden>
@@ -720,6 +729,7 @@ def index_html() -> str:
     const dedupOutput = document.querySelector('#dedup-output');
     const duplicatePreflight = document.querySelector('#duplicate-preflight');
     const categorySuggestions = document.querySelector('#category-suggestions');
+    const importPreviewOutput = document.querySelector('#import-preview-output');
     const authPanel = document.querySelector('#auth-panel');
     const authTitle = document.querySelector('#auth-title');
     const authHelp = document.querySelector('#auth-help');
@@ -1103,6 +1113,52 @@ def index_html() -> str:
       await refreshOperations();
     }
 
+    function renderImportPreview(payload) {
+      importPreviewOutput.hidden = false;
+      if (!payload.total) {
+        importPreviewOutput.innerHTML = '<strong>Keine Bookmarks im HTML gefunden.</strong>';
+        return;
+      }
+
+      const rows = payload.records.map((record) => {
+        const status = {
+          create: 'Neu',
+          duplicate_existing: 'Existiert schon',
+          duplicate_in_import: 'Doppelt im Import'
+        }[record.action] || record.action;
+        const suggestionTags = (record.suggestions?.suggested_tags || []).map((tag) => `#${escapeHtml(tag)}`).join(' ');
+        const suggestionCollections = (record.suggestions?.suggested_collections || []).map(escapeHtml).join(', ');
+        const duplicateHint = record.duplicate_bookmark
+          ? `<p class="muted">Vorhanden: ${escapeHtml(record.duplicate_bookmark.title)} · ${escapeHtml(record.duplicate_bookmark.url)}</p>`
+          : record.duplicate_of_index
+            ? `<p class="muted">Doppelt zu Import-Zeile ${record.duplicate_of_index}</p>`
+            : '';
+        return `
+          <div class="mini-card">
+            <p><strong>${escapeHtml(status)}</strong> · ${escapeHtml(record.title || record.url)}</p>
+            <p><a href="${escapeAttr(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a></p>
+            <p class="muted">${escapeHtml(record.domain || '-')} · Collections: ${escapeHtml((record.collections || []).join(', ') || '-')} · Tags: ${escapeHtml((record.tags || []).join(', ') || '-')}</p>
+            ${duplicateHint}
+            <p class="muted">Vorschlaege: ${suggestionTags || 'keine neuen Tags'} · ${suggestionCollections || 'keine neuen Collections'}</p>
+          </div>
+        `;
+      }).join('');
+
+      importPreviewOutput.innerHTML = `
+        <h3>Import-Vorschau</h3>
+        <p>${payload.total} gefunden · ${payload.create} neu · ${payload.duplicate_existing} existieren schon · ${payload.duplicate_in_import} doppelt im Import</p>
+        <div class="stack">${rows}</div>
+      `;
+    }
+
+    function renderImportResult(payload) {
+      importPreviewOutput.hidden = false;
+      importPreviewOutput.innerHTML = `
+        <h3>Import abgeschlossen</h3>
+        <p>${payload.created} neue Bookmarks importiert. ${payload.duplicates_skipped} Dubletten uebersprungen.</p>
+      `;
+    }
+
     function renderOperations(health, setup, mergeEvents) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
@@ -1360,14 +1416,25 @@ def index_html() -> str:
       await loadCategorySuggestions(document.querySelector('#bookmark-form'));
     });
 
-    document.querySelector('#import-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.target));
-      await fetch('/api/import/browser-html', {
+    document.querySelector('#import-preview-button').addEventListener('click', async () => {
+      const data = Object.fromEntries(new FormData(document.querySelector('#import-form')));
+      const response = await fetch('/api/import/browser-html/preview', {
         method: 'POST',
         headers: {'content-type': 'application/json'},
         body: JSON.stringify(data)
       });
+      renderImportPreview(await response.json());
+    });
+
+    document.querySelector('#import-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target));
+      const response = await fetch('/api/import/browser-html', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      renderImportResult(await response.json());
       event.target.reset();
       await refreshAll();
     });

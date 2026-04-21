@@ -125,6 +125,7 @@ Important endpoints:
 - `GET /api/bookmarks/{id}`
 - `PATCH /api/bookmarks/{id}`
 - `DELETE /api/bookmarks/{id}`
+- `POST /api/import/browser-html/preview`
 - `POST /api/import/browser-html`
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`

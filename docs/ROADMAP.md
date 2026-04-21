@@ -32,7 +32,7 @@ Status-Legende:
 - [~] Tags, Collections, Favoriten und Pins.
 - [x] SQLite-FTS5-Volltextsuche mit Filtern fuer Favorit, Pin, Domain, Tag und Collection.
 - [~] Import aus Browser-Bookmark-HTML.
-- [ ] Import-Vorschau fuer Browser-HTML: neue Links, Dubletten, Ordnerpfade,
+- [x] Import-Vorschau fuer Browser-HTML: neue Links, Dubletten, Ordnerpfade,
   Tags/Collections und Konflikte vor dem Schreiben anzeigen.
 - [ ] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.

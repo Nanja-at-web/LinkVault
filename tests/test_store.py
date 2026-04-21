@@ -90,6 +90,33 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(bookmarks[0].collections, ["Homelab"])
             self.assertEqual(bookmarks[0].tags, ["proxmox", "selfhost"])
 
+    def test_import_browser_html_preview_shows_new_existing_and_import_duplicates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            existing = store.add({"url": "https://example.com/existing", "title": "Existing"})
+            html = """
+            <!DOCTYPE NETSCAPE-Bookmark-file-1>
+            <DL><p>
+              <DT><H3>Development</H3>
+              <DL><p>
+                <DT><A HREF="https://example.com/existing?utm_source=x">Already there</A>
+                <DT><A HREF="https://github.com/Nanja-at-web/LinkVault" TAGS="selfhost">LinkVault</A>
+                <DT><A HREF="https://github.com/Nanja-at-web/LinkVault?utm_medium=social">LinkVault duplicate</A>
+              </DL><p>
+            </DL><p>
+            """
+
+            preview = store.preview_browser_html_import(html)
+
+            self.assertEqual(preview["total"], 3)
+            self.assertEqual(preview["create"], 1)
+            self.assertEqual(preview["duplicate_existing"], 1)
+            self.assertEqual(preview["duplicate_in_import"], 1)
+            self.assertEqual(preview["records"][0]["duplicate_bookmark"]["id"], existing.id)
+            self.assertEqual(preview["records"][1]["collections"], ["Development"])
+            self.assertIn("github", preview["records"][1]["suggestions"]["suggested_tags"])
+            self.assertEqual(preview["records"][2]["duplicate_of_index"], 2)
+
     def test_dedup_dry_run_preserves_tags_collections_and_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

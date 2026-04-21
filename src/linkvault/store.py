@@ -537,6 +537,56 @@ class BookmarkStore:
             "bookmarks": [bookmark.to_dict() for bookmark in imported],
         }
 
+    def preview_browser_html_import(self, html: str) -> dict[str, Any]:
+        parser = BrowserBookmarkParser()
+        parser.feed(html)
+        existing = {
+            bookmark.normalized_url: bookmark
+            for bookmark in self.list(filters=BookmarkFilters(status="all"))
+        }
+        seen_in_import: dict[str, int] = {}
+        records: list[dict[str, Any]] = []
+        counts = {
+            "create": 0,
+            "duplicate_existing": 0,
+            "duplicate_in_import": 0,
+        }
+
+        for index, item in enumerate(parser.items, start=1):
+            normalized_url = normalize_url(str(item.get("url", "")))
+            collections = clean_list(item.get("collections", [])) or ["Inbox"]
+            tags = clean_list(item.get("tags", []))
+            preview_item = {
+                "index": index,
+                "url": str(item.get("url", "")),
+                "normalized_url": normalized_url,
+                "domain": domain_for_url(normalized_url),
+                "title": str(item.get("title") or item.get("url") or ""),
+                "tags": tags,
+                "collections": collections,
+                "suggestions": category_suggestions({**item, "tags": tags, "collections": collections}),
+            }
+
+            if normalized_url in existing:
+                action = "duplicate_existing"
+                preview_item["duplicate_bookmark"] = existing[normalized_url].to_dict()
+            elif normalized_url in seen_in_import:
+                action = "duplicate_in_import"
+                preview_item["duplicate_of_index"] = seen_in_import[normalized_url]
+            else:
+                action = "create"
+
+            preview_item["action"] = action
+            counts[action] += 1
+            records.append(preview_item)
+            seen_in_import.setdefault(normalized_url, index)
+
+        return {
+            "total": len(parser.items),
+            **counts,
+            "records": records,
+        }
+
     def dedup_groups(self) -> list[dict[str, Any]]:
         groups: dict[str, list[Bookmark]] = {}
         for bookmark in self.list():

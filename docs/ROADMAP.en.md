@@ -37,7 +37,7 @@ Status legend:
 - [x] SQLite FTS5 full-text search with filters for favorite, pin, domain,
   tag, and collection.
 - [~] Browser bookmark HTML import.
-- [ ] Browser HTML import preview: show new links, duplicates, folder paths,
+- [x] Browser HTML import preview: show new links, duplicates, folder paths,
   tags/collections, and conflicts before writing.
 - [ ] Store import session metadata: source, file, checksum, profile, format,
   timestamp, and result counts.
