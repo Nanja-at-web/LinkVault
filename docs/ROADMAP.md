@@ -40,6 +40,8 @@ Status-Legende:
 - [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
   Bookmarks, Dubletten und Betrieb vorhanden; Inbox, Favoriten, Tags,
   Collections, Archiv, Aktivitaet und Einstellungen offen.
+- [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
+  Arbeitsleisten auslagern.
 - [ ] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
   Feldern.
 

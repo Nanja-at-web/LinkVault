@@ -45,6 +45,8 @@ Status legend:
 - [~] Rework home/navigation: tabs for save, import, bookmarks, dedup, and
   operations exist; inbox, favorites, tags, collections, archive, activity,
   and settings are still open.
+- [x] Make the bookmark list more compact and move filters/bulk actions into
+  collapsible work bars.
 - [ ] Quick-add flow with a short default dialog and optional advanced fields.
 
 ## Phase 2: Deduplication And Favorites Cleanup

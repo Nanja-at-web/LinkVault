@@ -398,6 +398,34 @@ def index_html() -> str:
       gap: .75rem 1rem;
       align-items: end;
     }
+    .bookmark-controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+      gap: .75rem 1rem;
+      align-items: end;
+      margin-bottom: .75rem;
+    }
+    .drawer {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fafbf8;
+      margin: .75rem 0;
+      padding: .75rem;
+    }
+    .drawer summary {
+      cursor: pointer;
+      font-weight: 750;
+    }
+    .drawer-body { margin-top: .75rem; }
+    .control-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: .6rem;
+      margin: .25rem 0 .75rem;
+    }
+    .filter-summary { color: var(--muted); font-size: .92rem; }
     .tab-panel[hidden] { display: none !important; }
     .stack { display: grid; gap: 1rem; }
     .mini-grid {
@@ -412,11 +440,7 @@ def index_html() -> str:
       background: #fff;
     }
     .bulk-actions {
-      background: #fafbf8;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: .9rem;
-      margin: 1rem 0;
+      margin: 0;
     }
     .bookmark-list { display: grid; gap: .75rem; }
     .row {
@@ -492,7 +516,7 @@ def index_html() -> str:
     @media (max-width: 760px) {
       .shell { padding: .75rem; }
       .toolbar, .panel-header { display: block; }
-      .form-grid, .filters { grid-template-columns: 1fr; }
+      .form-grid, .filters, .bookmark-controls { grid-template-columns: 1fr; }
       .bookmark-head, .bookmark-layout { display: block; }
       .bookmark-side { justify-items: start; min-width: 0; margin-top: .65rem; }
       .select-pill { margin-top: .65rem; }
@@ -578,13 +602,8 @@ def index_html() -> str:
       </div>
       <button id="refresh" type="button">Aktualisieren</button>
     </div>
-    <label>Suche <input id="search" placeholder="Titel, URL, Domain, Tag, Collection"></label>
-    <div class="filters">
-      <label class="check"><input id="filter-favorite" type="checkbox"> Nur Favoriten</label>
-      <label class="check"><input id="filter-pinned" type="checkbox"> Nur Pins</label>
-      <label>Domain <input id="filter-domain" placeholder="github.com"></label>
-      <label>Tag <input id="filter-tag" placeholder="selfhost"></label>
-      <label>Collection <input id="filter-collection" placeholder="Development"></label>
+    <div class="bookmark-controls">
+      <label>Suche <input id="search" placeholder="Titel, URL, Domain, Tag, Collection"></label>
       <label>Status
         <select id="filter-status">
           <option value="active">Aktive Bookmarks</option>
@@ -594,37 +613,54 @@ def index_html() -> str:
       </label>
     </div>
 
-    <section id="bulk" class="bulk-actions">
-      <h3>Bulk-Aktionen</h3>
-      <p class="muted"><span id="selected-count">0</span> Bookmarks ausgewaehlt.</p>
-      <div class="inline-actions">
-        <button id="select-visible" type="button">Sichtbare auswaehlen</button>
-        <button id="clear-selection" type="button">Auswahl leeren</button>
+    <div class="control-strip">
+      <span id="filter-summary" class="filter-summary">Keine Zusatzfilter aktiv.</span>
+      <span class="filter-summary"><span id="selected-count">0</span> ausgewaehlt</span>
+    </div>
+
+    <details class="drawer" id="filter-drawer">
+      <summary>Filter</summary>
+      <div class="drawer-body filters">
+        <label class="check"><input id="filter-favorite" type="checkbox"> Nur Favoriten</label>
+        <label class="check"><input id="filter-pinned" type="checkbox"> Nur Pins</label>
+        <label>Domain <input id="filter-domain" placeholder="github.com"></label>
+        <label>Tag <input id="filter-tag" placeholder="selfhost"></label>
+        <label>Collection <input id="filter-collection" placeholder="Development"></label>
       </div>
-      <form id="bulk-form" class="form-grid">
-        <label>Tags hinzufuegen <input name="add_tags" placeholder="selfhost, docs"></label>
-        <label>Tags entfernen <input name="remove_tags" placeholder="inbox, old"></label>
-        <label>Collections setzen <input name="set_collections" placeholder="Development, Reading"></label>
-        <label>Favorit
-          <select name="favorite">
-            <option value="">Nicht aendern</option>
-            <option value="true">Setzen</option>
-            <option value="false">Entfernen</option>
-          </select>
-        </label>
-        <label>Pin
-          <select name="pinned">
-            <option value="">Nicht aendern</option>
-            <option value="true">Setzen</option>
-            <option value="false">Entfernen</option>
-          </select>
-        </label>
-        <div class="full inline-actions">
-          <button>Auf Auswahl anwenden</button>
-          <button id="bulk-delete" type="button">Auswahl loeschen</button>
+    </details>
+
+    <details class="drawer" id="bulk-drawer">
+      <summary>Bulk-Aktionen</summary>
+      <section id="bulk" class="bulk-actions drawer-body">
+        <div class="inline-actions">
+          <button id="select-visible" type="button">Sichtbare auswaehlen</button>
+          <button id="clear-selection" type="button">Auswahl leeren</button>
         </div>
-      </form>
-    </section>
+        <form id="bulk-form" class="form-grid">
+          <label>Tags hinzufuegen <input name="add_tags" placeholder="selfhost, docs"></label>
+          <label>Tags entfernen <input name="remove_tags" placeholder="inbox, old"></label>
+          <label>Collections setzen <input name="set_collections" placeholder="Development, Reading"></label>
+          <label>Favorit
+            <select name="favorite">
+              <option value="">Nicht aendern</option>
+              <option value="true">Setzen</option>
+              <option value="false">Entfernen</option>
+            </select>
+          </label>
+          <label>Pin
+            <select name="pinned">
+              <option value="">Nicht aendern</option>
+              <option value="true">Setzen</option>
+              <option value="false">Entfernen</option>
+            </select>
+          </label>
+          <div class="full inline-actions">
+            <button>Auf Auswahl anwenden</button>
+            <button id="bulk-delete" type="button">Auswahl loeschen</button>
+          </div>
+        </form>
+      </section>
+    </details>
     <div id="bookmarks" class="bookmark-list"></div>
   </section>
 
@@ -673,6 +709,7 @@ def index_html() -> str:
     const userbar = document.querySelector('#userbar');
     const currentUser = document.querySelector('#current-user');
     const bookmarkCount = document.querySelector('#bookmark-count');
+    const filterSummary = document.querySelector('#filter-summary');
     const operationsStatus = document.querySelector('#operations-status');
     const mergeHistoryEl = document.querySelector('#merge-history');
     const selectedIds = new Set();
@@ -750,6 +787,7 @@ def index_html() -> str:
         return;
       }
       const payload = await response.json();
+      updateFilterSummary(query, status);
       bookmarksEl.innerHTML = '';
       selectedIds.clear();
       updateSelectedCount();
@@ -1019,6 +1057,23 @@ def index_html() -> str:
 
     function updateSelectedCount() {
       document.querySelector('#selected-count').textContent = String(selectedIds.size);
+    }
+
+    function updateFilterSummary(query, status) {
+      const parts = [];
+      if (query) parts.push(`Suche: ${query}`);
+      if (status !== 'active') parts.push(`Status: ${status === 'all' ? 'alle' : 'gemergte Dubletten'}`);
+      if (document.querySelector('#filter-favorite').checked) parts.push('Favoriten');
+      if (document.querySelector('#filter-pinned').checked) parts.push('Pins');
+      for (const [label, selector] of [
+        ['Domain', '#filter-domain'],
+        ['Tag', '#filter-tag'],
+        ['Collection', '#filter-collection']
+      ]) {
+        const value = document.querySelector(selector).value.trim();
+        if (value) parts.push(`${label}: ${value}`);
+      }
+      filterSummary.textContent = parts.length ? parts.join(' · ') : 'Keine Zusatzfilter aktiv.';
     }
 
     function selectedBookmarkIds() {
