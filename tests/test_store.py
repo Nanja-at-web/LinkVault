@@ -117,6 +117,55 @@ class StoreTest(unittest.TestCase):
             self.assertIn("github", preview["records"][1]["suggestions"]["suggested_tags"])
             self.assertEqual(preview["records"][2]["duplicate_of_index"], 2)
 
+    def test_import_chromium_json_preview_and_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            data = """
+            {
+              "roots": {
+                "bookmark_bar": {
+                  "type": "folder",
+                  "name": "Bookmarks Bar",
+                  "children": [
+                    {
+                      "type": "folder",
+                      "name": "Dev",
+                      "children": [
+                        {
+                          "type": "url",
+                          "name": "LinkVault",
+                          "url": "https://github.com/Nanja-at-web/LinkVault"
+                        },
+                        {
+                          "type": "url",
+                          "name": "LinkVault duplicate",
+                          "url": "https://github.com/Nanja-at-web/LinkVault?utm_source=x"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "other": {
+                  "type": "folder",
+                  "name": "Other Bookmarks",
+                  "children": []
+                }
+              }
+            }
+            """
+
+            preview = store.preview_chromium_json_import(data)
+            result = store.import_chromium_json(data)
+
+            self.assertEqual(preview["total"], 2)
+            self.assertEqual(preview["create"], 1)
+            self.assertEqual(preview["duplicate_in_import"], 1)
+            self.assertEqual(preview["records"][0]["collections"], ["Bookmarks Bar", "Dev"])
+            self.assertIn("github", preview["records"][0]["suggestions"]["suggested_tags"])
+            self.assertEqual(result["created"], 1)
+            self.assertEqual(result["duplicates_skipped"], 1)
+            self.assertEqual(store.list()[0].collections, ["Bookmarks Bar", "Dev"])
+
     def test_dedup_dry_run_preserves_tags_collections_and_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

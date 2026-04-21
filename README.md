@@ -127,6 +127,8 @@ Important endpoints:
 - `DELETE /api/bookmarks/{id}`
 - `POST /api/import/browser-html/preview`
 - `POST /api/import/browser-html`
+- `POST /api/import/chromium-json/preview`
+- `POST /api/import/chromium-json`
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
 - `GET /api/dedup/merges`

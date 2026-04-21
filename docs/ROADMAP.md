@@ -127,7 +127,8 @@ Status-Legende:
 ## Phase 6: Migrationen aus bestehenden Tools
 
 - [ ] Import-Vorschau mit Dry-Run und Duplikatbericht.
-- [ ] Chromium-JSON-Import als optionales Enrichment zum HTML-Import.
+- [x] Chromium-JSON-Import fuer Chrome, Edge, Brave, Vivaldi und Opera mit
+  Vorschau, Ordnerpfaden, Dublettencheck und Import.
 - [ ] Firefox-JSON/JSONLZ4-Import als optionales Enrichment zum HTML-Import.
 - [ ] Safari-ZIP-Import mit `Bookmarks.html` und Reading-List-Erkennung.
 - [ ] Rohdaten-Erhaltung fuer Browser-/Vendor-Felder via `raw_vendor_payload`.

@@ -162,13 +162,23 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             elif path == "/api/import/browser-html":
                 if not self.require_auth(auth_store):
                     return
-                html = str(payload.get("html", ""))
+                html = str(payload.get("data") or payload.get("html") or "")
                 self.send_json(store.import_browser_html(html), HTTPStatus.CREATED)
             elif path == "/api/import/browser-html/preview":
                 if not self.require_auth(auth_store):
                     return
-                html = str(payload.get("html", ""))
+                html = str(payload.get("data") or payload.get("html") or "")
                 self.send_json(store.preview_browser_html_import(html))
+            elif path == "/api/import/chromium-json":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.import_chromium_json(data), HTTPStatus.CREATED)
+            elif path == "/api/import/chromium-json/preview":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.preview_chromium_json_import(data))
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
         except ValueError as exc:
@@ -611,7 +621,13 @@ def index_html() -> str:
   <section id="import" class="panel tab-panel" data-tab-panel="import" hidden>
     <h2>Browser-Bookmarks importieren</h2>
     <form id="import-form">
-      <label>Netscape Bookmark HTML <textarea name="html" rows="6" placeholder="Exportierte Bookmark-HTML hier einfuegen"></textarea></label>
+      <label>Format
+        <select name="format">
+          <option value="browser-html">Browser-HTML / Netscape</option>
+          <option value="chromium-json">Chromium-JSON: Chrome, Edge, Brave, Vivaldi, Opera</option>
+        </select>
+      </label>
+      <label class="full">Importdaten <textarea name="data" rows="8" placeholder="Bookmark-HTML oder Chromium-Bookmarks-JSON hier einfuegen"></textarea></label>
       <div class="inline-actions">
         <button id="import-preview-button" type="button">Vorschau pruefen</button>
         <button>Importieren</button>
@@ -1159,6 +1175,11 @@ def index_html() -> str:
       `;
     }
 
+    function importEndpoint(format, preview = false) {
+      const base = format === 'chromium-json' ? '/api/import/chromium-json' : '/api/import/browser-html';
+      return preview ? `${base}/preview` : base;
+    }
+
     function renderOperations(health, setup, mergeEvents) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
@@ -1418,7 +1439,7 @@ def index_html() -> str:
 
     document.querySelector('#import-preview-button').addEventListener('click', async () => {
       const data = Object.fromEntries(new FormData(document.querySelector('#import-form')));
-      const response = await fetch('/api/import/browser-html/preview', {
+      const response = await fetch(importEndpoint(data.format, true), {
         method: 'POST',
         headers: {'content-type': 'application/json'},
         body: JSON.stringify(data)
@@ -1429,7 +1450,7 @@ def index_html() -> str:
     document.querySelector('#import-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.target));
-      const response = await fetch('/api/import/browser-html', {
+      const response = await fetch(importEndpoint(data.format), {
         method: 'POST',
         headers: {'content-type': 'application/json'},
         body: JSON.stringify(data)

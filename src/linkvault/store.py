@@ -514,14 +514,18 @@ class BookmarkStore:
         return cursor.rowcount > 0
 
     def import_browser_html(self, html: str) -> dict[str, Any]:
-        parser = BrowserBookmarkParser()
-        parser.feed(html)
+        return self.import_items(parse_browser_html(html))
+
+    def import_chromium_json(self, data: str) -> dict[str, Any]:
+        return self.import_items(parse_chromium_json(data))
+
+    def import_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         created = 0
         duplicates = 0
         imported: list[Bookmark] = []
         existing_urls = {bookmark.normalized_url for bookmark in self.list()}
 
-        for item in parser.items:
+        for item in items:
             normalized_url = normalize_url(item["url"])
             if normalized_url in existing_urls:
                 duplicates += 1
@@ -538,8 +542,12 @@ class BookmarkStore:
         }
 
     def preview_browser_html_import(self, html: str) -> dict[str, Any]:
-        parser = BrowserBookmarkParser()
-        parser.feed(html)
+        return self.preview_import_items(parse_browser_html(html))
+
+    def preview_chromium_json_import(self, data: str) -> dict[str, Any]:
+        return self.preview_import_items(parse_chromium_json(data))
+
+    def preview_import_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         existing = {
             bookmark.normalized_url: bookmark
             for bookmark in self.list(filters=BookmarkFilters(status="all"))
@@ -552,7 +560,7 @@ class BookmarkStore:
             "duplicate_in_import": 0,
         }
 
-        for index, item in enumerate(parser.items, start=1):
+        for index, item in enumerate(items, start=1):
             normalized_url = normalize_url(str(item.get("url", "")))
             collections = clean_list(item.get("collections", [])) or ["Inbox"]
             tags = clean_list(item.get("tags", []))
@@ -582,7 +590,7 @@ class BookmarkStore:
             seen_in_import.setdefault(normalized_url, index)
 
         return {
-            "total": len(parser.items),
+            "total": len(items),
             **counts,
             "records": records,
         }
@@ -998,6 +1006,73 @@ def choose_winner(bookmarks: list[Bookmark]) -> Bookmark:
         ),
         reverse=True,
     )[0]
+
+
+def parse_browser_html(html: str) -> list[dict[str, Any]]:
+    parser = BrowserBookmarkParser()
+    parser.feed(html)
+    return parser.items
+
+
+def parse_chromium_json(data: str) -> list[dict[str, Any]]:
+    try:
+        payload = json.loads(data)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid Chromium bookmarks JSON.") from exc
+
+    roots = payload.get("roots") if isinstance(payload, dict) else None
+    if not isinstance(roots, dict):
+        raise ValueError("Chromium bookmarks JSON must contain a roots object.")
+
+    items: list[dict[str, Any]] = []
+    for key in ["bookmark_bar", "other", "synced", "mobile"]:
+        node = roots.get(key)
+        if isinstance(node, dict):
+            root_name = str(node.get("name") or chromium_root_label(key)).strip()
+            walk_chromium_bookmark_node(node, [root_name] if root_name else [], items)
+
+    return items
+
+
+def walk_chromium_bookmark_node(
+    node: dict[str, Any],
+    folder_path: list[str],
+    items: list[dict[str, Any]],
+) -> None:
+    node_type = str(node.get("type", "")).lower()
+    url = str(node.get("url", "")).strip()
+    name = str(node.get("name") or url).strip()
+
+    if node_type == "url" and url:
+        items.append(
+            {
+                "url": url,
+                "title": name or url,
+                "collections": folder_path,
+            }
+        )
+        return
+
+    children = node.get("children", [])
+    if not isinstance(children, list):
+        return
+
+    next_path = folder_path
+    if node_type == "folder" and name and (not folder_path or folder_path[-1] != name):
+        next_path = [*folder_path, name]
+
+    for child in children:
+        if isinstance(child, dict):
+            walk_chromium_bookmark_node(child, next_path, items)
+
+
+def chromium_root_label(key: str) -> str:
+    return {
+        "bookmark_bar": "Bookmarks Bar",
+        "other": "Other Bookmarks",
+        "synced": "Mobile Bookmarks",
+        "mobile": "Mobile Bookmarks",
+    }.get(key, key)
 
 
 class BrowserBookmarkParser(HTMLParser):
