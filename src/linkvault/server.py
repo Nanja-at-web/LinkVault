@@ -571,6 +571,7 @@ def index_html() -> str:
 
   <nav id="app-nav" class="nav" hidden>
     <button type="button" data-tab-trigger="save">Speichern</button>
+    <button type="button" data-inbox-trigger>Inbox</button>
     <button type="button" data-tab-trigger="import">Import</button>
     <button type="button" data-tab-trigger="bookmarks">Bookmarks</button>
     <button type="button" data-tab-trigger="dedup">Dubletten</button>
@@ -631,6 +632,10 @@ def index_html() -> str:
 
     <div class="control-strip">
       <span id="filter-summary" class="filter-summary">Keine Zusatzfilter aktiv.</span>
+      <span class="inline-actions">
+        <button id="show-inbox" type="button">Inbox anzeigen</button>
+        <button id="show-active" type="button">Alle aktiven</button>
+      </span>
       <span class="filter-summary"><span id="selected-count">0</span> ausgewaehlt</span>
     </div>
 
@@ -780,6 +785,29 @@ def index_html() -> str:
       document.querySelectorAll('[data-tab-trigger]').forEach((button) => {
         button.classList.toggle('active', button.dataset.tabTrigger === tab);
       });
+    }
+
+    function clearBookmarkFilters() {
+      document.querySelector('#search').value = '';
+      document.querySelector('#filter-favorite').checked = false;
+      document.querySelector('#filter-pinned').checked = false;
+      document.querySelector('#filter-domain').value = '';
+      document.querySelector('#filter-tag').value = '';
+      document.querySelector('#filter-collection').value = '';
+      document.querySelector('#filter-status').value = 'active';
+    }
+
+    async function showInbox() {
+      setActiveTab('bookmarks');
+      clearBookmarkFilters();
+      document.querySelector('#filter-collection').value = 'Inbox';
+      await refreshBookmarks();
+    }
+
+    async function showActiveBookmarks() {
+      setActiveTab('bookmarks');
+      clearBookmarkFilters();
+      await refreshBookmarks();
     }
 
     async function refreshBookmarks() {
@@ -1228,12 +1256,7 @@ def index_html() -> str:
       setActiveTab('bookmarks');
       const row = document.querySelector(`[data-bookmark-id="${CSS.escape(id)}"]`);
       if (!row) {
-        document.querySelector('#search').value = '';
-        document.querySelector('#filter-favorite').checked = false;
-        document.querySelector('#filter-pinned').checked = false;
-        document.querySelector('#filter-domain').value = '';
-        document.querySelector('#filter-tag').value = '';
-        document.querySelector('#filter-collection').value = '';
+        clearBookmarkFilters();
         document.querySelector('#filter-status').value = 'all';
         refreshBookmarks().then(() => {
           const refreshed = document.querySelector(`[data-bookmark-id="${CSS.escape(id)}"]`);
@@ -1359,6 +1382,11 @@ def index_html() -> str:
     document.querySelector('#filter-tag').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-collection').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-status').addEventListener('change', refreshBookmarks);
+    document.querySelector('#show-inbox').addEventListener('click', showInbox);
+    document.querySelector('#show-active').addEventListener('click', showActiveBookmarks);
+    document.querySelectorAll('[data-inbox-trigger]').forEach((button) => {
+      button.addEventListener('click', showInbox);
+    });
     document.querySelectorAll('[data-tab-trigger]').forEach((button) => {
       button.addEventListener('click', () => setActiveTab(button.dataset.tabTrigger));
     });

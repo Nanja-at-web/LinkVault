@@ -38,12 +38,14 @@ Status-Legende:
   Format, Zeitpunkt und Ergebniszahlen.
 - [ ] API-Token fuer Import, Extension und Automatisierung.
 - [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
-  Bookmarks, Dubletten und Betrieb vorhanden; Inbox, Favoriten, Tags,
+  Bookmarks, Dubletten und Betrieb vorhanden; Favoriten, Tags,
   Collections, Archiv, Aktivitaet und Einstellungen offen.
 - [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
   Arbeitsleisten auslagern.
 - [x] Inbox/Unsortiert: neue Links ohne Collection landen automatisch in
   `Inbox`.
+- [x] Inbox sichtbar machen: eigener Einstieg in der Navigation und
+  Schnellfilter in der Bookmark-Liste.
 - [x] Regelbasierte Vorschlaege fuer Tags/Collections aus Domain, Titel,
   Beschreibung und URL.
 - [ ] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten

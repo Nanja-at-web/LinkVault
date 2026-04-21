@@ -43,12 +43,14 @@ Status legend:
   timestamp, and result counts.
 - [ ] API tokens for imports, extensions, and automation.
 - [~] Rework home/navigation: tabs for save, import, bookmarks, dedup, and
-  operations exist; inbox, favorites, tags, collections, archive, activity,
-  and settings are still open.
+  operations exist; favorites, tags, collections, archive, activity, and
+  settings are still open.
 - [x] Make the bookmark list more compact and move filters/bulk actions into
   collapsible work bars.
 - [x] Inbox/unsorted: new links without a collection automatically land in
   `Inbox`.
+- [x] Make Inbox visible with a navigation entry and a quick filter in the
+  bookmark list.
 - [x] Rule-based tag/collection suggestions from domain, title, description,
   and URL.
 - [ ] Quick-add flow with a short default dialog and optional advanced fields.
