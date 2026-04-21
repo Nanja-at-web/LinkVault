@@ -132,3 +132,62 @@ button.primary {
   background: #fff5f5;
   color: #7f2020;
 }
+
+.preview-details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .7rem;
+  background: #fff;
+}
+
+.preview-details h2 {
+  margin-bottom: .35rem;
+}
+
+.preview-list {
+  display: grid;
+  gap: .45rem;
+  margin-top: .65rem;
+}
+
+.preview-row {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .55rem;
+  background: #fff;
+}
+
+.preview-row.create {
+  border-color: #9ab98b;
+}
+
+.preview-row.duplicate_existing,
+.preview-row.duplicate_in_import {
+  background: #f8faf6;
+}
+
+.preview-row.invalid_skipped {
+  background: #fff5f5;
+}
+
+.preview-row-header {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.preview-row p {
+  margin: .25rem 0 0;
+}
+
+.preview-url {
+  overflow-wrap: anywhere;
+}
+
+.pill {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .1rem .35rem;
+  font-size: .8rem;
+  white-space: nowrap;
+}

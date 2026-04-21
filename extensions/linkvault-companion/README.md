@@ -10,6 +10,7 @@ Developer preview for importing browser bookmarks directly into LinkVault.
 - Read browser bookmarks with the WebExtensions `bookmarks` API.
 - Select all browser bookmarks or one browser folder before preview/import.
 - Send a browser-bookmark import preview to LinkVault.
+- Show preview detail rows for the first imported bookmarks.
 - Import browser bookmarks into LinkVault.
 
 ## Load In Firefox

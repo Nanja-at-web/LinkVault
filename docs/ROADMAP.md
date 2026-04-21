@@ -95,8 +95,9 @@ Status-Legende:
 - [ ] Public REST-API ausbauen.
 - [~] API-Token-Verwaltung mit sichtbarem Status vorhanden; Test-Button offen.
 - [ ] Webhooks.
-- [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium vorhanden;
-  Packaging, Ordnerauswahl und bessere Vorschau offen.
+- [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium mit
+  Ordnerauswahl und Popup-Vorschau vorhanden; Packaging und feinere
+  Einzel-Link-Auswahl offen.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
 - [ ] Floccus-/Browser-Sync-Bridge pruefen.
 
@@ -128,7 +129,8 @@ Status-Legende:
 
 ## Phase 6: Migrationen aus bestehenden Tools
 
-- [ ] Import-Vorschau mit Dry-Run und Duplikatbericht.
+- [~] Import-Vorschau mit Dry-Run und Duplikatbericht: Core- und
+  Extension-Vorschau vorhanden, Import-Session/Conflict-Center offen.
 - [x] Chromium-JSON-Import fuer Chrome, Edge, Brave, Vivaldi und Opera mit
   Vorschau, Ordnerpfaden, Dublettencheck und Import.
 - [ ] Firefox-JSON/JSONLZ4-Import als optionales Enrichment zum HTML-Import.

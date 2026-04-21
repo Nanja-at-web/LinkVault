@@ -101,8 +101,9 @@ Status legend:
 - [ ] Expand public REST API.
 - [~] API token management with visible status exists; test button is still open.
 - [ ] Webhooks.
-- [~] Companion extension: developer preview for Firefox/Chromium exists;
-  packaging, folder selection, and richer preview are still open.
+- [~] Companion extension: developer preview for Firefox/Chromium with folder
+  selection and popup preview exists; packaging and finer per-link selection
+  are still open.
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
   and API.
 - [ ] Evaluate Floccus/browser sync bridge.
@@ -145,7 +146,8 @@ Status legend:
 
 ## Phase 6: Migration From Existing Tools
 
-- [ ] Import preview with dry-run and duplicate report.
+- [~] Import preview with dry-run and duplicate report: core and extension
+  previews exist; import sessions/conflict center are still open.
 - [x] Chromium JSON import for Chrome, Edge, Brave, Vivaldi, and Opera with
   preview, folder paths, duplicate checks, and import.
 - [ ] Firefox JSON/JSONLZ4 import as optional enrichment for HTML imports.

@@ -114,7 +114,7 @@ Aktueller Funktionsumfang:
 - Browser-Bookmark-Baum ueber die WebExtensions-`bookmarks`-API lesen.
 - Alle Browser-Bookmarks oder einen einzelnen Browser-Ordner fuer
   Vorschau/Import auswaehlen.
-- Import-Vorschau an LinkVault senden.
+- Import-Vorschau an LinkVault senden und erste Detailzeilen im Popup zeigen.
 - Browser-Bookmarks nach LinkVault importieren.
 - Interne Browser-URLs wie `about:`, `place:` oder `moz-extension:` werden
   uebersprungen, weil LinkVault normale HTTP/HTTPS-Bookmarks speichert.

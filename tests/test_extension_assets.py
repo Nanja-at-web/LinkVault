@@ -48,6 +48,8 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("isRegularWebUrl", shared)
         self.assertIn("saveCurrentTab", popup)
         self.assertIn("selectedBookmarkSource", popup)
+        self.assertIn("renderPreviewDetails", popup)
+        self.assertIn("PREVIEW_DETAIL_LIMIT", popup)
         self.assertIn("testLinkVaultConnection", options)
 
 
