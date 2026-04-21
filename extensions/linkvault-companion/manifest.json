@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "LinkVault Companion",
+  "version": "0.1.0",
+  "description": "Send browser bookmarks directly to a self-hosted LinkVault instance.",
+  "permissions": [
+    "activeTab",
+    "bookmarks",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "LinkVault",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "linkvault-companion@nanja-at-web.local"
+    }
+  }
+}

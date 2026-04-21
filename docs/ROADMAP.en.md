@@ -101,7 +101,8 @@ Status legend:
 - [ ] Expand public REST API.
 - [~] API token management with visible status exists; test button is still open.
 - [ ] Webhooks.
-- [~] Companion extension plan for browser import prepared; implementation is open.
+- [~] Companion extension: developer preview for Firefox/Chromium exists;
+  packaging, folder selection, and richer preview are still open.
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
   and API.
 - [ ] Evaluate Floccus/browser sync bridge.

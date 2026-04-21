@@ -25,6 +25,7 @@ Der Schwerpunkt liegt auf:
 - [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
 - [Einfluss der UX-Research-Sammlung](docs/UX_RESEARCH_IMPACT.md)
 - [Einfluss der Browser- und Import-Recherche](docs/BROWSER_IMPORT_RESEARCH.md)
+- [Companion-Extension-Plan](docs/COMPANION_EXTENSION.md)
 - [Einfluss der Installations- und Requirements-Recherche](docs/INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)

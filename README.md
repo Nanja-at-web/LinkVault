@@ -26,6 +26,7 @@ The current focus is:
 - [Deep research impact, German](docs/RESEARCH_IMPACT.md)
 - [UX research impact, German](docs/UX_RESEARCH_IMPACT.md)
 - [Browser and import research impact, German](docs/BROWSER_IMPORT_RESEARCH.md)
+- [Companion extension plan](docs/COMPANION_EXTENSION.md)
 - [Installation requirements impact, German](docs/INSTALLATION_REQUIREMENTS.md)
 - [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox community-scripts target, German](docs/PROXMOX_COMMUNITY_SCRIPT.md)

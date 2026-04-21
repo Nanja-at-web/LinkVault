@@ -95,11 +95,35 @@ Darum ist der realistische Weg:
 3. Import-Vorschau in LinkVault.
 4. Erst spaeter optional Native Messaging fuer lokale Profil-/Datei-Importe.
 
+## Entwickler-Preview
+
+Die erste Extension-Version liegt unter:
+
+```text
+extensions/linkvault-companion/
+```
+
+Sie kann lokal als temporaere Firefox-Extension oder als entpackte
+Chromium-Extension geladen werden.
+
+Aktueller Funktionsumfang:
+
+- LinkVault-URL und API-Token speichern.
+- Verbindung gegen `/healthz` und `/api/bookmarks` testen.
+- aktuellen Tab als Bookmark speichern.
+- Browser-Bookmark-Baum ueber die WebExtensions-`bookmarks`-API lesen.
+- Import-Vorschau an LinkVault senden.
+- Browser-Bookmarks nach LinkVault importieren.
+
+Die Extension erzeugt fuer den Bookmark-Baum intern Netscape-HTML und nutzt
+die vorhandenen LinkVault-Endpunkte:
+
+- `POST /api/import/browser-html/preview`
+- `POST /api/import/browser-html`
+
 ## Naechste Umsetzungsschritte
 
-- Manifest-V3 Extension-Skeleton fuer Chromium und Firefox vorbereiten.
-- Einstellungsseite fuer LinkVault-URL und API-Token bauen.
-- Verbindungstest gegen `/healthz`.
-- Aktuellen Tab speichern.
-- Browser-Bookmark-Baum lesen und als Importdaten an LinkVault senden.
-- Vorschau- und Import-Flow in der Extension anzeigen.
+- Bessere Vorschau in der Extension mit Detailzeilen statt nur Zaehlern.
+- Import von einzelnen Ordnern statt immer gesamtem Bookmark-Baum.
+- Duplicate-Entscheidung fuer aktuellen Tab direkt in der Extension anzeigen.
+- Paketierung fuer Firefox/Chromium vorbereiten.

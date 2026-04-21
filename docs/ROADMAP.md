@@ -95,7 +95,8 @@ Status-Legende:
 - [ ] Public REST-API ausbauen.
 - [~] API-Token-Verwaltung mit sichtbarem Status vorhanden; Test-Button offen.
 - [ ] Webhooks.
-- [~] Companion-Extension-Plan fuer Browser-Import vorbereitet; Umsetzung offen.
+- [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium vorhanden;
+  Packaging, Ordnerauswahl und bessere Vorschau offen.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
 - [ ] Floccus-/Browser-Sync-Bridge pruefen.
 

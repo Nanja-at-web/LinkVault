@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinkVault</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="popup">
+    <header class="popup-header">
+      <div>
+        <h1>LinkVault</h1>
+        <p id="connection-state" class="muted">Checking settings...</p>
+      </div>
+      <button id="open-options" type="button">Options</button>
+    </header>
+
+    <section class="panel">
+      <h2>Save current tab</h2>
+      <label>Tags
+        <input id="save-tags" placeholder="browser, reading" value="browser">
+      </label>
+      <label>Collections
+        <input id="save-collections" placeholder="Inbox" value="Inbox">
+      </label>
+      <label>Notes
+        <textarea id="save-notes" rows="2" placeholder="Optional"></textarea>
+      </label>
+      <div class="checks">
+        <label><input id="save-favorite" type="checkbox"> Favorite</label>
+        <label><input id="save-pinned" type="checkbox"> Pin</label>
+      </div>
+      <button id="save-current-tab" class="primary" type="button">Save tab</button>
+    </section>
+
+    <section class="panel">
+      <h2>Browser bookmarks</h2>
+      <p class="muted">Read this browser's bookmarks and send them to LinkVault's import preview.</p>
+      <div class="actions">
+        <button id="preview-bookmarks" type="button">Preview import</button>
+        <button id="import-bookmarks" type="button">Import</button>
+      </div>
+    </section>
+
+    <section id="result" class="status" role="status"></section>
+  </main>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

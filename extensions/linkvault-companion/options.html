@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinkVault Companion Options</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <h1>LinkVault Companion</h1>
+    <p class="muted">Connect this browser to your self-hosted LinkVault instance.</p>
+
+    <form id="options-form" class="panel">
+      <label>LinkVault URL
+        <input name="linkvaultUrl" placeholder="http://192.168.1.190:3080" required>
+      </label>
+      <label>API token
+        <input name="apiToken" type="password" placeholder="lv_pat_..." required>
+      </label>
+      <div class="actions">
+        <button class="primary">Save</button>
+        <button id="test-connection" type="button">Test connection</button>
+      </div>
+    </form>
+
+    <section id="status" class="status" role="status"></section>
+  </main>
+
+  <script src="shared.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

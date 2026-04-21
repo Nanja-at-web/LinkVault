@@ -1,0 +1,65 @@
+const resultEl = document.querySelector("#result");
+const connectionState = document.querySelector("#connection-state");
+
+function showResult(message, kind = "info") {
+  resultEl.textContent = message;
+  resultEl.className = `status ${kind}`;
+}
+
+function summarizePreview(payload) {
+  return `${payload.total} found, ${payload.create} new, ${payload.duplicate_existing} already in LinkVault, ${payload.duplicate_in_import} duplicates inside browser bookmarks.`;
+}
+
+async function refreshConnectionState() {
+  const settings = await getSettings();
+  if (!settings.linkvaultUrl || !settings.apiToken) {
+    connectionState.textContent = "Open Options and add LinkVault URL plus API token.";
+    return;
+  }
+  connectionState.textContent = `Connected to ${settings.linkvaultUrl}`;
+}
+
+document.querySelector("#open-options").addEventListener("click", () => {
+  linkvaultRuntime.runtime.openOptionsPage();
+});
+
+document.querySelector("#save-current-tab").addEventListener("click", async () => {
+  try {
+    const bookmark = await saveCurrentTab({
+      tags: document.querySelector("#save-tags").value,
+      collections: document.querySelector("#save-collections").value,
+      notes: document.querySelector("#save-notes").value,
+      favorite: document.querySelector("#save-favorite").checked,
+      pinned: document.querySelector("#save-pinned").checked
+    });
+    showResult(`Saved: ${bookmark.title || bookmark.url}`, "ok");
+  } catch (error) {
+    if (error.status === 409 && error.payload?.preflight?.matches?.length) {
+      showResult("Possible duplicate found in LinkVault. Open LinkVault to decide whether to update or save separately.", "error");
+      return;
+    }
+    showResult(error.message, "error");
+  }
+});
+
+document.querySelector("#preview-bookmarks").addEventListener("click", async () => {
+  try {
+    showResult("Reading browser bookmarks...");
+    const preview = await previewBrowserBookmarks();
+    showResult(summarizePreview(preview), "ok");
+  } catch (error) {
+    showResult(error.message, "error");
+  }
+});
+
+document.querySelector("#import-bookmarks").addEventListener("click", async () => {
+  try {
+    showResult("Importing browser bookmarks...");
+    const result = await importBrowserBookmarks();
+    showResult(`${result.created} imported, ${result.duplicates_skipped} duplicates skipped.`, "ok");
+  } catch (error) {
+    showResult(error.message, "error");
+  }
+});
+
+refreshConnectionState();
