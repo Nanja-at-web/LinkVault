@@ -1200,7 +1200,8 @@ def index_html() -> str:
         const status = {
           create: 'Neu',
           duplicate_existing: 'Existiert schon',
-          duplicate_in_import: 'Doppelt im Import'
+          duplicate_in_import: 'Doppelt im Import',
+          invalid_skipped: 'Uebersprungen'
         }[record.action] || record.action;
         const suggestionTags = (record.suggestions?.suggested_tags || []).map((tag) => `#${escapeHtml(tag)}`).join(' ');
         const suggestionCollections = (record.suggestions?.suggested_collections || []).map(escapeHtml).join(', ');
@@ -1209,12 +1210,14 @@ def index_html() -> str:
           : record.duplicate_of_index
             ? `<p class="muted">Doppelt zu Import-Zeile ${record.duplicate_of_index}</p>`
             : '';
+        const errorHint = record.error ? `<p class="muted">Grund: ${escapeHtml(record.error)}</p>` : '';
         return `
           <div class="mini-card">
             <p><strong>${escapeHtml(status)}</strong> · ${escapeHtml(record.title || record.url)}</p>
             <p><a href="${escapeAttr(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a></p>
             <p class="muted">${escapeHtml(record.domain || '-')} · Collections: ${escapeHtml((record.collections || []).join(', ') || '-')} · Tags: ${escapeHtml((record.tags || []).join(', ') || '-')}</p>
             ${duplicateHint}
+            ${errorHint}
             <p class="muted">Vorschlaege: ${suggestionTags || 'keine neuen Tags'} · ${suggestionCollections || 'keine neuen Collections'}</p>
           </div>
         `;
@@ -1222,7 +1225,7 @@ def index_html() -> str:
 
       importPreviewOutput.innerHTML = `
         <h3>Import-Vorschau</h3>
-        <p>${payload.total} gefunden · ${payload.create} neu · ${payload.duplicate_existing} existieren schon · ${payload.duplicate_in_import} doppelt im Import</p>
+        <p>${payload.total} gefunden · ${payload.create} neu · ${payload.duplicate_existing} existieren schon · ${payload.duplicate_in_import} doppelt im Import · ${payload.invalid_skipped || 0} ungueltig/intern uebersprungen</p>
         <div class="stack">${rows}</div>
       `;
     }
@@ -1231,7 +1234,7 @@ def index_html() -> str:
       importPreviewOutput.hidden = false;
       importPreviewOutput.innerHTML = `
         <h3>Import abgeschlossen</h3>
-        <p>${payload.created} neue Bookmarks importiert. ${payload.duplicates_skipped} Dubletten uebersprungen.</p>
+        <p>${payload.created} neue Bookmarks importiert. ${payload.duplicates_skipped} Dubletten uebersprungen. ${payload.invalid_skipped || 0} ungueltige/interne URLs uebersprungen.</p>
       `;
     }
 

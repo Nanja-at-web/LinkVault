@@ -114,6 +114,8 @@ Aktueller Funktionsumfang:
 - Browser-Bookmark-Baum ueber die WebExtensions-`bookmarks`-API lesen.
 - Import-Vorschau an LinkVault senden.
 - Browser-Bookmarks nach LinkVault importieren.
+- Interne Browser-URLs wie `about:`, `place:` oder `moz-extension:` werden
+  uebersprungen, weil LinkVault normale HTTP/HTTPS-Bookmarks speichert.
 
 Die Extension erzeugt fuer den Bookmark-Baum intern Netscape-HTML und nutzt
 die vorhandenen LinkVault-Endpunkte:

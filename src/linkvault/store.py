@@ -522,11 +522,16 @@ class BookmarkStore:
     def import_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         created = 0
         duplicates = 0
+        invalid = 0
         imported: list[Bookmark] = []
         existing_urls = {bookmark.normalized_url for bookmark in self.list()}
 
         for item in items:
-            normalized_url = normalize_url(item["url"])
+            try:
+                normalized_url = normalize_url(str(item.get("url", "")))
+            except ValueError:
+                invalid += 1
+                continue
             if normalized_url in existing_urls:
                 duplicates += 1
                 continue
@@ -538,6 +543,7 @@ class BookmarkStore:
         return {
             "created": created,
             "duplicates_skipped": duplicates,
+            "invalid_skipped": invalid,
             "bookmarks": [bookmark.to_dict() for bookmark in imported],
         }
 
@@ -558,10 +564,25 @@ class BookmarkStore:
             "create": 0,
             "duplicate_existing": 0,
             "duplicate_in_import": 0,
+            "invalid_skipped": 0,
         }
 
         for index, item in enumerate(items, start=1):
-            normalized_url = normalize_url(str(item.get("url", "")))
+            raw_url = str(item.get("url", ""))
+            try:
+                normalized_url = normalize_url(raw_url)
+            except ValueError as error:
+                counts["invalid_skipped"] += 1
+                records.append(
+                    {
+                        "index": index,
+                        "url": raw_url,
+                        "title": str(item.get("title") or raw_url),
+                        "action": "invalid_skipped",
+                        "error": str(error),
+                    }
+                )
+                continue
             collections = clean_list(item.get("collections", [])) or ["Inbox"]
             tags = clean_list(item.get("tags", []))
             preview_item = {

@@ -85,6 +85,7 @@ class StoreTest(unittest.TestCase):
 
             self.assertEqual(result["created"], 1)
             self.assertEqual(result["duplicates_skipped"], 1)
+            self.assertEqual(result["invalid_skipped"], 0)
             bookmarks = store.list()
             self.assertEqual(len(bookmarks), 1)
             self.assertEqual(bookmarks[0].collections, ["Homelab"])
@@ -112,10 +113,34 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(preview["create"], 1)
             self.assertEqual(preview["duplicate_existing"], 1)
             self.assertEqual(preview["duplicate_in_import"], 1)
+            self.assertEqual(preview["invalid_skipped"], 0)
             self.assertEqual(preview["records"][0]["duplicate_bookmark"]["id"], existing.id)
             self.assertEqual(preview["records"][1]["collections"], ["Development"])
             self.assertIn("github", preview["records"][1]["suggestions"]["suggested_tags"])
             self.assertEqual(preview["records"][2]["duplicate_of_index"], 2)
+
+    def test_import_preview_and_import_skip_internal_browser_urls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            html = """
+            <!DOCTYPE NETSCAPE-Bookmark-file-1>
+            <DL><p>
+              <DT><A HREF="about:preferences">Firefox Settings</A>
+              <DT><A HREF="place:sort=8">Firefox Places</A>
+              <DT><A HREF="https://example.com/a">Example A</A>
+            </DL><p>
+            """
+
+            preview = store.preview_browser_html_import(html)
+            result = store.import_browser_html(html)
+
+            self.assertEqual(preview["total"], 3)
+            self.assertEqual(preview["create"], 1)
+            self.assertEqual(preview["invalid_skipped"], 2)
+            self.assertEqual(preview["records"][0]["action"], "invalid_skipped")
+            self.assertEqual(result["created"], 1)
+            self.assertEqual(result["invalid_skipped"], 2)
+            self.assertEqual(store.list()[0].url, "https://example.com/a")
 
     def test_import_chromium_json_preview_and_import(self):
         with tempfile.TemporaryDirectory() as tmp:

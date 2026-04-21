@@ -92,7 +92,10 @@ async function linkvaultRequest(path, options = {}) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(payload.error || `LinkVault request failed with ${response.status}.`);
+    const message = payload.error === "url host is required"
+      ? "LinkVault rejected a bookmark with an invalid URL. Internal browser URLs are skipped in the latest extension; reload the extension and try again."
+      : payload.error || `LinkVault request failed with ${response.status}.`;
+    const error = new Error(message);
     error.payload = payload;
     error.status = response.status;
     throw error;
@@ -196,6 +199,7 @@ async function browserBookmarksToNetscapeHtml() {
 function appendBookmarkNode(lines, node, depth, isRoot = false) {
   const indent = "  ".repeat(depth);
   if (node.url) {
+    if (!isRegularWebUrl(node.url)) return;
     lines.push(`${indent}<DT><A HREF="${escapeAttribute(node.url)}">${escapeHtml(node.title || node.url)}</A>`);
     return;
   }
@@ -219,6 +223,10 @@ function splitCommaValues(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function isRegularWebUrl(value) {
+  return /^https?:\/\//i.test(String(value || ""));
 }
 
 function escapeHtml(value) {

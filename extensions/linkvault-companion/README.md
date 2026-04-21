@@ -37,6 +37,8 @@ This first version is intentionally one-way:
 - No browser bookmark deletion.
 - No two-way sync.
 - No history, password, form-fill or profile import.
+- Internal browser URLs such as `about:`, `place:` or `moz-extension:` are
+  skipped because LinkVault only stores regular HTTP/HTTPS bookmarks.
 
 ## Troubleshooting
 

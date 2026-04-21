@@ -7,7 +7,8 @@ function showResult(message, kind = "info") {
 }
 
 function summarizePreview(payload) {
-  return `${payload.total} found, ${payload.create} new, ${payload.duplicate_existing} already in LinkVault, ${payload.duplicate_in_import} duplicates inside browser bookmarks.`;
+  const invalid = payload.invalid_skipped ? `, ${payload.invalid_skipped} internal/invalid skipped` : "";
+  return `${payload.total} found, ${payload.create} new, ${payload.duplicate_existing} already in LinkVault, ${payload.duplicate_in_import} duplicates inside browser bookmarks${invalid}.`;
 }
 
 async function refreshConnectionState() {
@@ -56,7 +57,8 @@ document.querySelector("#import-bookmarks").addEventListener("click", async () =
   try {
     showResult("Importing browser bookmarks...");
     const result = await importBrowserBookmarks();
-    showResult(`${result.created} imported, ${result.duplicates_skipped} duplicates skipped.`, "ok");
+    const invalid = result.invalid_skipped ? `, ${result.invalid_skipped} internal/invalid skipped` : "";
+    showResult(`${result.created} imported, ${result.duplicates_skipped} duplicates skipped${invalid}.`, "ok");
   } catch (error) {
     showResult(error.message, "error");
   }

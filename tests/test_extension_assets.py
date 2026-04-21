@@ -43,6 +43,7 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("bookmarks.getTree", shared)
         self.assertIn("requestLinkVaultHostPermission", shared)
         self.assertIn("hostPermissionPattern", shared)
+        self.assertIn("isRegularWebUrl", shared)
         self.assertIn("saveCurrentTab", popup)
         self.assertIn("testLinkVaultConnection", options)
 
