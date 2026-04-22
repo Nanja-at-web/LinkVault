@@ -103,6 +103,10 @@ Status-Legende:
 - [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium mit
   Ordnerauswahl und Popup-Vorschau vorhanden; Packaging und feinere
   Einzel-Link-Auswahl offen.
+- [ ] Companion-Importfilter fuer Ordner, Textsuche, Adresse/Domain,
+  hinzugefuegt-Datum und bereits vorhandene URLs.
+- [ ] Optionales History-Enrichment fuer zuletzt besucht und meistbesucht nur
+  mit expliziter Browser-History-Berechtigung.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
 - [ ] Floccus-/Browser-Sync-Bridge pruefen.
 

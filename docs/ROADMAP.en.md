@@ -109,6 +109,10 @@ Status legend:
 - [~] Companion extension: developer preview for Firefox/Chromium with folder
   selection and popup preview exists; packaging and finer per-link selection
   are still open.
+- [ ] Companion import filters for folder, text search, address/domain,
+  date-added, and URLs that already exist in LinkVault.
+- [ ] Optional history enrichment for last visited and visit count only with
+  explicit browser history permission.
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
   and API.
 - [ ] Evaluate Floccus/browser sync bridge.

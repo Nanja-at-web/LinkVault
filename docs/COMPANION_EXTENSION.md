@@ -133,11 +133,38 @@ Dateibasierte Browser-Exporte laufen nicht ueber die Extension, sondern ueber
 den LinkVault-Import-Tab. Dort sind Browser-HTML, Chromium-JSON, Firefox-JSON
 und Safari-ZIP mit `Bookmarks.html` die ersten unterstuetzten Formate.
 
+## Filtermodell
+
+Die Extension soll sich an vertrauten Browser-Bibliotheken orientieren:
+Ordnerbaum, Suche, Detailvorschau und bewusst ausgewaehlte Imports statt
+blindem Komplettimport.
+
+Sinnvolle Standardfilter:
+
+- Ordner/Quelle aus dem Browser-Bookmark-Baum.
+- Textsuche ueber Titel, URL und Ordnerpfad.
+- Adresse oder Domain.
+- Hinzugefuegt-Datum, soweit `dateAdded` verfuegbar ist.
+- Interne Dubletten im Browser-Baum.
+- Bereits in LinkVault vorhandene URLs.
+
+Tags sind browseruebergreifend nicht verlaesslich ueber die WebExtensions-API
+verfuegbar. Wenn ein Dateiimport Tags enthaelt, sollte LinkVault sie
+uebernehmen. Die Extension sollte Tags aber nicht als Pflichtfilter fuer alle
+Browser behandeln.
+
+`Zuletzt besucht` und `Meistbesucht` brauchen Browser-History-Zugriff. Das
+soll spaeter nur als optionales `History-Enrichment` kommen, mit expliziter
+`history`-Berechtigung und klarer Nutzerentscheidung. Standard bleibt:
+Bookmarks ja, Passwoerter/Autofill/Cookies/History nein.
+
 ## Naechste Umsetzungsschritte
 
 - Bessere Vorschau in der Extension mit Detailzeilen statt nur Zaehlern.
 - Einzelne Links innerhalb eines Ordners vor dem Import auswaehlen.
+- Filter fuer Ordner, Textsuche, Adresse/Domain und hinzugefuegt-Datum.
 - Duplicate-Entscheidung fuer aktuellen Tab direkt in der Extension anzeigen.
+- Optionales History-Enrichment fuer zuletzt besucht und meistbesucht pruefen.
 - Paketierung fuer Firefox/Chromium vorbereiten.
 
 ## Fehlersuche

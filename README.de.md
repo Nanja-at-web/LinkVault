@@ -26,6 +26,7 @@ Der Schwerpunkt liegt auf:
 - [Einfluss der UX-Research-Sammlung](docs/UX_RESEARCH_IMPACT.md)
 - [Einfluss der Demo-UX-Analyse](docs/DEMO_UX_ANALYSIS.md)
 - [Einfluss der Browser- und Import-Recherche](docs/BROWSER_IMPORT_RESEARCH.md)
+- [Browser-Bookmark-UX-Muster](docs/BROWSER_BOOKMARK_UX_PATTERNS.md)
 - [Companion-Extension-Plan](docs/COMPANION_EXTENSION.md)
 - [Einfluss der Installations- und Requirements-Recherche](docs/INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)

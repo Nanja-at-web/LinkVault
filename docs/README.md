@@ -16,6 +16,7 @@ The detailed working documents are currently German-first:
 - [UX Research Impact](UX_RESEARCH_IMPACT.md)
 - [Demo-UX-Analyse Impact](DEMO_UX_ANALYSIS.md)
 - [Browser- und Import-Research Impact](BROWSER_IMPORT_RESEARCH.md)
+- [Browser Bookmark UX Patterns](BROWSER_BOOKMARK_UX_PATTERNS.md)
 - [Installation Requirements Impact](INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](DEDUP_SORTING_CATEGORIZATION.md)
 - [Duplicate Preflight](DUPLICATE_PREFLIGHT.md)
