@@ -38,6 +38,9 @@ Status-Legende:
 - [~] Import aus Browser-Bookmark-HTML.
 - [x] Import-Vorschau fuer Browser-HTML: neue Links, Dubletten, Ordnerpfade,
   Tags/Collections und Konflikte vor dem Schreiben anzeigen.
+- [x] Browser-Import-Metadaten fuer Companion-Import speichern:
+  `source_browser`, `source_root`, `source_folder_path`, `source_position`
+  und `source_bookmark_id`.
 - [ ] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.
 - [x] API-Token fuer Import, Extension und Automatisierung.
@@ -114,7 +117,8 @@ Status-Legende:
 - [~] API-Token-Verwaltung mit sichtbarem Status vorhanden; Test-Button offen.
 - [ ] Webhooks.
 - [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium mit
-  Ordnerauswahl und Popup-Vorschau vorhanden; Packaging und feinere
+  Ordnerauswahl, Popup-Vorschau und sicherem Rueckimport in neuen
+  Browser-Ordner vorhanden; Packaging, echter Sync und feinere
   Einzel-Link-Auswahl offen.
 - [x] Companion-Importfilter fuer Ordner, Textsuche, Adresse/Domain,
   hinzugefuegt-Datum und bereits vorhandene URLs.
@@ -123,6 +127,10 @@ Status-Legende:
 - [ ] Optionales History-Enrichment fuer zuletzt besucht und meistbesucht nur
   mit expliziter Browser-History-Berechtigung.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
+- [x] LinkVault-Export-Endpunkt fuer Browser-Bookmark-Baum:
+  `GET /api/export/browser-bookmarks`.
+- [x] Companion-Rueckimport in den Browser als sicherer erster Schritt:
+  neuer Ordner `LinkVault Import ...`, kein Update/Delete im Browser.
 - [ ] Floccus-/Browser-Sync-Bridge pruefen.
 - [ ] Masonry-Ansicht und Bildoptionen Cover/Contain nach Karakeep-Vorbild,
   sobald Preview-/Archivdaten stabil sind.

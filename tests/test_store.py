@@ -94,6 +94,50 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(bookmarks[0].collections, ["Homelab"])
             self.assertEqual(bookmarks[0].tags, ["proxmox", "selfhost"])
 
+    def test_import_browser_bookmarks_preserves_source_structure_for_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+
+            result = store.import_browser_bookmarks(
+                [
+                    {
+                        "url": "https://example.com/a",
+                        "title": "A",
+                        "collections": ["Bookmarks Toolbar", "Dev"],
+                        "source_browser": "firefox-extension",
+                        "source_root": "Bookmarks Toolbar",
+                        "source_folder_path": "Bookmarks Toolbar / Dev",
+                        "source_position": 1,
+                        "source_bookmark_id": "abc",
+                    },
+                    {
+                        "url": "https://example.com/b",
+                        "title": "B",
+                        "collections": ["Bookmarks Toolbar", "Dev"],
+                        "source_browser": "firefox-extension",
+                        "source_root": "Bookmarks Toolbar",
+                        "source_folder_path": "Bookmarks Toolbar / Dev",
+                        "source_position": 0,
+                        "source_bookmark_id": "def",
+                    },
+                ]
+            )
+
+            self.assertEqual(result["created"], 2)
+            bookmark_a = next(bookmark for bookmark in store.list() if bookmark.url == "https://example.com/a")
+            self.assertEqual(bookmark_a.source_browser, "firefox-extension")
+            self.assertEqual(bookmark_a.source_root, "Bookmarks Toolbar")
+            self.assertEqual(bookmark_a.source_folder_path, "Bookmarks Toolbar / Dev")
+            self.assertEqual(bookmark_a.source_bookmark_id, "abc")
+
+            export = store.browser_export_tree()
+
+            self.assertEqual(export["bookmark_count"], 2)
+            self.assertEqual(export["roots"][0]["title"], "Bookmarks Toolbar")
+            folder = export["roots"][0]["children"][0]
+            self.assertEqual(folder["title"], "Dev")
+            self.assertEqual([item["title"] for item in folder["children"]], ["B", "A"])
+
     def test_import_browser_html_preview_shows_new_existing_and_import_duplicates(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

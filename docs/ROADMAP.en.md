@@ -43,6 +43,9 @@ Status legend:
 - [~] Browser bookmark HTML import.
 - [x] Browser HTML import preview: show new links, duplicates, folder paths,
   tags/collections, and conflicts before writing.
+- [x] Store browser import metadata for Companion imports:
+  `source_browser`, `source_root`, `source_folder_path`, `source_position`,
+  and `source_bookmark_id`.
 - [ ] Store import session metadata: source, file, checksum, profile, format,
   timestamp, and result counts.
 - [x] API tokens for imports, extensions, and automation.
@@ -120,8 +123,8 @@ Status legend:
 - [~] API token management with visible status exists; test button is still open.
 - [ ] Webhooks.
 - [~] Companion extension: developer preview for Firefox/Chromium with folder
-  selection and popup preview exists; packaging and finer per-link selection
-  are still open.
+  selection, popup preview, and safe browser re-import into a new folder
+  exists; packaging, true sync, and finer per-link selection are still open.
 - [x] Companion import filters for folder, text search, address/domain,
   date-added, and URLs that already exist in LinkVault.
 - [x] Companion discovery: find LinkVault through current form value, saved
@@ -130,6 +133,10 @@ Status legend:
   explicit browser history permission.
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
   and API.
+- [x] LinkVault export endpoint for a browser bookmark tree:
+  `GET /api/export/browser-bookmarks`.
+- [x] Companion browser re-import as a safe first step: create a new
+  `LinkVault Import ...` folder without browser-side update/delete.
 - [ ] Evaluate Floccus/browser sync bridge.
 - [ ] Masonry view and image cover/contain options inspired by Karakeep once
   preview/archive data is stable.

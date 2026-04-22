@@ -98,6 +98,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json({"events": store.merge_history()})
+        elif path == "/api/export/browser-bookmarks":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json(store.browser_export_tree())
         elif path == "/api/tokens":
             if not self.require_session_auth(auth_store):
                 return
@@ -193,6 +197,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 html = str(payload.get("data") or payload.get("html") or "")
                 self.send_json(store.preview_browser_html_import(html))
+            elif path == "/api/import/browser-bookmarks":
+                if not self.require_auth(auth_store):
+                    return
+                items = payload.get("items", [])
+                if not isinstance(items, list):
+                    raise ValueError("items must be a list")
+                self.send_json(store.import_browser_bookmarks(items), HTTPStatus.CREATED)
+            elif path == "/api/import/browser-bookmarks/preview":
+                if not self.require_auth(auth_store):
+                    return
+                items = payload.get("items", [])
+                if not isinstance(items, list):
+                    raise ValueError("items must be a list")
+                self.send_json(store.preview_browser_bookmarks_import(items))
             elif path == "/api/import/chromium-json":
                 if not self.require_auth(auth_store):
                     return

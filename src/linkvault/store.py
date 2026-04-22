@@ -36,6 +36,11 @@ class Bookmark:
     status: str = "active"
     merged_into: str = ""
     merged_at: str = ""
+    source_browser: str = ""
+    source_root: str = ""
+    source_folder_path: str = ""
+    source_position: int = -1
+    source_bookmark_id: str = ""
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
@@ -96,6 +101,11 @@ class BookmarkStore:
                     status TEXT NOT NULL DEFAULT 'active',
                     merged_into TEXT NOT NULL DEFAULT '',
                     merged_at TEXT NOT NULL DEFAULT '',
+                    source_browser TEXT NOT NULL DEFAULT '',
+                    source_root TEXT NOT NULL DEFAULT '',
+                    source_folder_path TEXT NOT NULL DEFAULT '',
+                    source_position INTEGER NOT NULL DEFAULT -1,
+                    source_bookmark_id TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
@@ -107,9 +117,15 @@ class BookmarkStore:
             ensure_column(connection, "bookmarks", "status", "TEXT NOT NULL DEFAULT 'active'")
             ensure_column(connection, "bookmarks", "merged_into", "TEXT NOT NULL DEFAULT ''")
             ensure_column(connection, "bookmarks", "merged_at", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "source_browser", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "source_root", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "source_folder_path", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "source_position", "INTEGER NOT NULL DEFAULT -1")
+            ensure_column(connection, "bookmarks", "source_bookmark_id", "TEXT NOT NULL DEFAULT ''")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_normalized_url ON bookmarks(normalized_url)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_domain ON bookmarks(domain)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_status ON bookmarks(status)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_source_root ON bookmarks(source_root)")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS merge_events (
@@ -236,9 +252,10 @@ class BookmarkStore:
                 """
                 INSERT INTO bookmarks (
                     id, url, normalized_url, title, description, domain, favicon_url, tags, collections,
-                    favorite, pinned, notes, status, merged_into, merged_at, created_at, updated_at
+                    favorite, pinned, notes, status, merged_into, merged_at, source_browser, source_root,
+                    source_folder_path, source_position, source_bookmark_id, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 bookmark_to_record(bookmark),
             )
@@ -324,7 +341,8 @@ class BookmarkStore:
                 UPDATE bookmarks
                 SET url = ?, normalized_url = ?, title = ?, description = ?, domain = ?, favicon_url = ?,
                     tags = ?, collections = ?, favorite = ?, pinned = ?, notes = ?,
-                    status = ?, merged_into = ?, merged_at = ?, updated_at = ?
+                    status = ?, merged_into = ?, merged_at = ?, source_browser = ?, source_root = ?,
+                    source_folder_path = ?, source_position = ?, source_bookmark_id = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -342,6 +360,11 @@ class BookmarkStore:
                     bookmark.status,
                     bookmark.merged_into,
                     bookmark.merged_at,
+                    bookmark.source_browser,
+                    bookmark.source_root,
+                    bookmark.source_folder_path,
+                    bookmark.source_position,
+                    bookmark.source_bookmark_id,
                     bookmark.updated_at,
                     bookmark.id,
                 ),
@@ -519,6 +542,9 @@ class BookmarkStore:
     def import_browser_html(self, html: str) -> dict[str, Any]:
         return self.import_items(parse_browser_html(html))
 
+    def import_browser_bookmarks(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.import_items(normalize_browser_bookmark_items(items))
+
     def import_chromium_json(self, data: str) -> dict[str, Any]:
         return self.import_items(parse_chromium_json(data))
 
@@ -558,6 +584,9 @@ class BookmarkStore:
 
     def preview_browser_html_import(self, html: str) -> dict[str, Any]:
         return self.preview_import_items(parse_browser_html(html))
+
+    def preview_browser_bookmarks_import(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.preview_import_items(normalize_browser_bookmark_items(items))
 
     def preview_chromium_json_import(self, data: str) -> dict[str, Any]:
         return self.preview_import_items(parse_chromium_json(data))
@@ -608,6 +637,11 @@ class BookmarkStore:
                 "title": str(item.get("title") or item.get("url") or ""),
                 "tags": tags,
                 "collections": collections,
+                "source_browser": str(item.get("source_browser", "")),
+                "source_root": str(item.get("source_root", "")),
+                "source_folder_path": str(item.get("source_folder_path", "")),
+                "source_position": to_int(item.get("source_position", -1), -1),
+                "source_bookmark_id": str(item.get("source_bookmark_id", "")),
                 "suggestions": category_suggestions({**item, "tags": tags, "collections": collections}),
             }
 
@@ -681,6 +715,63 @@ class BookmarkStore:
             )
         return {"groups": groups, "group_count": len(groups)}
 
+    def browser_export_tree(self) -> dict[str, Any]:
+        bookmarks = self.list(filters=BookmarkFilters(status="active"))
+        roots: dict[str, dict[str, Any]] = {}
+
+        for bookmark in sorted(bookmarks, key=browser_export_sort_key):
+            root_title = bookmark.source_root.strip() or "LinkVault"
+            folder_path = export_folder_path(bookmark)
+            root = roots.setdefault(
+                root_title,
+                {
+                    "title": root_title,
+                    "source_root": bookmark.source_root.strip(),
+                    "children": [],
+                    "_folders": {},
+                },
+            )
+            parent = root
+            path_accumulator: list[str] = []
+            for folder in folder_path:
+                path_accumulator.append(folder)
+                folder_key = "\n".join(path_accumulator)
+                folder_node = root["_folders"].get(folder_key)
+                if not folder_node:
+                    folder_node = {
+                        "type": "folder",
+                        "title": folder,
+                        "source_folder_path": " / ".join(path_accumulator),
+                        "children": [],
+                        "_folders": {},
+                    }
+                    root["_folders"][folder_key] = folder_node
+                    parent["children"].append(folder_node)
+                parent = folder_node
+
+            parent["children"].append(
+                {
+                    "type": "bookmark",
+                    "id": bookmark.id,
+                    "title": bookmark.title or bookmark.url,
+                    "url": bookmark.url,
+                    "tags": bookmark.tags,
+                    "collections": bookmark.collections,
+                    "source_browser": bookmark.source_browser,
+                    "source_root": bookmark.source_root,
+                    "source_folder_path": bookmark.source_folder_path,
+                    "source_position": bookmark.source_position,
+                    "source_bookmark_id": bookmark.source_bookmark_id,
+                }
+            )
+
+        clean_roots = [strip_internal_folder_maps(root) for root in roots.values()]
+        return {
+            "root_title": f"LinkVault Import {datetime.now(UTC).date().isoformat()}",
+            "bookmark_count": len(bookmarks),
+            "roots": clean_roots,
+        }
+
     def sync_search_index(self, connection: sqlite3.Connection) -> None:
         bookmark_count = connection.execute("SELECT COUNT(*) FROM bookmarks WHERE status = 'active'").fetchone()[0]
         fts_count = connection.execute("SELECT COUNT(*) FROM bookmarks_fts").fetchone()[0]
@@ -723,6 +814,11 @@ def bookmark_from_payload(
         status=str(payload.get("status", "active")),
         merged_into=str(payload.get("merged_into", "")),
         merged_at=str(payload.get("merged_at", "")),
+        source_browser=str(payload.get("source_browser", "")),
+        source_root=str(payload.get("source_root", "")),
+        source_folder_path=str(payload.get("source_folder_path", "")),
+        source_position=to_int(payload.get("source_position", -1), -1),
+        source_bookmark_id=str(payload.get("source_bookmark_id", "")),
         created_at=created_at,
         updated_at=updated_at,
     )
@@ -745,6 +841,11 @@ def bookmark_from_row(row: sqlite3.Row) -> Bookmark:
         status=row["status"],
         merged_into=row["merged_into"],
         merged_at=row["merged_at"],
+        source_browser=row["source_browser"],
+        source_root=row["source_root"],
+        source_folder_path=row["source_folder_path"],
+        source_position=row["source_position"],
+        source_bookmark_id=row["source_bookmark_id"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -767,6 +868,11 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
         bookmark.status,
         bookmark.merged_into,
         bookmark.merged_at,
+        bookmark.source_browser,
+        bookmark.source_root,
+        bookmark.source_folder_path,
+        bookmark.source_position,
+        bookmark.source_bookmark_id,
         bookmark.created_at,
         bookmark.updated_at,
     )
@@ -1023,6 +1129,13 @@ def to_bool(value: Any) -> bool:
     return bool(value)
 
 
+def to_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
     columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
     if column not in columns:
@@ -1044,10 +1157,78 @@ def choose_winner(bookmarks: list[Bookmark]) -> Bookmark:
     )[0]
 
 
+def browser_export_sort_key(bookmark: Bookmark) -> tuple[str, str, int, str]:
+    return (
+        bookmark.source_root or "LinkVault",
+        bookmark.source_folder_path or "/".join(bookmark.collections),
+        bookmark.source_position if bookmark.source_position >= 0 else 999_999,
+        bookmark.title.lower(),
+    )
+
+
+def export_folder_path(bookmark: Bookmark) -> list[str]:
+    if bookmark.source_folder_path.strip():
+        parts = path_parts(bookmark.source_folder_path)
+        if parts and bookmark.source_root.strip() and parts[0] == bookmark.source_root.strip():
+            return parts[1:]
+        return parts
+    if bookmark.collections:
+        return bookmark.collections
+    return ["Inbox"]
+
+
+def path_parts(value: str) -> list[str]:
+    delimiter = " / " if " / " in value else "/"
+    return [part.strip() for part in value.split(delimiter) if part.strip()]
+
+
+def strip_internal_folder_maps(node: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: [strip_internal_folder_maps(child) for child in value] if key == "children" else value
+        for key, value in node.items()
+        if key != "_folders"
+    }
+
+
 def parse_browser_html(html: str) -> list[dict[str, Any]]:
     parser = BrowserBookmarkParser()
     parser.feed(html)
     return parser.items
+
+
+def normalize_browser_bookmark_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not isinstance(items, list):
+        raise ValueError("items must be a list")
+
+    normalized: list[dict[str, Any]] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url", "")).strip()
+        title = str(item.get("title") or url).strip()
+        source_root = str(item.get("source_root", "")).strip()
+        source_folder_path = str(item.get("source_folder_path", "")).strip()
+        folder_path = clean_list(item.get("collections", []))
+        if not folder_path and source_folder_path:
+            folder_path = path_parts(source_folder_path)
+        normalized.append(
+            {
+                "url": url,
+                "title": title or url,
+                "description": str(item.get("description", "")),
+                "tags": clean_list(item.get("tags", [])),
+                "collections": folder_path or ["Inbox"],
+                "favorite": to_bool(item.get("favorite", False)),
+                "pinned": to_bool(item.get("pinned", False)),
+                "notes": str(item.get("notes", "")),
+                "source_browser": str(item.get("source_browser", "browser")).strip() or "browser",
+                "source_root": source_root,
+                "source_folder_path": source_folder_path or " / ".join(folder_path),
+                "source_position": to_int(item.get("source_position", item.get("index", index)), index),
+                "source_bookmark_id": str(item.get("source_bookmark_id", item.get("id", ""))).strip(),
+            }
+        )
+    return normalized
 
 
 def parse_chromium_json(data: str) -> list[dict[str, Any]]:
@@ -1065,7 +1246,13 @@ def parse_chromium_json(data: str) -> list[dict[str, Any]]:
         node = roots.get(key)
         if isinstance(node, dict):
             root_name = str(node.get("name") or chromium_root_label(key)).strip()
-            walk_chromium_bookmark_node(node, [root_name] if root_name else [], items)
+            walk_chromium_bookmark_node(
+                node,
+                [root_name] if root_name else [],
+                items,
+                source_root=root_name,
+                source_browser="chromium",
+            )
 
     return items
 
@@ -1080,7 +1267,7 @@ def parse_firefox_json(data: str) -> list[dict[str, Any]]:
         raise ValueError("Firefox bookmarks JSON must contain an object.")
 
     items: list[dict[str, Any]] = []
-    walk_firefox_bookmark_node(payload, [], items)
+    walk_firefox_bookmark_node(payload, [], items, source_root="", source_browser="firefox")
     return items
 
 
@@ -1088,6 +1275,10 @@ def walk_firefox_bookmark_node(
     node: dict[str, Any],
     folder_path: list[str],
     items: list[dict[str, Any]],
+    *,
+    source_root: str,
+    source_browser: str,
+    position: int = 0,
 ) -> None:
     node_type = str(node.get("type", "")).lower()
     url = str(node.get("uri") or node.get("url") or "").strip()
@@ -1104,6 +1295,11 @@ def walk_firefox_bookmark_node(
                 "title": title or url,
                 "tags": tags,
                 "collections": folder_path,
+                "source_browser": source_browser,
+                "source_root": source_root or (folder_path[0] if folder_path else ""),
+                "source_folder_path": " / ".join(folder_path),
+                "source_position": position,
+                "source_bookmark_id": str(node.get("guid") or node.get("id") or ""),
             }
         )
         return
@@ -1115,10 +1311,19 @@ def walk_firefox_bookmark_node(
     next_path = folder_path
     if title and node_type in {"text/x-moz-place-container", "folder", ""} and title.lower() not in {"root", "places"}:
         next_path = [*folder_path, title]
+        if not source_root:
+            source_root = title
 
-    for child in children:
+    for child_position, child in enumerate(children):
         if isinstance(child, dict):
-            walk_firefox_bookmark_node(child, next_path, items)
+            walk_firefox_bookmark_node(
+                child,
+                next_path,
+                items,
+                source_root=source_root,
+                source_browser=source_browser,
+                position=child_position,
+            )
 
 
 def parse_safari_zip(data: str) -> list[dict[str, Any]]:
@@ -1151,6 +1356,10 @@ def walk_chromium_bookmark_node(
     node: dict[str, Any],
     folder_path: list[str],
     items: list[dict[str, Any]],
+    *,
+    source_root: str,
+    source_browser: str,
+    position: int = 0,
 ) -> None:
     node_type = str(node.get("type", "")).lower()
     url = str(node.get("url", "")).strip()
@@ -1162,6 +1371,11 @@ def walk_chromium_bookmark_node(
                 "url": url,
                 "title": name or url,
                 "collections": folder_path,
+                "source_browser": source_browser,
+                "source_root": source_root,
+                "source_folder_path": " / ".join(folder_path),
+                "source_position": position,
+                "source_bookmark_id": str(node.get("id", "")),
             }
         )
         return
@@ -1174,9 +1388,16 @@ def walk_chromium_bookmark_node(
     if node_type == "folder" and name and (not folder_path or folder_path[-1] != name):
         next_path = [*folder_path, name]
 
-    for child in children:
+    for child_position, child in enumerate(children):
         if isinstance(child, dict):
-            walk_chromium_bookmark_node(child, next_path, items)
+            walk_chromium_bookmark_node(
+                child,
+                next_path,
+                items,
+                source_root=source_root,
+                source_browser=source_browser,
+                position=child_position,
+            )
 
 
 def chromium_root_label(key: str) -> str:
@@ -1198,6 +1419,7 @@ class BrowserBookmarkParser(HTMLParser):
         self.current_link: dict[str, Any] | None = None
         self.text_parts: list[str] = []
         self.root_depth_seen = False
+        self.position_stack: list[int] = [0]
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
@@ -1211,12 +1433,17 @@ class BrowserBookmarkParser(HTMLParser):
                 "url": attrs_dict["href"],
                 "tags": attrs_dict.get("tags", ""),
                 "collections": list(self.folder_stack),
+                "source_browser": "browser-html",
+                "source_root": self.folder_stack[0] if self.folder_stack else "",
+                "source_folder_path": " / ".join(self.folder_stack),
+                "source_position": self.position_stack[-1] if self.position_stack else 0,
             }
             self.text_parts = []
         elif tag == "dl":
             if self.pending_folder:
                 self.folder_stack.append(self.pending_folder)
                 self.pending_folder = None
+                self.position_stack.append(0)
             elif not self.root_depth_seen:
                 self.root_depth_seen = True
 
@@ -1230,10 +1457,14 @@ class BrowserBookmarkParser(HTMLParser):
             title = " ".join("".join(self.text_parts).split())
             self.current_link["title"] = title or self.current_link["url"]
             self.items.append(self.current_link)
+            if self.position_stack:
+                self.position_stack[-1] += 1
             self.current_link = None
             self.current_tag = None
         elif tag == "dl" and self.folder_stack:
             self.folder_stack.pop()
+            if len(self.position_stack) > 1:
+                self.position_stack.pop()
 
     def handle_data(self, data: str) -> None:
         if self.current_tag in {"a", "h3"}:

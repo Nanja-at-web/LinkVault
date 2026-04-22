@@ -74,12 +74,23 @@ Content-Type: application/json
 Import-Vorschau:
 
 ```http
-POST /api/import/browser-html/preview
+POST /api/import/browser-bookmarks/preview
 Authorization: Bearer lv_pat_...
 Content-Type: application/json
 
 {
-  "data": "<!DOCTYPE NETSCAPE-Bookmark-file-1>..."
+  "items": [
+    {
+      "url": "https://example.com",
+      "title": "Example",
+      "collections": ["Bookmarks Toolbar", "Dev"],
+      "source_browser": "firefox-extension",
+      "source_root": "Bookmarks Toolbar",
+      "source_folder_path": "Bookmarks Toolbar / Dev",
+      "source_position": 4,
+      "source_bookmark_id": "abc123"
+    }
+  ]
 }
 ```
 
@@ -132,16 +143,33 @@ Aktueller Funktionsumfang:
   Vorschau/Import auswaehlen.
 - Browser-Bookmarks vor Vorschau/Import nach Ordner, Textsuche,
   Adresse/Domain und hinzugefuegt-Datum filtern.
+- Browser-Struktur beim Import erhalten: Quelle, Root, Ordnerpfad, Position
+  und Browser-Bookmark-ID werden als Metadaten in LinkVault gespeichert.
 - Import-Vorschau an LinkVault senden und erste Detailzeilen im Popup zeigen.
 - Browser-Bookmarks nach LinkVault importieren.
+- LinkVault-Bookmarks wieder in den Browser importieren, zuerst sicher in
+  einen neuen Ordner `LinkVault Import ...`; bestehende Browser-Bookmarks
+  werden nicht veraendert oder geloescht.
 - Interne Browser-URLs wie `about:`, `place:` oder `moz-extension:` werden
   uebersprungen, weil LinkVault normale HTTP/HTTPS-Bookmarks speichert.
 
-Die Extension erzeugt fuer den Bookmark-Baum intern Netscape-HTML und nutzt
-die vorhandenen LinkVault-Endpunkte:
+Die Extension sendet fuer den Browser-Baum strukturierte JSON-Daten an
+LinkVault, damit Ordnerpfad und Reihenfolge fuer spaetere Restore-/Sync-
+Workflows erhalten bleiben:
 
-- `POST /api/import/browser-html/preview`
-- `POST /api/import/browser-html`
+- `POST /api/import/browser-bookmarks/preview`
+- `POST /api/import/browser-bookmarks`
+
+Der erste sichere Rueckweg in den Browser nutzt:
+
+- `GET /api/export/browser-bookmarks`
+
+Die Extension legt daraus einen neuen Browser-Ordner an und baut darunter die
+Ordnerstruktur nach. Ein echter Zwei-Wege-Sync mit Update/Delete bleibt offen
+und braucht spaeter eine Konfliktvorschau.
+
+Der klassische Netscape-HTML-Import bleibt fuer Dateiimporte und als
+Kompatibilitaetsformat im LinkVault-Core erhalten.
 
 Die Ordnerauswahl importiert den gewaehlten Ordner inklusive Unterordnern.
 Eine feinere Einzel-Link-Auswahl ist als naechster Schritt sinnvoll, sobald
@@ -187,6 +215,7 @@ Bookmarks ja, Passwoerter/Autofill/Cookies/History nein.
 - Einzelne Links innerhalb eines Ordners vor dem Import auswaehlen.
 - Filtervorschau mit Trefferzahl direkt vor dem Senden an LinkVault.
 - Duplicate-Entscheidung fuer aktuellen Tab direkt in der Extension anzeigen.
+- Konfliktvorschau fuer spaeteren echten Browser-Restore/Sync bauen.
 - Optionales History-Enrichment fuer zuletzt besucht und meistbesucht pruefen.
 - Paketierung fuer Firefox/Chromium vorbereiten.
 

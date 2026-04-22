@@ -77,7 +77,8 @@ function previewRow(record) {
   meta.textContent = [
     record.domain || "-",
     `collections: ${(record.collections || []).join(", ") || "-"}`,
-    `tags: ${(record.tags || []).join(", ") || "-"}`
+    `tags: ${(record.tags || []).join(", ") || "-"}`,
+    `source: ${record.source_folder_path || record.source_root || "-"}`
   ].join(" - ");
 
   row.append(header, url, meta);
@@ -210,6 +211,17 @@ document.querySelector("#import-bookmarks").addEventListener("click", async () =
     const result = await importBrowserBookmarks(selectedBookmarkSource());
     const invalid = result.invalid_skipped ? `, ${result.invalid_skipped} internal/invalid skipped` : "";
     showResult(`${result.created} imported, ${result.duplicates_skipped} duplicates skipped${invalid}.`, "ok");
+  } catch (error) {
+    showResult(error.message, "error");
+  }
+});
+
+document.querySelector("#import-into-browser").addEventListener("click", async () => {
+  try {
+    clearPreviewDetails();
+    showResult("Creating LinkVault Import folder in this browser...");
+    const result = await importLinkVaultIntoBrowser();
+    showResult(`Created ${result.created} browser bookmarks in ${result.root_title}.`, "ok");
   } catch (error) {
     showResult(error.message, "error");
   }

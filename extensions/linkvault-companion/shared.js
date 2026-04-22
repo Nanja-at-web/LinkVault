@@ -45,6 +45,15 @@ function getBookmarkSubTree(id) {
   });
 }
 
+function createBrowserBookmark(payload) {
+  if (globalThis.browser?.bookmarks) {
+    return globalThis.browser.bookmarks.create(payload);
+  }
+  return new Promise((resolve) => {
+    linkvaultRuntime.bookmarks.create(payload, resolve);
+  });
+}
+
 function requestPermissions(permissions) {
   if (!linkvaultRuntime.permissions?.request) {
     return Promise.resolve(true);
@@ -296,19 +305,35 @@ async function saveCurrentTab(extra = {}) {
 }
 
 async function previewBrowserBookmarks(options = {}) {
-  const html = await browserBookmarksToNetscapeHtml(options);
-  return linkvaultRequest("/api/import/browser-html/preview", {
+  const items = await browserBookmarksToItems(options);
+  return linkvaultRequest("/api/import/browser-bookmarks/preview", {
     method: "POST",
-    body: JSON.stringify({data: html})
+    body: JSON.stringify({items})
   });
 }
 
 async function importBrowserBookmarks(options = {}) {
-  const html = await browserBookmarksToNetscapeHtml(options);
-  return linkvaultRequest("/api/import/browser-html", {
+  const items = await browserBookmarksToItems(options);
+  return linkvaultRequest("/api/import/browser-bookmarks", {
     method: "POST",
-    body: JSON.stringify({data: html})
+    body: JSON.stringify({items})
   });
+}
+
+async function browserBookmarksToItems(options = {}) {
+  const tree = options.rootId ? await getBookmarkSubTree(options.rootId) : await getBookmarkTree();
+  const filters = normalizeBookmarkFilters(options.filters || {});
+  const items = [];
+  for (const node of tree) {
+    appendBookmarkItem(items, node, {
+      isRoot: !options.rootId,
+      path: [],
+      filters,
+      sourceRoot: "",
+      sourceBrowser: browserSourceName()
+    });
+  }
+  return items;
 }
 
 async function browserBookmarksToNetscapeHtml(options = {}) {
@@ -326,6 +351,41 @@ async function browserBookmarksToNetscapeHtml(options = {}) {
   }
   lines.push("</DL><p>");
   return lines.join("\n");
+}
+
+async function importLinkVaultIntoBrowser() {
+  const tree = await linkvaultRequest("/api/export/browser-bookmarks");
+  const rootTitle = tree.root_title || `LinkVault Import ${new Date().toISOString().slice(0, 10)}`;
+  const root = await createBrowserBookmark({title: rootTitle});
+  let created = 0;
+  for (const child of tree.roots || []) {
+    created += await createBookmarkTreeNode(child, root.id);
+  }
+  return {
+    root_title: rootTitle,
+    created,
+    bookmark_count: tree.bookmark_count || created
+  };
+}
+
+async function createBookmarkTreeNode(node, parentId) {
+  if (node.type === "bookmark" || node.url) {
+    if (!isRegularWebUrl(node.url)) return 0;
+    await createBrowserBookmark({
+      parentId,
+      title: node.title || node.url,
+      url: node.url
+    });
+    return 1;
+  }
+
+  const title = String(node.title || "LinkVault").trim();
+  const folder = await createBrowserBookmark({parentId, title});
+  let created = 0;
+  for (const child of node.children || []) {
+    created += await createBookmarkTreeNode(child, folder.id);
+  }
+  return created;
 }
 
 async function browserBookmarkFolders() {
@@ -403,6 +463,56 @@ function appendBookmarkNode(lines, node, depth, isRoot = false, path = [], filte
     count += appendBookmarkNode(lines, child, depth, false, nextPath, filters);
   }
   return count;
+}
+
+function appendBookmarkItem(items, node, context) {
+  const {isRoot, filters, sourceBrowser} = context;
+  const path = context.path || [];
+  const sourceRoot = context.sourceRoot || "";
+
+  if (node.url) {
+    if (!isRegularWebUrl(node.url)) return 0;
+    if (!bookmarkMatchesFilters(node, path, filters)) return 0;
+    items.push({
+      url: node.url,
+      title: node.title || node.url,
+      collections: path,
+      source_browser: sourceBrowser,
+      source_root: sourceRoot || path[0] || "",
+      source_folder_path: path.join(" / "),
+      source_position: Number.isFinite(Number(node.index)) ? Number(node.index) : items.length,
+      source_bookmark_id: String(node.id || "")
+    });
+    return 1;
+  }
+
+  const children = Array.isArray(node.children) ? node.children : [];
+  if (!children.length) return 0;
+
+  const title = String(node.title || "").trim();
+  const nextPath = !isRoot && title ? [...path, title] : path;
+  const nextRoot = sourceRoot || (!isRoot && title ? title : "");
+
+  let count = 0;
+  for (const child of children) {
+    count += appendBookmarkItem(items, child, {
+      isRoot: false,
+      path: nextPath,
+      filters,
+      sourceRoot: nextRoot,
+      sourceBrowser
+    });
+  }
+  return count;
+}
+
+function browserSourceName() {
+  const userAgent = navigator.userAgent || "";
+  if (userAgent.includes("Firefox/")) return "firefox-extension";
+  if (userAgent.includes("Edg/")) return "edge-extension";
+  if (userAgent.includes("Chrome/")) return "chrome-extension";
+  if (userAgent.includes("Safari/")) return "safari-extension";
+  return "browser-extension";
 }
 
 function normalizeBookmarkFilters(filters = {}) {

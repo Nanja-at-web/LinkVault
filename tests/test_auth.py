@@ -188,6 +188,47 @@ class AuthHttpTest(unittest.TestCase):
                     headers={"authorization": f"Bearer {token_payload['token']}"},
                 )
                 self.assertEqual(api_bookmark["url"], "http://127.0.0.1:9/token")
+                browser_preview = request_json(
+                    opener,
+                    f"{base_url}/api/import/browser-bookmarks/preview",
+                    {
+                        "items": [
+                            {
+                                "url": "http://127.0.0.1:9/from-browser",
+                                "title": "From Browser",
+                                "source_root": "Bookmarks Toolbar",
+                                "source_folder_path": "Bookmarks Toolbar / Dev",
+                                "source_position": 0,
+                            }
+                        ]
+                    },
+                    headers={"authorization": f"Bearer {token_payload['token']}"},
+                )
+                self.assertEqual(browser_preview["create"], 1)
+                browser_import = request_json(
+                    opener,
+                    f"{base_url}/api/import/browser-bookmarks",
+                    {
+                        "items": [
+                            {
+                                "url": "http://127.0.0.1:9/from-browser",
+                                "title": "From Browser",
+                                "source_root": "Bookmarks Toolbar",
+                                "source_folder_path": "Bookmarks Toolbar / Dev",
+                                "source_position": 0,
+                            }
+                        ]
+                    },
+                    headers={"authorization": f"Bearer {token_payload['token']}"},
+                )
+                self.assertEqual(browser_import["created"], 1)
+                browser_export = get_json(
+                    opener,
+                    f"{base_url}/api/export/browser-bookmarks",
+                    headers={"authorization": f"Bearer {token_payload['token']}"},
+                )
+                self.assertGreaterEqual(browser_export["bookmark_count"], 1)
+                self.assertEqual(browser_export["roots"][0]["title"], "Bookmarks Toolbar")
 
                 request_json(opener, f"{base_url}/api/logout", {})
                 with self.assertRaises(urllib.error.HTTPError) as logged_out:
