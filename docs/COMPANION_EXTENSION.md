@@ -42,6 +42,20 @@ Healthcheck:
 GET /healthz
 ```
 
+Discovery/Fingerprinting:
+
+```http
+GET /.well-known/linkvault
+```
+
+```json
+{
+  "app": "LinkVault",
+  "version": "0.1.0",
+  "health": "/healthz"
+}
+```
+
 Bookmark speichern:
 
 ```http
@@ -109,6 +123,8 @@ Chromium-Extension geladen werden.
 Aktueller Funktionsumfang:
 
 - LinkVault-URL und API-Token speichern.
+- LinkVault-Server ueber aktuelle Eingabe, gespeicherte URL, offene Tabs,
+  `linkvault.local`, `linkvault` und optionalen Subnetzscan suchen.
 - Verbindung gegen `/healthz` und `/api/bookmarks` testen.
 - aktuellen Tab als Bookmark speichern.
 - Browser-Bookmark-Baum ueber die WebExtensions-`bookmarks`-API lesen.
@@ -165,6 +181,8 @@ Bookmarks ja, Passwoerter/Autofill/Cookies/History nein.
 - Node.js nur fuer lokale/CI-Entwicklungschecks einplanen, damit
   `node --check extensions/linkvault-companion/*.js` laufen kann. Node bleibt
   keine Runtime-Abhaengigkeit fuer LinkVault oder den Proxmox-LXC.
+- Discovery-Ergebnis spaeter mit Servername/Hostname und HTTPS-Hinweis
+  anreichern.
 - Bessere Vorschau in der Extension mit Detailzeilen statt nur Zaehlern.
 - Einzelne Links innerhalb eines Ordners vor dem Import auswaehlen.
 - Filtervorschau mit Trefferzahl direkt vor dem Senden an LinkVault.

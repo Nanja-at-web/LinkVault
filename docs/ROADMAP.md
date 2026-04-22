@@ -40,6 +40,8 @@ Status-Legende:
 - [ ] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.
 - [x] API-Token fuer Import, Extension und Automatisierung.
+- [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
+  Erkennung im lokalen Netzwerk.
 - [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
   Bookmarks, Dubletten und Betrieb vorhanden; Favoriten, Tags,
   Collections, Archiv, Aktivitaet und Einstellungen offen.
@@ -107,6 +109,8 @@ Status-Legende:
   Einzel-Link-Auswahl offen.
 - [x] Companion-Importfilter fuer Ordner, Textsuche, Adresse/Domain,
   hinzugefuegt-Datum und bereits vorhandene URLs.
+- [x] Companion-Discovery: LinkVault ueber aktuelle Eingabe, gespeicherte URL,
+  offene Tabs, `linkvault.local`, `linkvault` und optionalen Subnetzscan finden.
 - [ ] Optionales History-Enrichment fuer zuletzt besucht und meistbesucht nur
   mit expliziter Browser-History-Berechtigung.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.

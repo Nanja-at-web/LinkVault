@@ -49,6 +49,9 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("requestLinkVaultHostPermission", shared)
         self.assertIn("hostPermissionPattern", shared)
         self.assertIn("isRegularWebUrl", shared)
+        self.assertIn("discoverLinkVaultServers", shared)
+        self.assertIn(".well-known/linkvault", shared)
+        self.assertIn("mapWithConcurrency", shared)
         self.assertIn("saveCurrentTab", popup)
         self.assertIn("selectedBookmarkSource", popup)
         self.assertIn("renderPreviewDetails", popup)
@@ -58,6 +61,9 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("bookmark-filter-added-from", popup_html)
         self.assertIn("bookmark-filter-added-to", popup_html)
         self.assertIn("PREVIEW_DETAIL_LIMIT", popup)
+        self.assertIn("find-linkvault", options)
+        self.assertIn("scan-subnet", options)
+        self.assertIn("subnetPrefixFromUrl", options)
         self.assertIn("testLinkVaultConnection", options)
 
 

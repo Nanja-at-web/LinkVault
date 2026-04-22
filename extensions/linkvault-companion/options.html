@@ -24,6 +24,22 @@
       </div>
     </form>
 
+    <section class="panel">
+      <h2>Find LinkVault Server</h2>
+      <p class="muted">Search likely local addresses first. Subnet scan is optional and only runs when you start it.</p>
+      <div class="actions">
+        <button id="find-linkvault" type="button">Find LinkVault</button>
+      </div>
+      <details class="filter-panel">
+        <summary>Optional subnet scan</summary>
+        <label>Subnet prefix
+          <input id="subnet-prefix" placeholder="192.168.1" value="192.168.1">
+        </label>
+        <button id="scan-subnet" type="button">Scan this subnet</button>
+      </details>
+      <div id="discovery-results" class="discovery-results" hidden></div>
+    </section>
+
     <section id="status" class="status" role="status"></section>
   </main>
 

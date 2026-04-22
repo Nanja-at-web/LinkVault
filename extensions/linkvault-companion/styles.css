@@ -162,6 +162,23 @@ button.primary {
   background: #fff;
 }
 
+.discovery-results {
+  display: grid;
+  gap: .5rem;
+  margin-top: .7rem;
+}
+
+.discovery-row {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .6rem;
+  background: #fff;
+}
+
+.discovery-row p {
+  margin: .25rem 0 .5rem;
+}
+
 .preview-details h2 {
   margin-bottom: .35rem;
 }

@@ -135,6 +135,128 @@ async function testLinkVaultConnection() {
   return response.json();
 }
 
+async function discoverLinkVaultServers(options = {}) {
+  const candidates = await linkvaultDiscoveryCandidates(options);
+  const checks = await mapWithConcurrency(candidates, 12, probeLinkVaultServer);
+  const results = checks.filter(Boolean);
+  const seen = new Set();
+  return results.filter((result) => {
+    if (seen.has(result.url)) return false;
+    seen.add(result.url);
+    return true;
+  });
+}
+
+async function linkvaultDiscoveryCandidates(options = {}) {
+  const candidates = [];
+  const inputUrl = normalizeBaseUrl(options.inputUrl || "");
+  const settings = await getSettings();
+  const storedUrl = normalizeBaseUrl(settings.linkvaultUrl || "");
+
+  appendDiscoveryCandidate(candidates, inputUrl, "Current form value");
+  appendDiscoveryCandidate(candidates, storedUrl, "Saved setting");
+
+  const tabs = await queryTabs({});
+  for (const tab of tabs || []) {
+    appendDiscoveryCandidate(candidates, candidateBaseUrlFromPage(tab.url), "Open browser tab");
+  }
+
+  appendDiscoveryCandidate(candidates, "http://linkvault.local:3080", "Local hostname");
+  appendDiscoveryCandidate(candidates, "http://linkvault:3080", "Local hostname");
+
+  if (options.includeSubnet) {
+    const subnetPrefix = String(options.subnetPrefix || "").trim();
+    if (/^(?:\d{1,3}\.){2}\d{1,3}$/.test(subnetPrefix)) {
+      for (let host = 1; host <= 254; host += 1) {
+        appendDiscoveryCandidate(candidates, `http://${subnetPrefix}.${host}:3080`, "Subnet scan");
+      }
+    }
+  }
+
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    if (!candidate.url || seen.has(candidate.url)) return false;
+    seen.add(candidate.url);
+    return true;
+  });
+}
+
+function appendDiscoveryCandidate(candidates, url, source) {
+  const normalized = normalizeBaseUrl(url || "");
+  if (!normalized) return;
+  try {
+    const parsed = new URL(normalized);
+    if (!["http:", "https:"].includes(parsed.protocol)) return;
+    candidates.push({url: parsed.origin, source});
+  } catch (error) {
+    return;
+  }
+}
+
+function candidateBaseUrlFromPage(value) {
+  try {
+    const parsed = new URL(value || "");
+    if (!["http:", "https:"].includes(parsed.protocol)) return "";
+    return parsed.origin;
+  } catch (error) {
+    return "";
+  }
+}
+
+async function probeLinkVaultServer(candidate) {
+  const identity = await fetchJsonWithTimeout(`${candidate.url}/.well-known/linkvault`, 900);
+  if (identity && identity.app === "LinkVault") {
+    return {
+      url: candidate.url,
+      source: candidate.source,
+      version: identity.version || ""
+    };
+  }
+
+  const health = await fetchJsonWithTimeout(`${candidate.url}/healthz`, 900);
+  if (health?.ok && health.version) {
+    return {
+      url: candidate.url,
+      source: candidate.source,
+      version: health.version || ""
+    };
+  }
+
+  return null;
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs = 900) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!response.ok) return null;
+    return await response.json().catch(() => null);
+  } catch (error) {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function mapWithConcurrency(items, concurrency, worker) {
+  const results = [];
+  let index = 0;
+  const workers = Array.from({length: Math.min(concurrency, items.length)}, async () => {
+    while (index < items.length) {
+      const currentIndex = index;
+      index += 1;
+      results[currentIndex] = await worker(items[currentIndex]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 async function diagnoseReachability(baseUrl) {
   try {
     await fetch(`${baseUrl}/healthz`, {

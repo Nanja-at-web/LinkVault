@@ -45,6 +45,8 @@ Status legend:
 - [ ] Store import session metadata: source, file, checksum, profile, format,
   timestamp, and result counts.
 - [x] API tokens for imports, extensions, and automation.
+- [x] LinkVault discovery endpoint `/.well-known/linkvault` for Companion
+  detection on the local network.
 - [~] Rework home/navigation: tabs for save, import, bookmarks, dedup, and
   operations exist; favorites, tags, collections, archive, activity, and
   settings are still open.
@@ -113,6 +115,8 @@ Status legend:
   are still open.
 - [x] Companion import filters for folder, text search, address/domain,
   date-added, and URLs that already exist in LinkVault.
+- [x] Companion discovery: find LinkVault through current form value, saved
+  URL, open tabs, `linkvault.local`, `linkvault`, and optional subnet scan.
 - [ ] Optional history enrichment for last visited and visit count only with
   explicit browser history permission.
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,

@@ -21,6 +21,14 @@ def make_auth_store() -> AuthStore:
     return AuthStore(load_config().data_path)
 
 
+def linkvault_identity() -> dict[str, Any]:
+    return {
+        "app": "LinkVault",
+        "version": __version__,
+        "health": "/healthz",
+    }
+
+
 class LinkVaultHandler(BaseHTTPRequestHandler):
     server_version = f"LinkVault/{__version__}"
 
@@ -38,6 +46,8 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
 
         if path == "/healthz":
             self.send_json({"ok": True, "version": __version__})
+        elif path == "/.well-known/linkvault":
+            self.send_json(linkvault_identity())
         elif path == "/api/setup/status":
             config = load_config()
             self.send_json(
