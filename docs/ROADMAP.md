@@ -21,6 +21,8 @@ Status-Legende:
 - [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
 - [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
 - [ ] Lokale Dev-Installation mit Docker Compose.
+- [ ] Node.js als lokale/CI-Dev-Abhaengigkeit fuer Companion-Extension-
+  Syntaxchecks einplanen, ohne Node in die LinkVault-LXC-Runtime zu ziehen.
 - [x] Healthcheck, .env-Konfiguration, feste Service-Datenpfade und erste systemd Unit.
 
 ## Phase 1: Bookmark-Kern

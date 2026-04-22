@@ -162,6 +162,9 @@ Bookmarks ja, Passwoerter/Autofill/Cookies/History nein.
 
 ## Naechste Umsetzungsschritte
 
+- Node.js nur fuer lokale/CI-Entwicklungschecks einplanen, damit
+  `node --check extensions/linkvault-companion/*.js` laufen kann. Node bleibt
+  keine Runtime-Abhaengigkeit fuer LinkVault oder den Proxmox-LXC.
 - Bessere Vorschau in der Extension mit Detailzeilen statt nur Zaehlern.
 - Einzelne Links innerhalb eines Ordners vor dem Import auswaehlen.
 - Filtervorschau mit Trefferzahl direkt vor dem Senden an LinkVault.

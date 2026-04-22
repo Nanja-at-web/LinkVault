@@ -23,6 +23,8 @@ Status legend:
 - [~] Add data model migrations: SQLite schema exists, migrations are still
   simple.
 - [ ] Local development setup with Docker Compose.
+- [ ] Add Node.js as a local/CI development dependency for Companion extension
+  syntax checks without making Node part of the LinkVault LXC runtime.
 - [x] Healthcheck, `.env` configuration, fixed service data paths, and first
   systemd unit.
 
