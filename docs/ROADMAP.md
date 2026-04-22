@@ -13,6 +13,7 @@ Status-Legende:
 - [x] Deep-Research-Sammlung auswerten und Produktprioritaeten ableiten.
 - [x] UX-Research-Sammlung auswerten und UX-Prioritaeten ableiten.
 - [x] Demo-UX-Analyse zu Linkwarden, linkding und Karakeep auswerten.
+- [x] Layout-/Anzeige-UX von Karakeep, Linkwarden und linkding auswerten.
 - [x] Browser/API-Research vom 20.04.2026 auswerten und Import-Architektur
   ableiten.
 - [x] Installations-/Requirements-Research vom 20.04.2026 auswerten und
@@ -55,6 +56,11 @@ Status-Legende:
   Beschreibung und URL.
 - [ ] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
   Feldern.
+- [ ] Ansichtsumschalter fuer Bookmarks: Compact List, Detailed List und Grid.
+- [ ] Anzeigeoptionen je Nutzer speichern: Titel, Beschreibung, Notizen, Tags,
+  Collections, Domain, Datum, Favorite/Pin, Status und spaeter Archivformate.
+- [ ] Sortierung und Filter als Standard speichern, angelehnt an linkding.
+- [ ] Grid/Card-Ansicht fuer visuelles Browsing mit Favicon/Preview.
 
 ## Phase 2: Dubletten und Favoritenpflege
 
@@ -97,6 +103,8 @@ Status-Legende:
 - [ ] Smart Collections.
 - [ ] AI-Tagging optional.
 - [ ] Activity/Audit-Log fuer Import, Bulk, Merge, Delete, Restore und Regeln.
+- [ ] Anpassbares Dashboard/Betrieb-Layout nach Linkwarden-Vorbild, sobald
+  Bookmark-, Import- und Dedup-Workflows stabil sind.
 - [x] Erste Tastaturkuerzel fuer Suche, Speichern, Import, Bookmarks und
   Dubletten.
 - [ ] Shortcut-Hilfe und A11y-Pruefung fuer Fokusreihenfolge und
@@ -115,6 +123,8 @@ Status-Legende:
   mit expliziter Browser-History-Berechtigung.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
 - [ ] Floccus-/Browser-Sync-Bridge pruefen.
+- [ ] Masonry-Ansicht und Bildoptionen Cover/Contain nach Karakeep-Vorbild,
+  sobald Preview-/Archivdaten stabil sind.
 
 ## Phase 5: Proxmox-Installation
 

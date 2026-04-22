@@ -13,6 +13,7 @@ Status legend:
 - [x] Evaluate the deep research collection and derive product priorities.
 - [x] Evaluate the UX research collection and derive UX priorities.
 - [x] Evaluate the demo UX analysis for Linkwarden, linkding, and Karakeep.
+- [x] Evaluate layout/display UX from Karakeep, Linkwarden, and linkding.
 - [x] Evaluate the 2026-04-20 browser/API research and derive the import
   architecture.
 - [x] Evaluate the 2026-04-20 installation/requirements research and derive
@@ -59,6 +60,11 @@ Status legend:
 - [x] Rule-based tag/collection suggestions from domain, title, description,
   and URL.
 - [ ] Quick-add flow with a short default dialog and optional advanced fields.
+- [ ] Bookmark view switcher: compact list, detailed list, and grid.
+- [ ] Store display options per user: title, description, notes, tags,
+  collections, domain, date, favorite/pin, status, and later archive formats.
+- [ ] Save sorting and filters as defaults, inspired by linkding.
+- [ ] Grid/card view for visual browsing with favicon/preview.
 
 ## Phase 2: Deduplication And Favorites Cleanup
 
@@ -103,6 +109,8 @@ Status legend:
 - [ ] Optional AI tagging.
 - [ ] Activity/audit log for imports, bulk actions, merges, deletes, restores,
   and rules.
+- [ ] Customizable dashboard/operations layout inspired by Linkwarden once
+  bookmark, import, and dedup workflows are stable.
 - [x] First keyboard shortcuts for search, save, import, bookmarks, and
   duplicates.
 - [ ] Shortcut help and accessibility check for focus order and screenreader
@@ -122,6 +130,8 @@ Status legend:
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
   and API.
 - [ ] Evaluate Floccus/browser sync bridge.
+- [ ] Masonry view and image cover/contain options inspired by Karakeep once
+  preview/archive data is stable.
 
 ## Phase 5: Proxmox Installation
 

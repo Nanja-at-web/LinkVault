@@ -28,6 +28,7 @@ The current focus is:
 - [Demo UX analysis impact, German](docs/DEMO_UX_ANALYSIS.md)
 - [Browser and import research impact, German](docs/BROWSER_IMPORT_RESEARCH.md)
 - [Browser bookmark UX patterns](docs/BROWSER_BOOKMARK_UX_PATTERNS.md)
+- [Layout and display UX patterns](docs/LAYOUT_DISPLAY_UX_PATTERNS.md)
 - [Companion extension plan](docs/COMPANION_EXTENSION.md)
 - [Installation requirements impact, German](docs/INSTALLATION_REQUIREMENTS.md)
 - [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
