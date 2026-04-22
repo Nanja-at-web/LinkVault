@@ -109,6 +109,16 @@ sudo ./scripts/backup-linkvault.sh
 sudo ./scripts/restore-linkvault.sh /var/backups/linkvault/linkvault-backup-YYYYmmdd-HHMMSS.tar.gz
 ```
 
+Update an installed LinkVault LXC from the Proxmox host:
+
+```bash
+pct exec 112 -- linkvault-helper update
+pct exec 112 -- linkvault-helper health
+```
+
+Replace `112` with your container ID. See [Update](docs/UPDATE.md) for the
+full flow.
+
 ## API Snapshot
 
 Important endpoints:

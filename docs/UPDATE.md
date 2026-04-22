@@ -1,5 +1,40 @@
 # Update
 
+## Schnellstart: Update im Proxmox-LXC
+
+Wenn LinkVault mit dem Proxmox/LXC-Installer installiert wurde, ist der
+einfachste Update-Befehl auf dem Proxmox-Host:
+
+```bash
+pct exec 112 -- linkvault-helper update
+```
+
+`112` ist dabei die Container-ID. Wenn dein LinkVault-Container eine andere
+ID hat, entsprechend ersetzen.
+
+Danach kurz pruefen:
+
+```bash
+pct exec 112 -- linkvault-helper health
+pct exec 112 -- linkvault-helper status
+```
+
+Fuer deinen aktuellen Discovery-Endpunkt reicht also normalerweise:
+
+```bash
+pct exec 112 -- linkvault-helper update
+```
+
+Wenn du nicht sicher bist, welche CTID LinkVault hat:
+
+```bash
+pct list
+```
+
+Der Update-Smoke-Test ist etwas anderes: Er legt einen Test-Bookmark an,
+fuehrt ein Update aus und prueft, ob Daten erhalten bleiben. Fuer normales
+Aktualisieren reicht `linkvault-helper update`.
+
 ## Ziel
 
 Ein installierter LinkVault-LXC soll ohne Datenverlust aktualisiert werden
@@ -51,7 +86,8 @@ Das Skript:
 ## Proxmox-LXC Update-Smoke-Test
 
 Auf dem Proxmox-Host kann ein bestehender LinkVault-Container automatisch
-gegen ein Update getestet werden:
+gegen ein Update getestet werden. Das ist fuer Validierung gedacht, nicht als
+normaler Alltags-Update-Befehl:
 
 ```bash
 LINKVAULT_CTID=112 ./proxmox/linkvault-update-test.sh
