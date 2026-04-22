@@ -2,6 +2,10 @@ const resultEl = document.querySelector("#result");
 const connectionState = document.querySelector("#connection-state");
 const bookmarkSourceEl = document.querySelector("#bookmark-source");
 const previewDetailsEl = document.querySelector("#preview-details");
+const bookmarkFilterQueryEl = document.querySelector("#bookmark-filter-query");
+const bookmarkFilterDomainEl = document.querySelector("#bookmark-filter-domain");
+const bookmarkFilterAddedFromEl = document.querySelector("#bookmark-filter-added-from");
+const bookmarkFilterAddedToEl = document.querySelector("#bookmark-filter-added-to");
 const PREVIEW_DETAIL_LIMIT = 30;
 
 function showResult(message, kind = "info") {
@@ -74,7 +78,7 @@ function previewRow(record) {
     record.domain || "-",
     `collections: ${(record.collections || []).join(", ") || "-"}`,
     `tags: ${(record.tags || []).join(", ") || "-"}`
-  ].join(" · ");
+  ].join(" - ");
 
   row.append(header, url, meta);
 
@@ -132,7 +136,15 @@ async function refreshBookmarkSources() {
 }
 
 function selectedBookmarkSource() {
-  return {rootId: bookmarkSourceEl.value};
+  return {
+    rootId: bookmarkSourceEl.value,
+    filters: {
+      query: bookmarkFilterQueryEl.value,
+      domain: bookmarkFilterDomainEl.value,
+      addedFrom: bookmarkFilterAddedFromEl.value,
+      addedTo: bookmarkFilterAddedToEl.value
+    }
+  };
 }
 
 document.querySelector("#open-options").addEventListener("click", () => {
@@ -148,6 +160,15 @@ document.querySelector("#refresh-bookmark-sources").addEventListener("click", as
   } catch (error) {
     showResult(error.message, "error");
   }
+});
+
+document.querySelector("#clear-bookmark-filters").addEventListener("click", () => {
+  bookmarkFilterQueryEl.value = "";
+  bookmarkFilterDomainEl.value = "";
+  bookmarkFilterAddedFromEl.value = "";
+  bookmarkFilterAddedToEl.value = "";
+  clearPreviewDetails();
+  showResult("Bookmark filters cleared.");
 });
 
 document.querySelector("#save-current-tab").addEventListener("click", async () => {

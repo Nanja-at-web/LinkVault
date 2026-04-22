@@ -35,6 +35,7 @@ class ExtensionAssetsTest(unittest.TestCase):
     def test_extension_uses_linkvault_api_and_bookmarks_api(self):
         shared = (EXTENSION_DIR / "shared.js").read_text(encoding="utf-8")
         popup = (EXTENSION_DIR / "popup.js").read_text(encoding="utf-8")
+        popup_html = (EXTENSION_DIR / "popup.html").read_text(encoding="utf-8")
         options = (EXTENSION_DIR / "options.js").read_text(encoding="utf-8")
 
         self.assertIn("/api/import/browser-html/preview", shared)
@@ -43,12 +44,19 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("bookmarks.getTree", shared)
         self.assertIn("bookmarks.getSubTree", shared)
         self.assertIn("browserBookmarkFolders", shared)
+        self.assertIn("normalizeBookmarkFilters", shared)
+        self.assertIn("bookmarkMatchesFilters", shared)
         self.assertIn("requestLinkVaultHostPermission", shared)
         self.assertIn("hostPermissionPattern", shared)
         self.assertIn("isRegularWebUrl", shared)
         self.assertIn("saveCurrentTab", popup)
         self.assertIn("selectedBookmarkSource", popup)
         self.assertIn("renderPreviewDetails", popup)
+        self.assertIn("clear-bookmark-filters", popup)
+        self.assertIn("bookmark-filter-query", popup_html)
+        self.assertIn("bookmark-filter-domain", popup_html)
+        self.assertIn("bookmark-filter-added-from", popup_html)
+        self.assertIn("bookmark-filter-added-to", popup_html)
         self.assertIn("PREVIEW_DETAIL_LIMIT", popup)
         self.assertIn("testLinkVaultConnection", options)
 

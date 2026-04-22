@@ -191,6 +191,7 @@ async function importBrowserBookmarks(options = {}) {
 
 async function browserBookmarksToNetscapeHtml(options = {}) {
   const tree = options.rootId ? await getBookmarkSubTree(options.rootId) : await getBookmarkTree();
+  const filters = normalizeBookmarkFilters(options.filters || {});
   const lines = [
     "<!DOCTYPE NETSCAPE-Bookmark-file-1>",
     '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
@@ -199,7 +200,7 @@ async function browserBookmarksToNetscapeHtml(options = {}) {
     "<DL><p>"
   ];
   for (const node of tree) {
-    appendBookmarkNode(lines, node, 1, !options.rootId);
+    appendBookmarkNode(lines, node, 1, !options.rootId, [], filters);
   }
   lines.push("</DL><p>");
   return lines.join("\n");
@@ -244,26 +245,96 @@ function countWebBookmarks(node) {
   return children.reduce((total, child) => total + countWebBookmarks(child), 0);
 }
 
-function appendBookmarkNode(lines, node, depth, isRoot = false) {
+function appendBookmarkNode(lines, node, depth, isRoot = false, path = [], filters = {}) {
   const indent = "  ".repeat(depth);
   if (node.url) {
-    if (!isRegularWebUrl(node.url)) return;
-    lines.push(`${indent}<DT><A HREF="${escapeAttribute(node.url)}">${escapeHtml(node.title || node.url)}</A>`);
-    return;
+    if (!isRegularWebUrl(node.url)) return 0;
+    if (!bookmarkMatchesFilters(node, path, filters)) return 0;
+    const attrs = [`HREF="${escapeAttribute(node.url)}"`];
+    if (node.dateAdded) attrs.push(`ADD_DATE="${Math.floor(Number(node.dateAdded) / 1000)}"`);
+    lines.push(`${indent}<DT><A ${attrs.join(" ")}>${escapeHtml(node.title || node.url)}</A>`);
+    return 1;
   }
 
   const children = Array.isArray(node.children) ? node.children : [];
-  if (!children.length) return;
+  if (!children.length) return 0;
 
-  if (!isRoot && node.title) {
-    lines.push(`${indent}<DT><H3>${escapeHtml(node.title)}</H3>`);
+  const title = String(node.title || "").trim();
+  const nextPath = !isRoot && title ? [...path, title] : path;
+
+  if (!isRoot && title) {
+    const childLines = [];
+    let count = 0;
+    for (const child of children) {
+      count += appendBookmarkNode(childLines, child, depth + 1, false, nextPath, filters);
+    }
+    if (!count) return 0;
+    lines.push(`${indent}<DT><H3>${escapeHtml(title)}</H3>`);
     lines.push(`${indent}<DL><p>`);
-    for (const child of children) appendBookmarkNode(lines, child, depth + 1);
+    lines.push(...childLines);
     lines.push(`${indent}</DL><p>`);
-    return;
+    return count;
   }
 
-  for (const child of children) appendBookmarkNode(lines, child, depth);
+  let count = 0;
+  for (const child of children) {
+    count += appendBookmarkNode(lines, child, depth, false, nextPath, filters);
+  }
+  return count;
+}
+
+function normalizeBookmarkFilters(filters = {}) {
+  return {
+    query: String(filters.query || "").trim().toLowerCase(),
+    domain: String(filters.domain || "").trim().toLowerCase(),
+    addedFrom: parseDateStart(filters.addedFrom),
+    addedTo: parseDateEnd(filters.addedTo)
+  };
+}
+
+function bookmarkMatchesFilters(node, path, filters) {
+  if (filters.query) {
+    const haystack = [
+      node.title || "",
+      node.url || "",
+      path.join(" / ")
+    ].join(" ").toLowerCase();
+    if (!haystack.includes(filters.query)) return false;
+  }
+
+  if (filters.domain) {
+    const url = String(node.url || "").toLowerCase();
+    const host = urlHostname(url).toLowerCase();
+    if (!url.includes(filters.domain) && !host.includes(filters.domain)) return false;
+  }
+
+  const addedAt = Number(node.dateAdded || 0);
+  if (filters.addedFrom && (!addedAt || addedAt < filters.addedFrom)) return false;
+  if (filters.addedTo && (!addedAt || addedAt > filters.addedTo)) return false;
+
+  return true;
+}
+
+function parseDateStart(value) {
+  if (!value) return 0;
+  const parsed = new Date(`${value}T00:00:00`);
+  const timestamp = parsed.getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function parseDateEnd(value) {
+  if (!value) return 0;
+  const parsed = new Date(`${value}T23:59:59.999`);
+  const timestamp = parsed.getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function urlHostname(value) {
+  try {
+    return new URL(value).hostname;
+  } catch (error) {
+    return "";
+  }
 }
 
 function splitCommaValues(value) {

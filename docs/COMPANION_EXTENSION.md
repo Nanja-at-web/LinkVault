@@ -114,6 +114,8 @@ Aktueller Funktionsumfang:
 - Browser-Bookmark-Baum ueber die WebExtensions-`bookmarks`-API lesen.
 - Alle Browser-Bookmarks oder einen einzelnen Browser-Ordner fuer
   Vorschau/Import auswaehlen.
+- Browser-Bookmarks vor Vorschau/Import nach Ordner, Textsuche,
+  Adresse/Domain und hinzugefuegt-Datum filtern.
 - Import-Vorschau an LinkVault senden und erste Detailzeilen im Popup zeigen.
 - Browser-Bookmarks nach LinkVault importieren.
 - Interne Browser-URLs wie `about:`, `place:` oder `moz-extension:` werden
@@ -162,7 +164,7 @@ Bookmarks ja, Passwoerter/Autofill/Cookies/History nein.
 
 - Bessere Vorschau in der Extension mit Detailzeilen statt nur Zaehlern.
 - Einzelne Links innerhalb eines Ordners vor dem Import auswaehlen.
-- Filter fuer Ordner, Textsuche, Adresse/Domain und hinzugefuegt-Datum.
+- Filtervorschau mit Trefferzahl direkt vor dem Senden an LinkVault.
 - Duplicate-Entscheidung fuer aktuellen Tab direkt in der Extension anzeigen.
 - Optionales History-Enrichment fuer zuletzt besucht und meistbesucht pruefen.
 - Paketierung fuer Firefox/Chromium vorbereiten.

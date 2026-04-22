@@ -102,6 +102,28 @@ button.primary {
   align-items: center;
 }
 
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .5rem;
+}
+
+.filter-panel {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .55rem;
+  margin: .65rem 0;
+}
+
+.filter-panel summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.filter-panel label:first-of-type {
+  margin-top: .6rem;
+}
+
 .checks label {
   display: inline-flex;
   gap: .35rem;

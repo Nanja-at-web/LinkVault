@@ -42,6 +42,24 @@
           <option value="">All browser bookmarks</option>
         </select>
       </label>
+      <details class="filter-panel">
+        <summary>Filters</summary>
+        <label>Search title, URL, folder
+          <input id="bookmark-filter-query" placeholder="github, homelab, docs">
+        </label>
+        <label>Address or domain
+          <input id="bookmark-filter-domain" placeholder="github.com">
+        </label>
+        <div class="field-grid">
+          <label>Added from
+            <input id="bookmark-filter-added-from" type="date">
+          </label>
+          <label>Added until
+            <input id="bookmark-filter-added-to" type="date">
+          </label>
+        </div>
+        <button id="clear-bookmark-filters" type="button">Clear filters</button>
+      </details>
       <div class="actions">
         <button id="refresh-bookmark-sources" type="button">Refresh folders</button>
         <button id="preview-bookmarks" type="button">Preview import</button>
