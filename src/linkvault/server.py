@@ -530,6 +530,19 @@ def index_html() -> str:
       margin: .25rem 0 .75rem;
     }
     .filter-summary { color: var(--muted); font-size: .92rem; }
+    .view-settings {
+      display: grid;
+      grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+      gap: .75rem 1rem;
+      align-items: start;
+    }
+    .field-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem .8rem;
+      padding-top: .2rem;
+    }
+    .preference-status { min-height: 1.4rem; }
     .tab-panel[hidden] { display: none !important; }
     .stack { display: grid; gap: 1rem; }
     .mini-grid {
@@ -547,11 +560,29 @@ def index_html() -> str:
       margin: 0;
     }
     .bookmark-list { display: grid; gap: .75rem; }
+    .bookmark-list.view-grid {
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      align-items: start;
+    }
     .row {
       background: #fff;
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: .8rem;
+    }
+    .view-compact .row { padding: .6rem .7rem; }
+    .view-compact .bookmark-layout {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: .5rem;
+    }
+    .view-compact .bookmark-actions button { padding: .35rem .5rem; }
+    .view-grid .row { min-height: 100%; }
+    .view-grid .bookmark-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .view-grid .bookmark-side {
+      justify-items: start;
+      min-width: 0;
     }
     .bookmark-head {
       display: flex;
@@ -621,8 +652,9 @@ def index_html() -> str:
     @media (max-width: 760px) {
       .shell { padding: .75rem; }
       .toolbar, .panel-header { display: block; }
-      .form-grid, .filters, .bookmark-controls { grid-template-columns: 1fr; }
+      .form-grid, .filters, .bookmark-controls, .view-settings { grid-template-columns: 1fr; }
       .bookmark-head, .bookmark-layout { display: block; }
+      .bookmark-list.view-grid { grid-template-columns: 1fr; }
       .bookmark-side { justify-items: start; min-width: 0; margin-top: .65rem; }
       .select-pill { margin-top: .65rem; }
       h1 { font-size: 1.6rem; }
@@ -744,6 +776,38 @@ def index_html() -> str:
       <span class="filter-summary"><span id="selected-count">0</span> ausgewaehlt</span>
     </div>
 
+    <details class="drawer" id="view-drawer">
+      <summary>Ansicht</summary>
+      <div class="drawer-body view-settings">
+        <label>Layout
+          <select id="bookmark-view">
+            <option value="compact">Compact List</option>
+            <option value="detailed">Detailed List</option>
+            <option value="grid">Grid/Card</option>
+          </select>
+        </label>
+        <div>
+          <strong>Anzeigen</strong>
+          <div class="field-options">
+            <label class="check"><input type="checkbox" data-display-field="title"> Titel</label>
+            <label class="check"><input type="checkbox" data-display-field="description"> Beschreibung</label>
+            <label class="check"><input type="checkbox" data-display-field="notes"> Notizen</label>
+            <label class="check"><input type="checkbox" data-display-field="tags"> Tags</label>
+            <label class="check"><input type="checkbox" data-display-field="collections"> Collections</label>
+            <label class="check"><input type="checkbox" data-display-field="domain"> Domain</label>
+            <label class="check"><input type="checkbox" data-display-field="date"> Datum</label>
+            <label class="check"><input type="checkbox" data-display-field="favoritePin"> Favorit/Pin</label>
+            <label class="check"><input type="checkbox" data-display-field="status"> Status</label>
+          </div>
+          <div class="inline-actions">
+            <button id="save-view-preferences" type="button">Als Standard speichern</button>
+            <button id="reset-view-preferences" type="button">Zuruecksetzen</button>
+          </div>
+          <p id="view-preference-status" class="muted preference-status"></p>
+        </div>
+      </div>
+    </details>
+
     <details class="drawer" id="filter-drawer">
       <summary>Filter</summary>
       <div class="drawer-body filters">
@@ -855,6 +919,56 @@ def index_html() -> str:
     const apiTokenList = document.querySelector('#api-token-list');
     const selectedIds = new Set();
     let activeTab = 'bookmarks';
+    const defaultViewPreferences = {
+      view: 'compact',
+      fields: {
+        title: true,
+        description: false,
+        notes: false,
+        tags: true,
+        collections: true,
+        domain: true,
+        date: false,
+        favoritePin: true,
+        status: true
+      }
+    };
+    const viewFieldPresets = {
+      compact: {
+        title: true,
+        description: false,
+        notes: false,
+        tags: true,
+        collections: true,
+        domain: true,
+        date: false,
+        favoritePin: true,
+        status: true
+      },
+      detailed: {
+        title: true,
+        description: true,
+        notes: true,
+        tags: true,
+        collections: true,
+        domain: true,
+        date: true,
+        favoritePin: true,
+        status: true
+      },
+      grid: {
+        title: true,
+        description: true,
+        notes: false,
+        tags: true,
+        collections: true,
+        domain: true,
+        date: false,
+        favoritePin: true,
+        status: true
+      }
+    };
+    let viewPreferences = clonePreferences(defaultViewPreferences);
 
     async function loadAuth() {
       authError.textContent = '';
@@ -893,6 +1007,7 @@ def index_html() -> str:
       appNav.hidden = false;
       userbar.hidden = false;
       currentUser.textContent = user ? user.username : '';
+      loadViewPreferences();
       setActiveTab(activeTab);
     }
 
@@ -953,6 +1068,7 @@ def index_html() -> str:
       const payload = await response.json();
       updateFilterSummary(query, status);
       bookmarksEl.innerHTML = '';
+      bookmarksEl.className = `bookmark-list view-${viewPreferences.view}`;
       selectedIds.clear();
       updateSelectedCount();
       bookmarkCount.textContent = String(payload.bookmarks.length);
@@ -964,18 +1080,29 @@ def index_html() -> str:
         const row = document.createElement('div');
         row.className = 'row';
         row.dataset.bookmarkId = bookmark.id;
+        const showTitle = shouldShowField('title');
+        const showDescription = shouldShowField('description');
+        const showNotes = shouldShowField('notes');
+        const showTags = shouldShowField('tags');
+        const showCollections = shouldShowField('collections');
+        const showDomain = shouldShowField('domain');
+        const showDate = shouldShowField('date');
+        const showFavoritePin = shouldShowField('favoritePin');
+        const showStatus = shouldShowField('status');
         row.innerHTML = `
           <div class="bookmark-layout">
             <div class="bookmark-main">
-              <div class="bookmark-title">${escapeHtml(bookmark.title)}</div>
+              ${showTitle ? `<div class="bookmark-title">${escapeHtml(bookmark.title)}</div>` : ''}
               <a class="bookmark-url" href="${escapeAttr(bookmark.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(bookmark.url)}</a>
               <div class="bookmark-meta">
-                <div class="meta-line">${escapeHtml(bookmark.domain || 'ohne Domain')}</div>
-                ${bookmark.status !== 'active' ? `<div class="meta-line">Status: ${escapeHtml(bookmark.status)}${bookmark.merged_into ? ` · zusammengefuehrt in ${escapeHtml(bookmark.merged_into.slice(0, 8))}` : ''}</div>` : ''}
+                ${showDomain ? `<div class="meta-line">${escapeHtml(bookmark.domain || 'ohne Domain')}</div>` : ''}
+                ${showDate ? `<div class="meta-line">Hinzugefuegt: ${escapeHtml(shortDate(bookmark.created_at))} · Geaendert: ${escapeHtml(shortDate(bookmark.updated_at))}</div>` : ''}
+                ${showFavoritePin ? `<div class="meta-line">${bookmark.favorite ? 'Favorit' : 'kein Favorit'} · ${bookmark.pinned ? 'Pin' : 'kein Pin'}</div>` : ''}
+                ${showStatus && bookmark.status !== 'active' ? `<div class="meta-line">Status: ${escapeHtml(bookmark.status)}${bookmark.merged_into ? ` · zusammengefuehrt in ${escapeHtml(bookmark.merged_into.slice(0, 8))}` : ''}</div>` : ''}
               </div>
-              <div>${renderBadges('tag', bookmark.tags)}${renderBadges('collection', bookmark.collections)}</div>
-              ${bookmark.description ? `<p class="description">${escapeHtml(bookmark.description)}</p>` : ''}
-              ${bookmark.notes ? `<div class="meta-line">Notizen: ${escapeHtml(bookmark.notes)}</div>` : ''}
+              <div>${showTags ? renderBadges('tag', bookmark.tags) : ''}${showCollections ? renderBadges('collection', bookmark.collections) : ''}</div>
+              ${showDescription && bookmark.description ? `<p class="description">${escapeHtml(bookmark.description)}</p>` : ''}
+              ${showNotes && bookmark.notes ? `<div class="meta-line">Notizen: ${escapeHtml(bookmark.notes)}</div>` : ''}
             </div>
             <div class="bookmark-side">
               <label class="select-pill"><input data-role="select-bookmark" type="checkbox"> Auswaehlen</label>
@@ -1391,6 +1518,93 @@ def index_html() -> str:
       filterSummary.textContent = parts.length ? parts.join(' · ') : 'Keine Zusatzfilter aktiv.';
     }
 
+    function clonePreferences(preferences) {
+      return JSON.parse(JSON.stringify(preferences));
+    }
+
+    function viewPreferencesKey() {
+      const username = currentUser.textContent || 'anonymous';
+      return `linkvault.viewPreferences.${username}`;
+    }
+
+    function loadViewPreferences() {
+      try {
+        const saved = localStorage.getItem(viewPreferencesKey());
+        viewPreferences = saved ? mergeViewPreferences(JSON.parse(saved)) : clonePreferences(defaultViewPreferences);
+      } catch {
+        viewPreferences = clonePreferences(defaultViewPreferences);
+      }
+      applyViewControls();
+    }
+
+    function mergeViewPreferences(saved) {
+      return {
+        view: ['compact', 'detailed', 'grid'].includes(saved?.view) ? saved.view : defaultViewPreferences.view,
+        fields: {...defaultViewPreferences.fields, ...(saved?.fields || {})}
+      };
+    }
+
+    function collectViewPreferences() {
+      const fields = {};
+      document.querySelectorAll('[data-display-field]').forEach((checkbox) => {
+        fields[checkbox.dataset.displayField] = checkbox.checked;
+      });
+      return {
+        view: document.querySelector('#bookmark-view').value,
+        fields
+      };
+    }
+
+    function applyViewControls() {
+      document.querySelector('#bookmark-view').value = viewPreferences.view;
+      document.querySelectorAll('[data-display-field]').forEach((checkbox) => {
+        checkbox.checked = Boolean(viewPreferences.fields[checkbox.dataset.displayField]);
+      });
+      if (bookmarksEl) bookmarksEl.className = `bookmark-list view-${viewPreferences.view}`;
+    }
+
+    function applyViewFieldPreset(view) {
+      const preset = viewFieldPresets[view] || viewFieldPresets.compact;
+      document.querySelectorAll('[data-display-field]').forEach((checkbox) => {
+        checkbox.checked = Boolean(preset[checkbox.dataset.displayField]);
+      });
+    }
+
+    function shouldShowField(field) {
+      return Boolean(viewPreferences.fields[field]);
+    }
+
+    function saveViewPreferences() {
+      viewPreferences = collectViewPreferences();
+      localStorage.setItem(viewPreferencesKey(), JSON.stringify(viewPreferences));
+      document.querySelector('#view-preference-status').textContent = 'Ansicht als Standard gespeichert.';
+      refreshBookmarks();
+    }
+
+    function resetViewPreferences() {
+      viewPreferences = clonePreferences(defaultViewPreferences);
+      localStorage.removeItem(viewPreferencesKey());
+      applyViewControls();
+      document.querySelector('#view-preference-status').textContent = 'Standardansicht wiederhergestellt.';
+      refreshBookmarks();
+    }
+
+    function updateViewPreview(event) {
+      if (event?.target?.id === 'bookmark-view') {
+        applyViewFieldPreset(event.target.value);
+      }
+      viewPreferences = collectViewPreferences();
+      document.querySelector('#view-preference-status').textContent = 'Vorschau aktiv. Mit "Als Standard speichern" dauerhaft merken.';
+      refreshBookmarks();
+    }
+
+    function shortDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleDateString(undefined, {year: 'numeric', month: '2-digit', day: '2-digit'});
+    }
+
     function selectedBookmarkIds() {
       return Array.from(selectedIds);
     }
@@ -1647,6 +1861,12 @@ def index_html() -> str:
     document.querySelector('#filter-tag').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-collection').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-status').addEventListener('change', refreshBookmarks);
+    document.querySelector('#bookmark-view').addEventListener('change', updateViewPreview);
+    document.querySelectorAll('[data-display-field]').forEach((checkbox) => {
+      checkbox.addEventListener('change', updateViewPreview);
+    });
+    document.querySelector('#save-view-preferences').addEventListener('click', saveViewPreferences);
+    document.querySelector('#reset-view-preferences').addEventListener('click', resetViewPreferences);
     document.querySelector('#show-inbox').addEventListener('click', showInbox);
     document.querySelector('#show-active').addEventListener('click', showActiveBookmarks);
     document.querySelectorAll('[data-inbox-trigger]').forEach((button) => {

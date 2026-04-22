@@ -56,11 +56,12 @@ Status-Legende:
   Beschreibung und URL.
 - [ ] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
   Feldern.
-- [ ] Ansichtsumschalter fuer Bookmarks: Compact List, Detailed List und Grid.
-- [ ] Anzeigeoptionen je Nutzer speichern: Titel, Beschreibung, Notizen, Tags,
-  Collections, Domain, Datum, Favorite/Pin, Status und spaeter Archivformate.
+- [x] Ansichtsumschalter fuer Bookmarks: Compact List, Detailed List und Grid.
+- [~] Anzeigeoptionen je Nutzer speichern: Titel, Beschreibung, Notizen, Tags,
+  Collections, Domain, Datum, Favorite/Pin und Status lokal pro Browser/User;
+  serverseitige Settings und spaetere Archivformate offen.
 - [ ] Sortierung und Filter als Standard speichern, angelehnt an linkding.
-- [ ] Grid/Card-Ansicht fuer visuelles Browsing mit Favicon/Preview.
+- [x] Grid/Card-Ansicht fuer visuelles Browsing mit aktuellen Bookmark-Daten.
 
 ## Phase 2: Dubletten und Favoritenpflege
 

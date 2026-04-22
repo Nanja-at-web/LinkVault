@@ -60,11 +60,12 @@ Status legend:
 - [x] Rule-based tag/collection suggestions from domain, title, description,
   and URL.
 - [ ] Quick-add flow with a short default dialog and optional advanced fields.
-- [ ] Bookmark view switcher: compact list, detailed list, and grid.
-- [ ] Store display options per user: title, description, notes, tags,
-  collections, domain, date, favorite/pin, status, and later archive formats.
+- [x] Bookmark view switcher: compact list, detailed list, and grid.
+- [~] Store display options per user: title, description, notes, tags,
+  collections, domain, date, favorite/pin, and status locally per
+  browser/user; server-side settings and later archive formats are still open.
 - [ ] Save sorting and filters as defaults, inspired by linkding.
-- [ ] Grid/card view for visual browsing with favicon/preview.
+- [x] Grid/card view for visual browsing with current bookmark data.
 
 ## Phase 2: Deduplication And Favorites Cleanup
 

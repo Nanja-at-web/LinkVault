@@ -19,6 +19,17 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("isTypingTarget", html)
         self.assertIn("setActiveTab('bookmarks')", html)
 
+    def test_index_html_has_bookmark_view_preferences(self):
+        html = index_html()
+
+        self.assertIn('id="bookmark-view"', html)
+        self.assertIn("Compact List", html)
+        self.assertIn("Detailed List", html)
+        self.assertIn("Grid/Card", html)
+        self.assertIn("data-display-field=\"description\"", html)
+        self.assertIn("linkvault.viewPreferences", html)
+        self.assertIn("Als Standard speichern", html)
+
 
 if __name__ == "__main__":
     unittest.main()
