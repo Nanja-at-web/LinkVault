@@ -12,6 +12,7 @@ Status legend:
 - [x] Choose license: AGPL-3.0-or-later.
 - [x] Evaluate the deep research collection and derive product priorities.
 - [x] Evaluate the UX research collection and derive UX priorities.
+- [x] Evaluate the demo UX analysis for Linkwarden, linkding, and Karakeep.
 - [x] Evaluate the 2026-04-20 browser/API research and derive the import
   architecture.
 - [x] Evaluate the 2026-04-20 installation/requirements research and derive
@@ -98,6 +99,10 @@ Status legend:
 - [ ] Optional AI tagging.
 - [ ] Activity/audit log for imports, bulk actions, merges, deletes, restores,
   and rules.
+- [x] First keyboard shortcuts for search, save, import, bookmarks, and
+  duplicates.
+- [ ] Shortcut help and accessibility check for focus order and screenreader
+  status messages.
 - [ ] Expand public REST API.
 - [~] API token management with visible status exists; test button is still open.
 - [ ] Webhooks.

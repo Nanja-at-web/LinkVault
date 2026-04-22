@@ -25,6 +25,7 @@ The current focus is:
 - [Technical architecture, German](docs/ARCHITECTURE.md)
 - [Deep research impact, German](docs/RESEARCH_IMPACT.md)
 - [UX research impact, German](docs/UX_RESEARCH_IMPACT.md)
+- [Demo UX analysis impact, German](docs/DEMO_UX_ANALYSIS.md)
 - [Browser and import research impact, German](docs/BROWSER_IMPORT_RESEARCH.md)
 - [Companion extension plan](docs/COMPANION_EXTENSION.md)
 - [Installation requirements impact, German](docs/INSTALLATION_REQUIREMENTS.md)
@@ -207,6 +208,12 @@ The UX research collection from 2026-04-19 was evaluated in
 [UX Research Impact](docs/UX_RESEARCH_IMPACT.md). Its main conclusion is that
 LinkVault should make duplicate cleanup, bulk organization, sync conflicts,
 archive status, and operational health visible as first-class workflows.
+
+The demo UX analysis from 2026-04-21 was evaluated in
+[Demo UX Analysis Impact](docs/DEMO_UX_ANALYSIS.md). Its main conclusion is
+that LinkVault should combine Linkwarden-style structure, linkding-style fast
+search and shortcuts, and Karakeep-style workspaces without losing the small
+self-hosted core.
 
 The additional research packages from 2026-04-20 were evaluated in
 [Browser and Import Research Impact](docs/BROWSER_IMPORT_RESEARCH.md). Their

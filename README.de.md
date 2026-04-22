@@ -24,6 +24,7 @@ Der Schwerpunkt liegt auf:
 - [Technische Architektur](docs/ARCHITECTURE.md)
 - [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
 - [Einfluss der UX-Research-Sammlung](docs/UX_RESEARCH_IMPACT.md)
+- [Einfluss der Demo-UX-Analyse](docs/DEMO_UX_ANALYSIS.md)
 - [Einfluss der Browser- und Import-Recherche](docs/BROWSER_IMPORT_RESEARCH.md)
 - [Companion-Extension-Plan](docs/COMPANION_EXTENSION.md)
 - [Einfluss der Installations- und Requirements-Recherche](docs/INSTALLATION_REQUIREMENTS.md)
@@ -209,6 +210,11 @@ Die UX-Research-Sammlung vom 19.04.2026 wurde in
 [UX Research Impact](docs/UX_RESEARCH_IMPACT.md) ausgewertet. Die wichtigste
 Folge: Dublettenpflege, Bulk-Organisation, Sync-Konflikte, Archivstatus und
 Betriebszustand sollen eigene sichtbare Workflows werden.
+
+Die Demo-UX-Analyse vom 21.04.2026 wurde in
+[Demo UX Analysis Impact](docs/DEMO_UX_ANALYSIS.md) ausgewertet. Die wichtigste
+Folge: LinkVault kombiniert Linkwarden-Struktur, linkding-Suche/Shortcuts und
+Karakeep-Workspaces, ohne den kleinen Selfhost-Core aufzugeben.
 
 Die zusaetzlichen Research-Pakete vom 20.04.2026 wurden in
 [Browser and Import Research Impact](docs/BROWSER_IMPORT_RESEARCH.md)

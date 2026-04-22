@@ -12,6 +12,7 @@ Status-Legende:
 - [x] Lizenz waehlen: AGPL-3.0-or-later.
 - [x] Deep-Research-Sammlung auswerten und Produktprioritaeten ableiten.
 - [x] UX-Research-Sammlung auswerten und UX-Prioritaeten ableiten.
+- [x] Demo-UX-Analyse zu Linkwarden, linkding und Karakeep auswerten.
 - [x] Browser/API-Research vom 20.04.2026 auswerten und Import-Architektur
   ableiten.
 - [x] Installations-/Requirements-Research vom 20.04.2026 auswerten und
@@ -92,6 +93,10 @@ Status-Legende:
 - [ ] Smart Collections.
 - [ ] AI-Tagging optional.
 - [ ] Activity/Audit-Log fuer Import, Bulk, Merge, Delete, Restore und Regeln.
+- [x] Erste Tastaturkuerzel fuer Suche, Speichern, Import, Bookmarks und
+  Dubletten.
+- [ ] Shortcut-Hilfe und A11y-Pruefung fuer Fokusreihenfolge und
+  Screenreader-Statusmeldungen.
 - [ ] Public REST-API ausbauen.
 - [~] API-Token-Verwaltung mit sichtbarem Status vorhanden; Test-Button offen.
 - [ ] Webhooks.

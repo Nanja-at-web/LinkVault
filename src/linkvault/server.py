@@ -607,6 +607,7 @@ def index_html() -> str:
     .diff-winner { font-weight: 700; }
     .history-list { display: grid; gap: .6rem; }
     .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
+    .shortcut-hint { color: var(--muted); margin: .35rem 0 0; font-size: .9rem; }
     @media (max-width: 760px) {
       .shell { padding: .75rem; }
       .toolbar, .panel-header { display: block; }
@@ -625,6 +626,7 @@ def index_html() -> str:
     <div>
       <h1>LinkVault MVP</h1>
       <p class="subtitle">Links speichern, importieren, bearbeiten und Dubletten sicher zusammenfuehren.</p>
+      <p class="shortcut-hint">Shortcuts: Ctrl/Cmd+K Suche, N Speichern, I Import, D Dubletten, B Bookmarks.</p>
     </div>
     <div id="userbar" hidden>
       <span id="current-user"></span>
@@ -1643,6 +1645,39 @@ def index_html() -> str:
     document.querySelectorAll('[data-tab-trigger]').forEach((button) => {
       button.addEventListener('click', () => setActiveTab(button.dataset.tabTrigger));
     });
+    document.addEventListener('keydown', async (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setActiveTab('bookmarks');
+        document.querySelector('#search').focus();
+        return;
+      }
+
+      if (isTypingTarget(event.target)) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      if (event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        setActiveTab('save');
+        document.querySelector('#bookmark-form input[name="url"]').focus();
+      } else if (event.key.toLowerCase() === 'i') {
+        event.preventDefault();
+        setActiveTab('import');
+      } else if (event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        setActiveTab('dedup');
+        await refreshDryRun();
+      } else if (event.key.toLowerCase() === 'b') {
+        event.preventDefault();
+        setActiveTab('bookmarks');
+        await refreshBookmarks();
+      }
+    });
+
+    function isTypingTarget(target) {
+      const tagName = target?.tagName?.toLowerCase();
+      return target?.isContentEditable || ['input', 'select', 'textarea'].includes(tagName);
+    }
     loadAuth();
   </script>
 </body>
