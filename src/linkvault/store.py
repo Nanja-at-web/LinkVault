@@ -5,6 +5,7 @@ import io
 import json
 import sqlite3
 import zipfile
+from hashlib import sha256
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -61,6 +62,44 @@ class BookmarkFilters:
         return asdict(self)
 
 
+@dataclass
+class ImportSession:
+    id: str
+    source_name: str
+    source_format: str
+    source_file_name: str = ""
+    source_file_checksum_sha256: str = ""
+    source_profile: str = ""
+    sync_origin: str = ""
+    imported_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    created_count: int = 0
+    duplicate_count: int = 0
+    conflict_count: int = 0
+    invalid_count: int = 0
+    raw_summary_json: str = "{}"
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["summary"] = json.loads(self.raw_summary_json or "{}")
+        return payload
+
+
+@dataclass
+class ActivityEvent:
+    id: str
+    kind: str
+    object_type: str
+    object_id: str
+    summary: str
+    details_json: str = "{}"
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["details"] = json.loads(self.details_json or "{}")
+        return payload
+
+
 MetadataFetcher = Callable[[str], PageMetadata]
 
 
@@ -83,6 +122,14 @@ class BookmarkStore:
 
     def migrate(self) -> None:
         with self.connect() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version TEXT PRIMARY KEY,
+                    applied_at TEXT NOT NULL
+                )
+                """
+            )
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS bookmarks (
@@ -142,6 +189,60 @@ class BookmarkStore:
             )
             connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_events_winner_id ON merge_events(winner_id)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_events_created_at ON merge_events(created_at)")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS import_sessions (
+                    id TEXT PRIMARY KEY,
+                    source_name TEXT NOT NULL,
+                    source_format TEXT NOT NULL,
+                    source_file_name TEXT NOT NULL DEFAULT '',
+                    source_file_checksum_sha256 TEXT NOT NULL DEFAULT '',
+                    source_profile TEXT NOT NULL DEFAULT '',
+                    sync_origin TEXT NOT NULL DEFAULT '',
+                    imported_at TEXT NOT NULL,
+                    created_count INTEGER NOT NULL DEFAULT 0,
+                    duplicate_count INTEGER NOT NULL DEFAULT 0,
+                    conflict_count INTEGER NOT NULL DEFAULT 0,
+                    invalid_count INTEGER NOT NULL DEFAULT 0,
+                    raw_summary_json TEXT NOT NULL DEFAULT '{}'
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS import_records (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    item_id TEXT NOT NULL DEFAULT '',
+                    source_browser TEXT NOT NULL DEFAULT '',
+                    source_path TEXT NOT NULL DEFAULT '',
+                    source_id TEXT NOT NULL DEFAULT '',
+                    url_raw TEXT NOT NULL DEFAULT '',
+                    url_normalized TEXT NOT NULL DEFAULT '',
+                    action TEXT NOT NULL,
+                    raw_payload_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(session_id) REFERENCES import_sessions(id) ON DELETE CASCADE
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_import_sessions_imported_at ON import_sessions(imported_at)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_import_records_session_id ON import_records(session_id)")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS activity_events (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    object_type TEXT NOT NULL,
+                    object_id TEXT NOT NULL DEFAULT '',
+                    summary TEXT NOT NULL,
+                    details_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_created_at ON activity_events(created_at)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_kind ON activity_events(kind)")
             connection.execute(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
@@ -379,6 +480,15 @@ class BookmarkStore:
 
         if to_bool(payload.get("delete", False)):
             deleted = sum(1 for bookmark_id in ids if self.delete(bookmark_id))
+            with self.connect() as connection:
+                self.record_activity(
+                    connection,
+                    kind="bulk_delete",
+                    object_type="bookmark",
+                    object_id=",".join(ids),
+                    summary=f"Bulk-Loeschen: {deleted} Bookmark(s) geloescht",
+                    details={"ids": ids, "deleted": deleted, "not_found": len(ids) - deleted},
+                )
             return {"updated": 0, "deleted": deleted, "not_found": len(ids) - deleted, "bookmarks": []}
 
         updated: list[Bookmark] = []
@@ -416,6 +526,26 @@ class BookmarkStore:
             if changed:
                 updated.append(changed)
 
+        with self.connect() as connection:
+            self.record_activity(
+                connection,
+                kind="bulk_update",
+                object_type="bookmark",
+                object_id=",".join(ids),
+                summary=f"Bulk-Update: {len(updated)} Bookmark(s) aktualisiert",
+                details={
+                    "ids": ids,
+                    "updated": len(updated),
+                    "not_found": not_found,
+                    "add_tags": add_tags,
+                    "remove_tags": remove_tags,
+                    "add_collections": add_collections,
+                    "remove_collections": remove_collections,
+                    "set_collections": set_collections if replace_collections else [],
+                    "favorite": payload.get("favorite"),
+                    "pinned": payload.get("pinned"),
+                },
+            )
         return {
             "updated": len(updated),
             "deleted": 0,
@@ -486,6 +616,18 @@ class BookmarkStore:
                     now,
                 ),
             )
+            self.record_activity(
+                connection,
+                kind="merge_duplicates",
+                object_type="bookmark",
+                object_id=winner_id,
+                summary=f"Merge: {len(losers)} Dublette(n) in Gewinner uebernommen",
+                details={
+                    "winner_id": winner_id,
+                    "loser_ids": [loser.id for loser in losers],
+                    "merge_event_id": merge_event_id,
+                },
+            )
 
         merged_losers = [bookmark for loser in losers if (bookmark := self.get(loser.id))]
 
@@ -509,6 +651,32 @@ class BookmarkStore:
                 (limit,),
             ).fetchall()
         return [merge_event_from_row(row) for row in rows]
+
+    def import_sessions(self, limit: int = 20) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM import_sessions
+                ORDER BY imported_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [import_session_from_row(row) for row in rows]
+
+    def activity_events(self, limit: int = 50) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM activity_events
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [activity_event_from_row(row) for row in rows]
 
     def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:
         if not enrich_metadata or not self.metadata_fetcher:
@@ -535,52 +703,227 @@ class BookmarkStore:
 
     def delete(self, bookmark_id: str) -> bool:
         with self.connect() as connection:
+            bookmark = self.get(bookmark_id)
             connection.execute("DELETE FROM bookmarks_fts WHERE bookmark_id = ?", (bookmark_id,))
             cursor = connection.execute("DELETE FROM bookmarks WHERE id = ?", (bookmark_id,))
+            if cursor.rowcount and bookmark:
+                self.record_activity(
+                    connection,
+                    kind="bookmark_deleted",
+                    object_type="bookmark",
+                    object_id=bookmark_id,
+                    summary=f"Bookmark geloescht: {bookmark.title or bookmark.url}",
+                    details={"bookmark": bookmark.to_dict()},
+                )
         return cursor.rowcount > 0
 
-    def import_browser_html(self, html: str) -> dict[str, Any]:
-        return self.import_items(parse_browser_html(html))
+    def import_browser_html(self, html: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.import_items(parse_browser_html(html), session_meta=session_meta)
 
-    def import_browser_bookmarks(self, items: list[dict[str, Any]]) -> dict[str, Any]:
-        return self.import_items(normalize_browser_bookmark_items(items))
+    def import_browser_bookmarks(self, items: list[dict[str, Any]], *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.import_items(normalize_browser_bookmark_items(items), session_meta=session_meta)
 
-    def import_chromium_json(self, data: str) -> dict[str, Any]:
-        return self.import_items(parse_chromium_json(data))
+    def import_chromium_json(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.import_items(parse_chromium_json(data), session_meta=session_meta)
 
-    def import_firefox_json(self, data: str) -> dict[str, Any]:
-        return self.import_items(parse_firefox_json(data))
+    def import_firefox_json(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.import_items(parse_firefox_json(data), session_meta=session_meta)
 
-    def import_safari_zip(self, data: str) -> dict[str, Any]:
-        return self.import_items(parse_safari_zip(data))
+    def import_safari_zip(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.import_items(parse_safari_zip(data), session_meta=session_meta)
 
-    def import_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+    def import_items(self, items: list[dict[str, Any]], *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
         created = 0
         duplicates = 0
         invalid = 0
         imported: list[Bookmark] = []
+        session_records: list[dict[str, Any]] = []
         existing_urls = {bookmark.normalized_url for bookmark in self.list()}
 
         for item in items:
+            raw_url = str(item.get("url", ""))
             try:
-                normalized_url = normalize_url(str(item.get("url", "")))
+                normalized_url = normalize_url(raw_url)
             except ValueError:
                 invalid += 1
+                session_records.append(
+                    {
+                        "item_id": "",
+                        "source_browser": str(item.get("source_browser", "")),
+                        "source_path": str(item.get("source_folder_path", "")),
+                        "source_id": str(item.get("source_bookmark_id", "")),
+                        "url_raw": raw_url,
+                        "url_normalized": "",
+                        "action": "invalid_skipped",
+                        "raw_payload_json": json.dumps(item, sort_keys=True),
+                    }
+                )
                 continue
             if normalized_url in existing_urls:
                 duplicates += 1
+                session_records.append(
+                    {
+                        "item_id": "",
+                        "source_browser": str(item.get("source_browser", "")),
+                        "source_path": str(item.get("source_folder_path", "")),
+                        "source_id": str(item.get("source_bookmark_id", "")),
+                        "url_raw": raw_url,
+                        "url_normalized": normalized_url,
+                        "action": "duplicate_existing",
+                        "raw_payload_json": json.dumps(item, sort_keys=True),
+                    }
+                )
                 continue
             bookmark = self.add(item)
             existing_urls.add(bookmark.normalized_url)
             imported.append(bookmark)
             created += 1
+            session_records.append(
+                {
+                    "item_id": bookmark.id,
+                    "source_browser": bookmark.source_browser,
+                    "source_path": bookmark.source_folder_path,
+                    "source_id": bookmark.source_bookmark_id,
+                    "url_raw": raw_url,
+                    "url_normalized": bookmark.normalized_url,
+                    "action": "created",
+                    "raw_payload_json": json.dumps(item, sort_keys=True),
+                }
+            )
+
+        session_id = ""
+        if session_meta:
+            summary = {
+                "total_items": len(items),
+                "created": created,
+                "duplicates_skipped": duplicates,
+                "invalid_skipped": invalid,
+            }
+            session_id = self.create_import_session(
+                session_meta,
+                summary=summary,
+                created_count=created,
+                duplicate_count=duplicates,
+                conflict_count=duplicates,
+                invalid_count=invalid,
+                records=session_records,
+            )
 
         return {
+            "import_session_id": session_id,
             "created": created,
             "duplicates_skipped": duplicates,
             "invalid_skipped": invalid,
             "bookmarks": [bookmark.to_dict() for bookmark in imported],
         }
+
+    def create_import_session(
+        self,
+        session_meta: dict[str, Any],
+        *,
+        summary: dict[str, Any],
+        created_count: int,
+        duplicate_count: int,
+        conflict_count: int,
+        invalid_count: int,
+        records: list[dict[str, Any]],
+    ) -> str:
+        session_id = uuid4().hex
+        imported_at = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO import_sessions (
+                    id, source_name, source_format, source_file_name,
+                    source_file_checksum_sha256, source_profile, sync_origin, imported_at,
+                    created_count, duplicate_count, conflict_count, invalid_count, raw_summary_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    str(session_meta.get("source_name", "")),
+                    str(session_meta.get("source_format", "")),
+                    str(session_meta.get("source_file_name", "")),
+                    str(session_meta.get("source_file_checksum_sha256", "")),
+                    str(session_meta.get("source_profile", "")),
+                    str(session_meta.get("sync_origin", "")),
+                    imported_at,
+                    created_count,
+                    duplicate_count,
+                    conflict_count,
+                    invalid_count,
+                    json.dumps(summary, sort_keys=True),
+                ),
+            )
+            for record in records:
+                connection.execute(
+                    """
+                    INSERT INTO import_records (
+                        id, session_id, item_id, source_browser, source_path, source_id,
+                        url_raw, url_normalized, action, raw_payload_json, created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        uuid4().hex,
+                        session_id,
+                        str(record.get("item_id", "")),
+                        str(record.get("source_browser", "")),
+                        str(record.get("source_path", "")),
+                        str(record.get("source_id", "")),
+                        str(record.get("url_raw", "")),
+                        str(record.get("url_normalized", "")),
+                        str(record.get("action", "")),
+                        str(record.get("raw_payload_json", "{}")),
+                        imported_at,
+                    ),
+                )
+            self.record_activity(
+                connection,
+                kind="import_session_created",
+                object_type="import_session",
+                object_id=session_id,
+                summary=f"Import {created_count} neu, {duplicate_count} Dubletten, {invalid_count} ungueltig",
+                details={
+                    "source_name": str(session_meta.get("source_name", "")),
+                    "source_format": str(session_meta.get("source_format", "")),
+                    "source_file_name": str(session_meta.get("source_file_name", "")),
+                    "created_count": created_count,
+                    "duplicate_count": duplicate_count,
+                    "conflict_count": conflict_count,
+                    "invalid_count": invalid_count,
+                },
+            )
+        return session_id
+
+    def record_activity(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        kind: str,
+        object_type: str,
+        object_id: str,
+        summary: str,
+        details: dict[str, Any] | None = None,
+    ) -> str:
+        event_id = uuid4().hex
+        connection.execute(
+            """
+            INSERT INTO activity_events (id, kind, object_type, object_id, summary, details_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event_id,
+                kind,
+                object_type,
+                object_id,
+                summary,
+                json.dumps(details or {}, sort_keys=True),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        return event_id
 
     def preview_browser_html_import(self, html: str) -> dict[str, Any]:
         return self.preview_import_items(parse_browser_html(html))
@@ -899,6 +1242,40 @@ def merge_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "winner_after": json.loads(row["winner_after_json"]),
         "created_at": row["created_at"],
     }
+
+
+def import_session_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return ImportSession(
+        id=row["id"],
+        source_name=row["source_name"],
+        source_format=row["source_format"],
+        source_file_name=row["source_file_name"],
+        source_file_checksum_sha256=row["source_file_checksum_sha256"],
+        source_profile=row["source_profile"],
+        sync_origin=row["sync_origin"],
+        imported_at=row["imported_at"],
+        created_count=row["created_count"],
+        duplicate_count=row["duplicate_count"],
+        conflict_count=row["conflict_count"],
+        invalid_count=row["invalid_count"],
+        raw_summary_json=row["raw_summary_json"],
+    ).to_dict()
+
+
+def activity_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return ActivityEvent(
+        id=row["id"],
+        kind=row["kind"],
+        object_type=row["object_type"],
+        object_id=row["object_id"],
+        summary=row["summary"],
+        details_json=row["details_json"],
+        created_at=row["created_at"],
+    ).to_dict()
+
+
+def checksum_for_text(value: str) -> str:
+    return sha256(value.encode("utf-8")).hexdigest()
 
 
 def upsert_search_index(connection: sqlite3.Connection, bookmark: Bookmark) -> None:

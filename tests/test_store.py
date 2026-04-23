@@ -316,6 +316,48 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(result["created"], 1)
             self.assertEqual(store.list()[0].url, "https://example.com/safari")
 
+    def test_import_creates_session_and_activity_entries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+
+            result = store.import_browser_bookmarks(
+                [
+                    {
+                        "url": "https://example.com/one",
+                        "title": "One",
+                        "source_browser": "firefox",
+                        "source_folder_path": "Bookmarks Toolbar / Dev",
+                        "source_bookmark_id": "abc",
+                    },
+                    {
+                        "url": "https://example.com/one?utm_source=test",
+                        "title": "Duplicate",
+                        "source_browser": "firefox",
+                        "source_folder_path": "Bookmarks Toolbar / Dev",
+                        "source_bookmark_id": "def",
+                    },
+                ],
+                session_meta={
+                    "source_name": "Companion Extension",
+                    "source_format": "browser-bookmarks",
+                    "source_file_name": "live-browser-tree",
+                    "source_file_checksum_sha256": "hash",
+                    "source_profile": "default",
+                    "sync_origin": "companion_extension",
+                },
+            )
+
+            self.assertTrue(result["import_session_id"])
+            sessions = store.import_sessions()
+            self.assertEqual(len(sessions), 1)
+            self.assertEqual(sessions[0]["id"], result["import_session_id"])
+            self.assertEqual(sessions[0]["created_count"], 1)
+            self.assertEqual(sessions[0]["duplicate_count"], 1)
+            self.assertEqual(sessions[0]["source_format"], "browser-bookmarks")
+            activity = store.activity_events()
+            self.assertEqual(activity[0]["kind"], "import_session_created")
+            self.assertIn("Import 1 neu, 1 Dubletten", activity[0]["summary"])
+
     def test_dedup_dry_run_preserves_tags_collections_and_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
@@ -606,6 +648,7 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(result["deleted"], 2)
             self.assertEqual(result["not_found"], 1)
             self.assertEqual(store.list(), [])
+            self.assertEqual(store.activity_events()[0]["kind"], "bulk_delete")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 from .auth import AuthStore, User
 from .config import load_config
-from .store import BookmarkFilters, BookmarkStore
+from .store import BookmarkFilters, BookmarkStore, checksum_for_text
 
 
 def make_store() -> BookmarkStore:
@@ -112,6 +112,14 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_session_auth(auth_store):
                 return
             self.send_json({"tokens": [token.to_dict() for token in auth_store.list_api_tokens()]})
+        elif path == "/api/import/sessions":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json({"sessions": store.import_sessions()})
+        elif path == "/api/activity":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json({"events": store.activity_events()})
         elif path == "/":
             self.send_html(index_html())
         else:
@@ -197,7 +205,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 html = str(payload.get("data") or payload.get("html") or "")
-                self.send_json(store.import_browser_html(html), HTTPStatus.CREATED)
+                self.send_json(
+                    store.import_browser_html(
+                        html,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name="Browser Bookmark HTML",
+                            source_format="browser-html",
+                            source_file_name=str(payload.get("file_name", "")),
+                            checksum_source=html,
+                            sync_origin="manual_file_import",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
             elif path == "/api/import/browser-html/preview":
                 if not self.require_auth(auth_store):
                     return
@@ -209,7 +230,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 items = payload.get("items", [])
                 if not isinstance(items, list):
                     raise ValueError("items must be a list")
-                self.send_json(store.import_browser_bookmarks(items), HTTPStatus.CREATED)
+                self.send_json(
+                    store.import_browser_bookmarks(
+                        items,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name="Companion Extension",
+                            source_format="browser-bookmarks",
+                            source_file_name="live-browser-tree",
+                            checksum_source=json.dumps(items, sort_keys=True),
+                            sync_origin="companion_extension",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
             elif path == "/api/import/browser-bookmarks/preview":
                 if not self.require_auth(auth_store):
                     return
@@ -221,7 +255,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 data = str(payload.get("data", ""))
-                self.send_json(store.import_chromium_json(data), HTTPStatus.CREATED)
+                self.send_json(
+                    store.import_chromium_json(
+                        data,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name="Chromium JSON",
+                            source_format="chromium-json",
+                            source_file_name=str(payload.get("file_name", "")),
+                            checksum_source=data,
+                            sync_origin="manual_file_import",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
             elif path == "/api/import/chromium-json/preview":
                 if not self.require_auth(auth_store):
                     return
@@ -231,7 +278,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 data = str(payload.get("data", ""))
-                self.send_json(store.import_firefox_json(data), HTTPStatus.CREATED)
+                self.send_json(
+                    store.import_firefox_json(
+                        data,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name="Firefox JSON",
+                            source_format="firefox-json",
+                            source_file_name=str(payload.get("file_name", "")),
+                            checksum_source=data,
+                            sync_origin="manual_file_import",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
             elif path == "/api/import/firefox-json/preview":
                 if not self.require_auth(auth_store):
                     return
@@ -241,7 +301,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 data = str(payload.get("data", ""))
-                self.send_json(store.import_safari_zip(data), HTTPStatus.CREATED)
+                self.send_json(
+                    store.import_safari_zip(
+                        data,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name="Safari ZIP",
+                            source_format="safari-zip",
+                            source_file_name=str(payload.get("file_name", "")),
+                            checksum_source=data,
+                            sync_origin="manual_file_import",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
             elif path == "/api/import/safari-zip/preview":
                 if not self.require_auth(auth_store):
                     return
@@ -893,12 +966,20 @@ def index_html() -> str:
     <div class="panel-header">
       <div>
         <h2>Betrieb</h2>
-        <p class="subtitle">Gesundheit, Setup-Status und letzte Merge-Aktionen an einem Ort.</p>
+        <p class="subtitle">Gesundheit, Setup-Status, Import-Sessions und letzte Aktionen an einem Ort.</p>
       </div>
       <button id="refresh-operations" type="button">Aktualisieren</button>
     </div>
     <div class="stack">
       <div class="mini-grid" id="operations-status"></div>
+      <section class="mini-card">
+        <h3>Letzte Import-Sessions</h3>
+        <div id="import-sessions" class="history-list"></div>
+      </section>
+      <section class="mini-card">
+        <h3>Aktivitaet</h3>
+        <div id="activity-log" class="history-list"></div>
+      </section>
       <section class="mini-card">
         <h3>API-Token fuer Companion Extension</h3>
         <p class="muted">Token erlauben Import und Automatisierung ohne Browser-Login. Der Klartext wird nur einmal angezeigt.</p>
@@ -937,6 +1018,8 @@ def index_html() -> str:
     const bookmarkCount = document.querySelector('#bookmark-count');
     const filterSummary = document.querySelector('#filter-summary');
     const operationsStatus = document.querySelector('#operations-status');
+    const importSessionsEl = document.querySelector('#import-sessions');
+    const activityLogEl = document.querySelector('#activity-log');
     const mergeHistoryEl = document.querySelector('#merge-history');
     const apiTokenForm = document.querySelector('#api-token-form');
     const apiTokenCreated = document.querySelector('#api-token-created');
@@ -1179,13 +1262,15 @@ def index_html() -> str:
     }
 
     async function refreshOperations() {
-      const [healthResponse, setupResponse, mergeResponse, tokenResponse] = await Promise.all([
+      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, activityResponse] = await Promise.all([
         fetch('/healthz'),
         fetch('/api/setup/status'),
         fetch('/api/dedup/merges'),
-        fetch('/api/tokens')
+        fetch('/api/tokens'),
+        fetch('/api/import/sessions'),
+        fetch('/api/activity')
       ]);
-      if (mergeResponse.status === 401 || tokenResponse.status === 401) {
+      if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || activityResponse.status === 401) {
         await loadAuth();
         return;
       }
@@ -1193,7 +1278,16 @@ def index_html() -> str:
       const setup = await setupResponse.json();
       const mergeHistory = await mergeResponse.json();
       const tokens = await tokenResponse.json();
-      renderOperations(health, setup, mergeHistory.events || [], tokens.tokens || []);
+      const sessions = await importResponse.json();
+      const activity = await activityResponse.json();
+      renderOperations(
+        health,
+        setup,
+        mergeHistory.events || [],
+        tokens.tokens || [],
+        sessions.sessions || [],
+        activity.events || []
+      );
     }
 
     function renderDedupDryRun(payload) {
@@ -1459,7 +1553,7 @@ def index_html() -> str:
       });
     }
 
-    function renderOperations(health, setup, mergeEvents, apiTokens) {
+    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, activityEvents) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
           <h3>Health</h3>
@@ -1481,8 +1575,20 @@ def index_html() -> str:
           <p><strong>${apiTokens.length}</strong> aktiv</p>
           <p class="muted">Fuer Extension, Importer und Automatisierung</p>
         </div>
+        <div class="mini-card">
+          <h3>Import-Sessions</h3>
+          <p><strong>${importSessions.length}</strong> sichtbar</p>
+          <p class="muted">Datei- und Companion-Importe</p>
+        </div>
+        <div class="mini-card">
+          <h3>Aktivitaet</h3>
+          <p><strong>${activityEvents.length}</strong> Ereignisse</p>
+          <p class="muted">Importe, Bulk, Merge, Loeschen</p>
+        </div>
       `;
 
+      renderImportSessions(importSessions);
+      renderActivity(activityEvents);
       renderApiTokens(apiTokens);
 
       if (!mergeEvents.length) {
@@ -1497,6 +1603,33 @@ def index_html() -> str:
           <p>Tags: ${escapeHtml((event.winner_after.tags || []).join(', ') || '-')}</p>
           <p>Collections: ${escapeHtml((event.winner_after.collections || []).join(', ') || '-')}</p>
           <p>Notizen: ${escapeHtml(event.winner_after.notes || '-')}</p>
+        </div>
+      `).join('');
+    }
+
+    function renderImportSessions(sessions) {
+      if (!sessions.length) {
+        importSessionsEl.innerHTML = '<div class="empty">Noch keine Import-Sessions vorhanden.</div>';
+        return;
+      }
+      importSessionsEl.innerHTML = sessions.map((session) => `
+        <div class="mini-card">
+          <p><strong>${escapeHtml(session.source_name || session.source_format)}</strong></p>
+          <p class="muted">${escapeHtml(session.source_format)} · ${escapeHtml(session.source_file_name || 'ohne Dateiname')} · ${escapeHtml(session.imported_at)}</p>
+          <p>Neu: ${session.created_count} · Dubletten: ${session.duplicate_count} · Konflikte: ${session.conflict_count} · Ungueltig: ${session.invalid_count}</p>
+        </div>
+      `).join('');
+    }
+
+    function renderActivity(events) {
+      if (!events.length) {
+        activityLogEl.innerHTML = '<div class="empty">Noch keine Aktivitaet vorhanden.</div>';
+        return;
+      }
+      activityLogEl.innerHTML = events.map((event) => `
+        <div class="mini-card">
+          <p><strong>${escapeHtml(event.summary)}</strong></p>
+          <p class="muted">${escapeHtml(event.kind)} · ${escapeHtml(event.created_at)}</p>
         </div>
       `).join('');
     }
@@ -1960,6 +2093,25 @@ def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
         collection=get_query_param(params, "collection"),
         status=get_query_param(params, "status") or "active",
     )
+
+
+def build_import_session_meta(
+    payload: dict[str, Any],
+    *,
+    source_name: str,
+    source_format: str,
+    source_file_name: str,
+    checksum_source: str,
+    sync_origin: str,
+) -> dict[str, Any]:
+    return {
+        "source_name": source_name,
+        "source_format": source_format,
+        "source_file_name": source_file_name,
+        "source_file_checksum_sha256": checksum_for_text(checksum_source),
+        "source_profile": str(payload.get("source_profile", "")),
+        "sync_origin": sync_origin,
+    }
 
 
 def to_bool(value: Any) -> bool:

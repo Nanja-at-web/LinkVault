@@ -222,6 +222,7 @@ class AuthHttpTest(unittest.TestCase):
                     headers={"authorization": f"Bearer {token_payload['token']}"},
                 )
                 self.assertEqual(browser_import["created"], 1)
+                self.assertTrue(browser_import["import_session_id"])
                 browser_export = get_json(
                     opener,
                     f"{base_url}/api/export/browser-bookmarks",
@@ -229,6 +230,13 @@ class AuthHttpTest(unittest.TestCase):
                 )
                 self.assertGreaterEqual(browser_export["bookmark_count"], 1)
                 self.assertEqual(browser_export["roots"][0]["title"], "Bookmarks Toolbar")
+                import_sessions = get_json(opener, f"{base_url}/api/import/sessions")
+                self.assertEqual(import_sessions["sessions"][0]["id"], browser_import["import_session_id"])
+                activity = get_json(opener, f"{base_url}/api/activity")
+                activity_kinds = {event["kind"] for event in activity["events"]}
+                self.assertIn("import_session_created", activity_kinds)
+                self.assertIn("merge_duplicates", activity_kinds)
+                self.assertIn("bulk_update", activity_kinds)
 
                 request_json(opener, f"{base_url}/api/logout", {})
                 with self.assertRaises(urllib.error.HTTPError) as logged_out:

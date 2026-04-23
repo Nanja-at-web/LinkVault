@@ -48,7 +48,7 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [x] Store browser import metadata for Companion imports:
   `source_browser`, `source_root`, `source_folder_path`, `source_position`,
   and `source_bookmark_id`.
-- [ ] Store import session metadata: source, file, checksum, profile, format,
+- [x] Store import session metadata: source, file, checksum, profile, format,
   timestamp, and result counts.
 - [x] API tokens for imports, extensions, and automation.
 - [x] LinkVault discovery endpoint `/.well-known/linkvault` for Companion
@@ -113,8 +113,8 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [~] Bulk editing: bookmark cleanup exists; archive/status bulk actions are open.
 - [ ] Smart collections.
 - [ ] Optional AI tagging.
-- [ ] Activity/audit log for imports, bulk actions, merges, deletes, restores,
-  and rules.
+- [~] Activity/audit log exists for imports, bulk actions, merges, and deletes;
+  restores, rules, and later sync actions are still open.
 - [ ] Customizable dashboard/operations layout inspired by Linkwarden once
   bookmark, import, and dedup workflows are stable.
 - [x] First keyboard shortcuts for search, save, import, bookmarks, and

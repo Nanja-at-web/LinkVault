@@ -43,7 +43,7 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] Browser-Import-Metadaten fuer Companion-Import speichern:
   `source_browser`, `source_root`, `source_folder_path`, `source_position`
   und `source_bookmark_id`.
-- [ ] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
+- [x] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.
 - [x] API-Token fuer Import, Extension und Automatisierung.
 - [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
@@ -108,7 +108,8 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [~] Bulk-Editing: Bookmark-Pflege vorhanden, Archiv-/Status-Bulk offen.
 - [ ] Smart Collections.
 - [ ] AI-Tagging optional.
-- [ ] Activity/Audit-Log fuer Import, Bulk, Merge, Delete, Restore und Regeln.
+- [~] Activity/Audit-Log fuer Import, Bulk, Merge und Delete vorhanden;
+  Restore, Regeln und spaetere Sync-Aktionen noch offen.
 - [ ] Anpassbares Dashboard/Betrieb-Layout nach Linkwarden-Vorbild, sobald
   Bookmark-, Import- und Dedup-Workflows stabil sind.
 - [x] Erste Tastaturkuerzel fuer Suche, Speichern, Import, Bookmarks und
