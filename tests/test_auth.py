@@ -157,6 +157,15 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertEqual(merge_history["events"][0]["id"], merge["merge_event_id"])
                 self.assertEqual(merge_history["events"][0]["winner_id"], bookmark["id"])
                 self.assertEqual(merge_history["events"][0]["loser_ids"], [duplicate_bookmark["id"]])
+                undo = request_json(opener, f"{base_url}/api/dedup/merges/{merge['merge_event_id']}/undo", {})
+                self.assertEqual(undo["merge_event_id"], merge["merge_event_id"])
+                self.assertEqual(undo["restored_count"], 1)
+                merge_history_after_undo = get_json(opener, f"{base_url}/api/dedup/merges")
+                self.assertFalse(merge_history_after_undo["events"][0]["can_undo"])
+                all_bookmarks_after_undo = get_json(opener, f"{base_url}/api/bookmarks?status=all")
+                all_ids_after_undo = {item["id"] for item in all_bookmarks_after_undo["bookmarks"]}
+                self.assertIn(bookmark["id"], all_ids_after_undo)
+                self.assertIn(duplicate_bookmark["id"], all_ids_after_undo)
 
                 updated = request_json(
                     opener,
@@ -236,6 +245,7 @@ class AuthHttpTest(unittest.TestCase):
                 activity_kinds = {event["kind"] for event in activity["events"]}
                 self.assertIn("import_session_created", activity_kinds)
                 self.assertIn("merge_duplicates", activity_kinds)
+                self.assertIn("merge_undo", activity_kinds)
                 self.assertIn("bulk_update", activity_kinds)
 
                 request_json(opener, f"{base_url}/api/logout", {})

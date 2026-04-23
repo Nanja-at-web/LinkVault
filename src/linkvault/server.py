@@ -172,6 +172,11 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 self.send_json(store.merge_duplicates(payload))
+            elif path.startswith("/api/dedup/merges/") and path.endswith("/undo"):
+                if not self.require_auth(auth_store):
+                    return
+                merge_event_id = path.removeprefix("/api/dedup/merges/").removesuffix("/undo").strip("/")
+                self.send_json(store.undo_merge(merge_event_id))
             elif path == "/api/bookmarks/preflight":
                 if not self.require_auth(auth_store):
                     return
@@ -1603,8 +1608,21 @@ def index_html() -> str:
           <p>Tags: ${escapeHtml((event.winner_after.tags || []).join(', ') || '-')}</p>
           <p>Collections: ${escapeHtml((event.winner_after.collections || []).join(', ') || '-')}</p>
           <p>Notizen: ${escapeHtml(event.winner_after.notes || '-')}</p>
+          ${event.can_undo
+            ? `<button type="button" data-undo-merge="${escapeAttr(event.id)}">Undo Merge</button>`
+            : `<p class="muted">Undo ausgefuehrt ${escapeHtml(event.undone_at || '')}</p>`}
         </div>
       `).join('');
+      mergeHistoryEl.querySelectorAll('[data-undo-merge]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          await fetch(`/api/dedup/merges/${button.dataset.undoMerge}/undo`, {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: '{}'
+          });
+          await refreshAll();
+        });
+      });
     }
 
     function renderImportSessions(sessions) {

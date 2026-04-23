@@ -82,7 +82,7 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [x] Duplicate dashboard with winner suggestions, loser list, difference view,
   and clear merge button.
 - [x] Merge plan with dry-run.
-- [ ] Undo for merge operations.
+- [x] Undo for merge operations.
 - [x] Merge execution without deletion: update the winner, mark losing records
   as `merged_duplicate`, and move data.
 - [x] Status filter for active and merged duplicates in the API/UI.

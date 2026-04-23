@@ -183,10 +183,12 @@ class BookmarkStore:
                     winner_before_json TEXT NOT NULL,
                     losers_before_json TEXT NOT NULL,
                     winner_after_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL
+                    created_at TEXT NOT NULL,
+                    undone_at TEXT NOT NULL DEFAULT ''
                 )
                 """
             )
+            ensure_column(connection, "merge_events", "undone_at", "TEXT NOT NULL DEFAULT ''")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_events_winner_id ON merge_events(winner_id)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_merge_events_created_at ON merge_events(created_at)")
             connection.execute(
@@ -651,6 +653,49 @@ class BookmarkStore:
                 (limit,),
             ).fetchall()
         return [merge_event_from_row(row) for row in rows]
+
+    def undo_merge(self, merge_event_id: str) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM merge_events WHERE id = ?", (merge_event_id,)).fetchone()
+            if not row:
+                raise ValueError("merge event not found")
+            if row["action"] != "merge_duplicates":
+                raise ValueError("merge event cannot be undone")
+            if row["undone_at"]:
+                raise ValueError("merge event already undone")
+
+            winner_before = bookmark_from_snapshot(json.loads(row["winner_before_json"]))
+            losers_before = [bookmark_from_snapshot(snapshot) for snapshot in json.loads(row["losers_before_json"])]
+            winner_after = bookmark_from_snapshot(json.loads(row["winner_after_json"]))
+            loser_ids = json.loads(row["loser_ids"])
+            now = datetime.now(UTC).isoformat()
+
+            save_bookmark(connection, winner_before)
+            for loser in losers_before:
+                save_bookmark(connection, loser)
+
+            connection.execute("UPDATE merge_events SET undone_at = ? WHERE id = ?", (now, merge_event_id))
+            self.record_activity(
+                connection,
+                kind="merge_undo",
+                object_type="merge_event",
+                object_id=merge_event_id,
+                summary=f"Merge rueckgaengig gemacht: {len(loser_ids)} Bookmark(s) wiederhergestellt",
+                details={
+                    "merge_event_id": merge_event_id,
+                    "winner_id": winner_before.id,
+                    "loser_ids": loser_ids,
+                    "winner_after_merge": winner_after.to_dict(),
+                },
+            )
+
+        return {
+            "merge_event_id": merge_event_id,
+            "winner": winner_before.to_dict(),
+            "restored_losers": [loser.to_dict() for loser in losers_before],
+            "restored_count": len(losers_before),
+            "undone_at": now,
+        }
 
     def import_sessions(self, limit: int = 20) -> list[dict[str, Any]]:
         with self.connect() as connection:
@@ -1204,6 +1249,33 @@ def bookmark_from_row(row: sqlite3.Row) -> Bookmark:
     )
 
 
+def bookmark_from_snapshot(payload: dict[str, Any]) -> Bookmark:
+    return Bookmark(
+        id=str(payload["id"]),
+        url=str(payload["url"]),
+        normalized_url=str(payload.get("normalized_url") or normalize_url(str(payload["url"]))),
+        title=str(payload.get("title", "")),
+        description=str(payload.get("description", "")),
+        domain=str(payload.get("domain", "")),
+        favicon_url=str(payload.get("favicon_url", "")),
+        tags=clean_list(payload.get("tags", [])),
+        collections=clean_list(payload.get("collections", [])) or ["Inbox"],
+        favorite=to_bool(payload.get("favorite", False)),
+        pinned=to_bool(payload.get("pinned", False)),
+        notes=str(payload.get("notes", "")),
+        status=str(payload.get("status", "active")),
+        merged_into=str(payload.get("merged_into", "")),
+        merged_at=str(payload.get("merged_at", "")),
+        source_browser=str(payload.get("source_browser", "")),
+        source_root=str(payload.get("source_root", "")),
+        source_folder_path=str(payload.get("source_folder_path", "")),
+        source_position=to_int(payload.get("source_position", -1), -1),
+        source_bookmark_id=str(payload.get("source_bookmark_id", "")),
+        created_at=str(payload.get("created_at", datetime.now(UTC).isoformat())),
+        updated_at=str(payload.get("updated_at", datetime.now(UTC).isoformat())),
+    )
+
+
 def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
     return (
         bookmark.id,
@@ -1231,6 +1303,43 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
     )
 
 
+def save_bookmark(connection: sqlite3.Connection, bookmark: Bookmark) -> None:
+    connection.execute(
+        """
+        INSERT INTO bookmarks (
+            id, url, normalized_url, title, description, domain, favicon_url, tags, collections,
+            favorite, pinned, notes, status, merged_into, merged_at, source_browser, source_root,
+            source_folder_path, source_position, source_bookmark_id, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            url = excluded.url,
+            normalized_url = excluded.normalized_url,
+            title = excluded.title,
+            description = excluded.description,
+            domain = excluded.domain,
+            favicon_url = excluded.favicon_url,
+            tags = excluded.tags,
+            collections = excluded.collections,
+            favorite = excluded.favorite,
+            pinned = excluded.pinned,
+            notes = excluded.notes,
+            status = excluded.status,
+            merged_into = excluded.merged_into,
+            merged_at = excluded.merged_at,
+            source_browser = excluded.source_browser,
+            source_root = excluded.source_root,
+            source_folder_path = excluded.source_folder_path,
+            source_position = excluded.source_position,
+            source_bookmark_id = excluded.source_bookmark_id,
+            created_at = excluded.created_at,
+            updated_at = excluded.updated_at
+        """,
+        bookmark_to_record(bookmark),
+    )
+    upsert_search_index(connection, bookmark)
+
+
 def merge_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -1241,6 +1350,8 @@ def merge_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "losers_before": json.loads(row["losers_before_json"]),
         "winner_after": json.loads(row["winner_after_json"]),
         "created_at": row["created_at"],
+        "undone_at": row["undone_at"],
+        "can_undo": not bool(row["undone_at"]),
     }
 
 

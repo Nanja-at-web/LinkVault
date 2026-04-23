@@ -78,7 +78,7 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] Dubletten-Dashboard mit Gewinner-Vorschlag, Verlierer-Liste,
   Unterschiedsansicht und klarem Zusammenfuehren-Button.
 - [x] Merge-Plan mit Dry-Run.
-- [ ] Undo fuer Merge.
+- [x] Undo fuer Merge.
 - [x] Merge-Ausfuehrung ohne Loeschen: Gewinner aktualisieren, Verlierer als
   `merged_duplicate` markieren und Daten uebernehmen.
 - [x] Statusfilter fuer aktive und gemergte Dubletten in API/UI.

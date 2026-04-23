@@ -463,6 +463,55 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(reopened_store.search("Loser Unique Title"), [])
             self.assertEqual(reopened_store.merge_history()[0]["id"], result["merge_event_id"])
 
+    def test_merge_undo_restores_winner_and_losers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            winner = store.add(
+                {
+                    "url": "https://example.com/a",
+                    "title": "Winner",
+                    "tags": "keep",
+                    "collections": "Inbox",
+                    "notes": "Winner note",
+                }
+            )
+            loser = store.add(
+                {
+                    "url": "https://example.com/a?utm_source=news",
+                    "title": "Loser Unique Title",
+                    "tags": "merge",
+                    "collections": "Archive",
+                    "notes": "Loser note",
+                    "favorite": True,
+                }
+            )
+
+            merge = store.merge_duplicates({"winner_id": winner.id, "loser_ids": [loser.id]})
+            undone = store.undo_merge(merge["merge_event_id"])
+
+            self.assertEqual(undone["merge_event_id"], merge["merge_event_id"])
+            self.assertEqual(undone["restored_count"], 1)
+            restored_winner = store.get(winner.id)
+            restored_loser = store.get(loser.id)
+            self.assertEqual(restored_winner.notes, "Winner note")
+            self.assertEqual(restored_winner.tags, ["keep"])
+            self.assertEqual(restored_winner.collections, ["Inbox"])
+            self.assertFalse(restored_winner.favorite)
+            self.assertEqual(restored_loser.status, "active")
+            self.assertEqual(restored_loser.merged_into, "")
+            self.assertEqual(restored_loser.title, "Loser Unique Title")
+            self.assertEqual(
+                {bookmark.id for bookmark in store.list(filters=BookmarkFilters(status="all"))},
+                {winner.id, loser.id},
+            )
+            self.assertEqual([bookmark.id for bookmark in store.search("Loser Unique Title")], [loser.id])
+            history = store.merge_history()
+            self.assertFalse(history[0]["can_undo"])
+            self.assertTrue(history[0]["undone_at"])
+            self.assertEqual(store.activity_events()[0]["kind"], "merge_undo")
+            with self.assertRaises(ValueError):
+                store.undo_merge(merge["merge_event_id"])
+
     def test_inactive_bookmarks_are_not_reindexed_by_update(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
