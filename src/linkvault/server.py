@@ -5,7 +5,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__
 from .auth import AuthStore, User
@@ -13,6 +13,8 @@ from .config import load_config
 from .store import BookmarkFilters, BookmarkStore, checksum_for_text
 
 BOOKMARK_VIEW_SETTING_KEY = "bookmark_default_view"
+BOOKMARK_VIEW_DEFAULT_NAME_KEY = "bookmark_default_view_name"
+BOOKMARK_VIEW_NAMED_PREFIX = "bookmark_view.named."
 BOOKMARK_VIEW_NAMES = {"compact", "detailed", "grid"}
 DEFAULT_BOOKMARK_VIEW_PREFERENCES: dict[str, Any] = {
     "view": "compact",
@@ -86,6 +88,66 @@ def normalize_status_filter(value: Any) -> str:
     if value in {"active", "all", "merged_duplicate"}:
         return value
     return "active"
+
+
+def bookmark_view_setting_key(name: str) -> str:
+    return f"{BOOKMARK_VIEW_NAMED_PREFIX}{name}"
+
+
+def bookmark_view_name_from_key(key: str) -> str:
+    return key.removeprefix(BOOKMARK_VIEW_NAMED_PREFIX)
+
+
+def named_bookmark_views_payload(store: BookmarkStore) -> dict[str, Any]:
+    named_settings = store.list_settings(BOOKMARK_VIEW_NAMED_PREFIX)
+    default_name_setting = store.get_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, "")
+    default_name = str(default_name_setting["value"] or "").strip()
+    legacy_default = store.get_setting(BOOKMARK_VIEW_SETTING_KEY, DEFAULT_BOOKMARK_VIEW_PREFERENCES)
+
+    views = []
+    for setting in named_settings:
+        raw_value = setting["value"] if isinstance(setting["value"], dict) else {}
+        name = str(raw_value.get("name") or bookmark_view_name_from_key(setting["key"])).strip()
+        if not name:
+            continue
+        views.append(
+            {
+                "name": name,
+                "preferences": merge_bookmark_view_preferences(raw_value.get("preferences")),
+                "updated_at": setting["updated_at"],
+                "is_default": False,
+            }
+        )
+
+    if not views and legacy_default["saved"]:
+        default_name = "Standard"
+        views = [
+            {
+                "name": default_name,
+                "preferences": merge_bookmark_view_preferences(legacy_default["value"]),
+                "updated_at": legacy_default["updated_at"],
+                "is_default": True,
+                "legacy_only": True,
+            }
+        ]
+
+    for view in views:
+        view["is_default"] = view["name"] == default_name
+
+    active_preferences = next(
+        (view["preferences"] for view in views if view["is_default"]),
+        merge_bookmark_view_preferences(legacy_default["value"]),
+    )
+    if not legacy_default["saved"] and not views:
+        active_preferences = DEFAULT_BOOKMARK_VIEW_PREFERENCES
+
+    return {
+        "views": views,
+        "default_name": default_name,
+        "preferences": merge_bookmark_view_preferences(active_preferences),
+        "saved": bool(default_name or legacy_default["saved"]),
+        "updated_at": next((view["updated_at"] for view in views if view["is_default"]), legacy_default["updated_at"]),
+    }
 
 
 class LinkVaultHandler(BaseHTTPRequestHandler):
@@ -182,14 +244,19 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         elif path == "/api/settings/bookmark-view":
             if not self.require_auth(auth_store):
                 return
-            setting = store.get_setting(BOOKMARK_VIEW_SETTING_KEY, DEFAULT_BOOKMARK_VIEW_PREFERENCES)
+            payload = named_bookmark_views_payload(store)
             self.send_json(
                 {
-                    "preferences": merge_bookmark_view_preferences(setting["value"]),
-                    "saved": bool(setting["saved"]),
-                    "updated_at": setting["updated_at"],
+                    "preferences": payload["preferences"],
+                    "saved": payload["saved"],
+                    "updated_at": payload["updated_at"],
+                    "default_name": payload["default_name"],
                 }
             )
+        elif path == "/api/settings/bookmark-views":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json(named_bookmark_views_payload(store))
         elif path == "/":
             self.send_html(index_html())
         else:
@@ -281,6 +348,7 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 preferences = merge_bookmark_view_preferences(payload)
                 setting = store.set_setting(BOOKMARK_VIEW_SETTING_KEY, preferences)
+                store.delete_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY)
                 self.send_json(
                     {
                         "preferences": setting["value"],
@@ -288,6 +356,53 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                         "updated_at": setting["updated_at"],
                     }
                 )
+            elif path == "/api/settings/bookmark-views":
+                if not self.require_auth(auth_store):
+                    return
+                name = str(payload.get("name", "")).strip()
+                if not name:
+                    self.send_json({"error": "view name is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                preferences = merge_bookmark_view_preferences(payload.get("preferences"))
+                set_default = to_bool(payload.get("set_default", False))
+                setting = store.set_setting(
+                    bookmark_view_setting_key(name),
+                    {
+                        "name": name,
+                        "preferences": preferences,
+                    },
+                )
+                if set_default:
+                    store.set_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, name)
+                    store.delete_setting(BOOKMARK_VIEW_SETTING_KEY)
+                payload = named_bookmark_views_payload(store)
+                self.send_json(
+                    {
+                        "view": {
+                            "name": name,
+                            "preferences": preferences,
+                            "updated_at": setting["updated_at"],
+                            "is_default": set_default or payload["default_name"] == name,
+                        },
+                        "views": payload["views"],
+                        "default_name": payload["default_name"],
+                    },
+                    HTTPStatus.CREATED,
+                )
+            elif path == "/api/settings/bookmark-views/default":
+                if not self.require_auth(auth_store):
+                    return
+                name = str(payload.get("name", "")).strip()
+                if not name:
+                    self.send_json({"error": "view name is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                existing = store.get_setting(bookmark_view_setting_key(name))
+                if not existing["saved"]:
+                    self.send_json({"error": "saved view not found"}, HTTPStatus.NOT_FOUND)
+                    return
+                store.set_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, name)
+                store.delete_setting(BOOKMARK_VIEW_SETTING_KEY)
+                self.send_json(named_bookmark_views_payload(store))
             elif path == "/api/import/browser-html":
                 if not self.require_auth(auth_store):
                     return
@@ -439,6 +554,25 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     "deleted": deleted,
                     "preferences": DEFAULT_BOOKMARK_VIEW_PREFERENCES,
                     "saved": False,
+                }
+            )
+            return
+        if path.startswith("/api/settings/bookmark-views/"):
+            if not self.require_auth(make_auth_store()):
+                return
+            name = unquote(path.removeprefix("/api/settings/bookmark-views/")).strip()
+            if not name:
+                self.send_json({"error": "view name is required"}, HTTPStatus.BAD_REQUEST)
+                return
+            store = make_store()
+            deleted = store.delete_setting(bookmark_view_setting_key(name))
+            default_name_setting = store.get_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, "")
+            if str(default_name_setting["value"] or "").strip() == name:
+                store.delete_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY)
+            self.send_json(
+                {
+                    "deleted": deleted,
+                    **named_bookmark_views_payload(store),
                 }
             )
             return
@@ -995,6 +1129,26 @@ def index_html() -> str:
             <label class="check"><input type="checkbox" data-display-field="favoritePin"> Favorit/Pin</label>
             <label class="check"><input type="checkbox" data-display-field="status"> Status</label>
           </div>
+          <div class="saved-view-row">
+            <label>Gespeicherte Ansicht
+              <select id="saved-view-select">
+                <option value="">Keine gespeicherte Ansicht</option>
+              </select>
+            </label>
+            <div class="inline-actions">
+              <button id="load-saved-view" type="button">Laden</button>
+              <button id="set-default-view" type="button">Als Default setzen</button>
+              <button id="delete-saved-view" type="button">Loeschen</button>
+            </div>
+          </div>
+          <div class="saved-view-row">
+            <label>Ansicht speichern als
+              <input id="saved-view-name" placeholder="Inbox Review">
+            </label>
+            <div class="inline-actions">
+              <button id="save-named-view" type="button">Benannte Ansicht speichern</button>
+            </div>
+          </div>
           <div class="inline-actions">
             <button id="save-view-preferences" type="button">Als Standard speichern</button>
             <button id="reset-view-preferences" type="button">Zuruecksetzen</button>
@@ -1184,6 +1338,8 @@ def index_html() -> str:
       }
     };
     let viewPreferences = clonePreferences(defaultViewPreferences);
+    let savedViews = [];
+    let defaultSavedViewName = '';
 
     async function loadAuth() {
       authError.textContent = '';
@@ -1800,19 +1956,58 @@ def index_html() -> str:
       return JSON.parse(JSON.stringify(preferences));
     }
 
+    function viewStatus(message) {
+      document.querySelector('#view-preference-status').textContent = message;
+    }
+
+    function selectedSavedViewName() {
+      return document.querySelector('#saved-view-select').value.trim();
+    }
+
+    function selectedSavedView() {
+      return savedViews.find((view) => view.name === selectedSavedViewName()) || null;
+    }
+
+    function renderSavedViews() {
+      const select = document.querySelector('#saved-view-select');
+      const input = document.querySelector('#saved-view-name');
+      const selected = selectedSavedViewName();
+      const options = ['<option value="">Keine gespeicherte Ansicht</option>'].concat(
+        savedViews.map((view) => {
+          const label = `${view.name}${view.is_default ? ' (Default)' : ''}`;
+          return `<option value="${escapeAttr(view.name)}">${escapeHtml(label)}</option>`;
+        })
+      );
+      select.innerHTML = options.join('');
+      const nextValue = savedViews.some((view) => view.name === selected)
+        ? selected
+        : (defaultSavedViewName || '');
+      select.value = nextValue;
+      if (!input.value.trim() && nextValue) {
+        input.value = nextValue;
+      }
+    }
+
     async function loadViewPreferences() {
       try {
-        const response = await fetch('/api/settings/bookmark-view');
+        const response = await fetch('/api/settings/bookmark-views');
         if (response.status === 401) {
           viewPreferences = clonePreferences(defaultViewPreferences);
+          savedViews = [];
+          defaultSavedViewName = '';
         } else {
           const payload = await response.json();
           viewPreferences = mergeViewPreferences(payload.preferences);
+          savedViews = Array.isArray(payload.views) ? payload.views : [];
+          defaultSavedViewName = String(payload.default_name || '').trim();
         }
       } catch {
         viewPreferences = clonePreferences(defaultViewPreferences);
+        savedViews = [];
+        defaultSavedViewName = '';
       }
       applyViewControls();
+      renderSavedViews();
     }
 
     function mergeViewPreferences(saved) {
@@ -1893,7 +2088,9 @@ def index_html() -> str:
       const payload = await response.json();
       viewPreferences = mergeViewPreferences(payload.preferences);
       applyViewControls();
-      document.querySelector('#view-preference-status').textContent = 'Ansicht als Standard gespeichert.';
+      defaultSavedViewName = '';
+      renderSavedViews();
+      viewStatus('Ansicht als Standard gespeichert.');
       await refreshBookmarks();
     }
 
@@ -1906,8 +2103,100 @@ def index_html() -> str:
       const payload = await response.json();
       viewPreferences = mergeViewPreferences(payload.preferences);
       applyViewControls();
-      document.querySelector('#view-preference-status').textContent = 'Standardansicht wiederhergestellt.';
+      defaultSavedViewName = '';
+      renderSavedViews();
+      viewStatus('Standardansicht wiederhergestellt.');
       await refreshBookmarks();
+    }
+
+    async function saveNamedView() {
+      const input = document.querySelector('#saved-view-name');
+      const name = input.value.trim();
+      if (!name) {
+        viewStatus('Bitte zuerst einen Namen fuer die Ansicht eingeben.');
+        input.focus();
+        return;
+      }
+      viewPreferences = collectViewPreferences();
+      const response = await fetch('/api/settings/bookmark-views', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+          name,
+          preferences: viewPreferences
+        })
+      });
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const payload = await response.json();
+      savedViews = Array.isArray(payload.views) ? payload.views : [];
+      defaultSavedViewName = String(payload.default_name || '').trim();
+      renderSavedViews();
+      document.querySelector('#saved-view-select').value = name;
+      viewStatus(`Ansicht "${name}" gespeichert.`);
+    }
+
+    async function loadSelectedView() {
+      const view = selectedSavedView();
+      if (!view) {
+        viewStatus('Bitte zuerst eine gespeicherte Ansicht auswaehlen.');
+        return;
+      }
+      viewPreferences = mergeViewPreferences(view.preferences);
+      applyViewControls();
+      document.querySelector('#saved-view-name').value = view.name;
+      viewStatus(`Ansicht "${view.name}" geladen.`);
+      await refreshBookmarks();
+    }
+
+    async function setSelectedViewAsDefault() {
+      const view = selectedSavedView();
+      if (!view) {
+        viewStatus('Bitte zuerst eine gespeicherte Ansicht auswaehlen.');
+        return;
+      }
+      const response = await fetch('/api/settings/bookmark-views/default', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({name: view.name})
+      });
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const payload = await response.json();
+      savedViews = Array.isArray(payload.views) ? payload.views : [];
+      defaultSavedViewName = String(payload.default_name || '').trim();
+      viewPreferences = mergeViewPreferences(payload.preferences);
+      applyViewControls();
+      renderSavedViews();
+      document.querySelector('#saved-view-select').value = view.name;
+      document.querySelector('#saved-view-name').value = view.name;
+      viewStatus(`"${view.name}" ist jetzt die Default-Ansicht.`);
+      await refreshBookmarks();
+    }
+
+    async function deleteSelectedView() {
+      const view = selectedSavedView();
+      if (!view) {
+        viewStatus('Bitte zuerst eine gespeicherte Ansicht auswaehlen.');
+        return;
+      }
+      const response = await fetch(`/api/settings/bookmark-views/${encodeURIComponent(view.name)}`, {
+        method: 'DELETE'
+      });
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const payload = await response.json();
+      savedViews = Array.isArray(payload.views) ? payload.views : [];
+      defaultSavedViewName = String(payload.default_name || '').trim();
+      renderSavedViews();
+      document.querySelector('#saved-view-name').value = '';
+      viewStatus(`Ansicht "${view.name}" geloescht.`);
     }
 
     function updateViewPreview(event) {
@@ -1915,7 +2204,7 @@ def index_html() -> str:
         applyViewFieldPreset(event.target.value);
       }
       viewPreferences = collectViewPreferences();
-      document.querySelector('#view-preference-status').textContent = 'Vorschau aktiv. Mit "Als Standard speichern" dauerhaft merken.';
+      viewStatus('Vorschau aktiv. Mit "Als Standard speichern" oder einer benannten Ansicht dauerhaft merken.');
       refreshBookmarks();
     }
 
@@ -2186,6 +2475,13 @@ def index_html() -> str:
     document.querySelectorAll('[data-display-field]').forEach((checkbox) => {
       checkbox.addEventListener('change', updateViewPreview);
     });
+    document.querySelector('#saved-view-select').addEventListener('change', (event) => {
+      document.querySelector('#saved-view-name').value = event.target.value || '';
+    });
+    document.querySelector('#save-named-view').addEventListener('click', saveNamedView);
+    document.querySelector('#load-saved-view').addEventListener('click', loadSelectedView);
+    document.querySelector('#set-default-view').addEventListener('click', setSelectedViewAsDefault);
+    document.querySelector('#delete-saved-view').addEventListener('click', deleteSelectedView);
     document.querySelector('#save-view-preferences').addEventListener('click', saveViewPreferences);
     document.querySelector('#reset-view-preferences').addEventListener('click', resetViewPreferences);
     document.querySelector('#show-inbox').addEventListener('click', showInbox);

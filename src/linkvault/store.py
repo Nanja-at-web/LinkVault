@@ -785,6 +785,23 @@ class BookmarkStore:
             "saved": True,
         }
 
+    def list_settings(self, prefix: str = "") -> list[dict[str, Any]]:
+        query = "SELECT * FROM user_settings"
+        parameters: tuple[Any, ...] = ()
+        if prefix:
+            query += " WHERE key LIKE ?"
+            parameters = (f"{prefix}%",)
+        query += " ORDER BY updated_at DESC, key ASC"
+        with self.connect() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+        return [
+            {
+                **stored_setting_from_row(row).to_dict(),
+                "saved": True,
+            }
+            for row in rows
+        ]
+
     def delete_setting(self, key: str) -> bool:
         with self.connect() as connection:
             cursor = connection.execute("DELETE FROM user_settings WHERE key = ?", (key,))

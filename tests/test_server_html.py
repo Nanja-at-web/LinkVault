@@ -23,13 +23,17 @@ class ServerHtmlTest(unittest.TestCase):
         html = index_html()
 
         self.assertIn('id="bookmark-view"', html)
+        self.assertIn('id="saved-view-select"', html)
+        self.assertIn('id="saved-view-name"', html)
         self.assertIn("Compact List", html)
         self.assertIn("Detailed List", html)
         self.assertIn("Grid/Card", html)
         self.assertIn("data-display-field=\"description\"", html)
         self.assertIn("/api/settings/bookmark-view", html)
+        self.assertIn("/api/settings/bookmark-views", html)
         self.assertIn("loadViewPreferences", html)
         self.assertIn("Als Standard speichern", html)
+        self.assertIn("Benannte Ansicht speichern", html)
 
 
 if __name__ == "__main__":

@@ -387,6 +387,18 @@ class StoreTest(unittest.TestCase):
             self.assertFalse(deleted["saved"])
             self.assertEqual(deleted["value"], default_value)
 
+    def test_list_settings_filters_by_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.set_setting("bookmark_view.named.Inbox Review", {"name": "Inbox Review"})
+            store.set_setting("bookmark_view.named.Research Grid", {"name": "Research Grid"})
+            store.set_setting("bookmark_default_view", {"view": "compact"})
+
+            named = store.list_settings("bookmark_view.named.")
+
+            self.assertEqual(len(named), 2)
+            self.assertEqual({item["value"]["name"] for item in named}, {"Inbox Review", "Research Grid"})
+
     def test_dedup_dry_run_preserves_tags_collections_and_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

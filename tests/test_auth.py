@@ -272,6 +272,80 @@ class AuthHttpTest(unittest.TestCase):
                 loaded_view = get_json(opener, f"{base_url}/api/settings/bookmark-view")
                 self.assertTrue(loaded_view["saved"])
                 self.assertEqual(loaded_view["preferences"]["filters"]["query"], "restore")
+
+                named_views_initial = get_json(opener, f"{base_url}/api/settings/bookmark-views")
+                self.assertEqual(named_views_initial["views"][0]["name"], "Standard")
+                self.assertEqual(named_views_initial["default_name"], "Standard")
+
+                inbox_view = request_json(
+                    opener,
+                    f"{base_url}/api/settings/bookmark-views",
+                    {
+                        "name": "Inbox Review",
+                        "preferences": {
+                            "view": "detailed",
+                            "fields": {"title": True, "description": True, "notes": True},
+                            "filters": {
+                                "query": "inbox",
+                                "favorite": False,
+                                "pinned": False,
+                                "domain": "",
+                                "tag": "",
+                                "collection": "Inbox",
+                                "status": "active",
+                            },
+                        },
+                    },
+                )
+                self.assertEqual(inbox_view["view"]["name"], "Inbox Review")
+                self.assertFalse(inbox_view["view"]["is_default"])
+
+                research_view = request_json(
+                    opener,
+                    f"{base_url}/api/settings/bookmark-views",
+                    {
+                        "name": "Research Grid",
+                        "preferences": {
+                            "view": "grid",
+                            "fields": {"title": True, "description": True, "notes": False},
+                            "filters": {
+                                "query": "research",
+                                "favorite": True,
+                                "pinned": False,
+                                "domain": "example.com",
+                                "tag": "ops",
+                                "collection": "Research",
+                                "status": "all",
+                            },
+                        },
+                        "set_default": True,
+                    },
+                )
+                self.assertEqual(research_view["default_name"], "Research Grid")
+
+                named_views = get_json(opener, f"{base_url}/api/settings/bookmark-views")
+                self.assertEqual(len(named_views["views"]), 2)
+                self.assertEqual(named_views["default_name"], "Research Grid")
+                self.assertEqual(named_views["preferences"]["view"], "grid")
+
+                named_default = request_json(
+                    opener,
+                    f"{base_url}/api/settings/bookmark-views/default",
+                    {"name": "Inbox Review"},
+                )
+                self.assertEqual(named_default["default_name"], "Inbox Review")
+                self.assertEqual(named_default["preferences"]["filters"]["collection"], "Inbox")
+
+                deleted_named_view = request_json(
+                    opener,
+                    f"{base_url}/api/settings/bookmark-views/Research%20Grid",
+                    {},
+                    method="DELETE",
+                )
+                self.assertTrue(deleted_named_view["deleted"])
+                self.assertEqual(len(deleted_named_view["views"]), 1)
+                self.assertEqual(deleted_named_view["views"][0]["name"], "Inbox Review")
+
                 reset_view = request_json(opener, f"{base_url}/api/settings/bookmark-view", {}, method="DELETE")
                 self.assertFalse(reset_view["saved"])
                 self.assertEqual(reset_view["preferences"]["view"], "compact")
