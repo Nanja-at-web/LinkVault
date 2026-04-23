@@ -131,6 +131,13 @@ extensions/linkvault-companion/
 Sie kann lokal als temporaere Firefox-Extension oder als entpackte
 Chromium-Extension geladen werden.
 
+Fuer Updates in der Entwickler-Preview soll die Extension nicht jedes Mal
+entfernt werden. Stattdessen im Browser `Reload` fuer die temporaere bzw.
+entpackte Extension ausfuehren. Die Firefox-ID
+`linkvault-companion@nanja-at-web.local` ist im Manifest fest eingetragen,
+damit URL und API-Token beim Reload normalerweise erhalten bleiben. Details:
+[Companion Extension Updates](COMPANION_EXTENSION_UPDATE.md).
+
 Aktueller Funktionsumfang:
 
 - LinkVault-URL und API-Token speichern.
@@ -231,6 +238,7 @@ Bookmarks ja, Passwoerter/Autofill/Cookies/History nein.
 - Konfliktvorschau fuer spaeteren echten Browser-Restore/Sync bauen.
 - Optionales History-Enrichment fuer zuletzt besucht und meistbesucht pruefen.
 - Paketierung fuer Firefox/Chromium vorbereiten.
+- Versionsabgleich zwischen LinkVault-Server und Companion Extension anzeigen.
 
 ## Fehlersuche
 
@@ -239,7 +247,8 @@ Wenn `Test connection` in der Extension fehlschlaegt:
 1. `http://LINKVAULT-IP:3080/healthz` in einem normalen Browser-Tab oeffnen.
    Dort muss JSON mit `"ok": true` erscheinen.
 2. LinkVault im LXC aktualisieren, damit CORS/OPTIONS-Unterstuetzung aktiv ist.
-3. Temporaere Extension nach Code-Aenderungen entfernen und neu laden.
+3. Temporaere Extension nach Code-Aenderungen im Browser neu laden. Entfernen
+   ist nur noetig, wenn Berechtigungen oder die lokale Installation haengen.
 4. Wenn Firefox nach Host-/Netzwerkberechtigung fragt, Zugriff auf den
    LinkVault-Host erlauben.
 5. API-Token komplett neu kopieren und pruefen, ob er unter `Betrieb` noch
@@ -251,9 +260,10 @@ LinkVault laeuft im Homelab/LXC-Standard bewusst per HTTP. Die Extension
 erlaubt deshalb HTTP-Verbindungen zu lokalen/selfhosted LinkVault-Instanzen
 explizit im Manifest. Wenn Firefox in den Entwicklerwerkzeugen meldet, dass
 `http://.../healthz` auf `https://.../healthz` hochgestuft wird, ist noch eine
-alte temporaere Extension-Version geladen. Dann die temporaere Extension
-entfernen und neu ueber `extensions/linkvault-companion/manifest.json` laden.
+alte temporaere Extension-Version geladen. Dann zuerst die Extension im Browser
+neu laden. Wenn das nicht reicht, einmal entfernen und wieder ueber
+`extensions/linkvault-companion/manifest.json` laden.
 
 Firefox verlangt, dass die Berechtigungsabfrage direkt aus dem Button-Klick
-kommt. Wenn Berechtigungsfehler nach einem Update bleiben, temporaeres Add-on
-entfernen und neu ueber `manifest.json` laden.
+kommt. Wenn Berechtigungsfehler nach einem Reload bleiben, temporaeres Add-on
+einmal entfernen und neu ueber `manifest.json` laden.

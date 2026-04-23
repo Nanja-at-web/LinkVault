@@ -18,6 +18,7 @@ The detailed working documents are currently German-first:
 - [Browser- und Import-Research Impact](BROWSER_IMPORT_RESEARCH.md)
 - [Browser Bookmark UX Patterns](BROWSER_BOOKMARK_UX_PATTERNS.md)
 - [Companion Extension](COMPANION_EXTENSION.md)
+- [Companion Extension Updates](COMPANION_EXTENSION_UPDATE.md)
 - [Layout and Display UX Patterns](LAYOUT_DISPLAY_UX_PATTERNS.md)
 - [Installation Requirements Impact](INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](DEDUP_SORTING_CATEGORIZATION.md)

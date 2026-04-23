@@ -18,6 +18,7 @@ Die detaillierten Arbeitsdokumente bleiben aktuell deutsch:
 - [Browser- und Import-Research Impact](BROWSER_IMPORT_RESEARCH.md)
 - [Browser-Bookmark-UX-Muster](BROWSER_BOOKMARK_UX_PATTERNS.md)
 - [Companion Extension](COMPANION_EXTENSION.md)
+- [Companion Extension Updates](COMPANION_EXTENSION_UPDATE.md)
 - [Layout- und Anzeige-UX-Muster](LAYOUT_DISPLAY_UX_PATTERNS.md)
 - [Installation Requirements Impact](INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](DEDUP_SORTING_CATEGORIZATION.md)

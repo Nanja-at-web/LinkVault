@@ -120,6 +120,8 @@ Status-Legende:
   Ordnerauswahl, Popup-Vorschau, gefiltertem LinkVault-Export, sicherem
   Browser-Rueckimport, Zielauswahl und Duplikatbehandlung vorhanden;
   Packaging, destruktiver Sync und feinere Einzel-Link-Auswahl offen.
+- [x] Companion-Entwickler-Updatepfad dokumentiert: stabile Firefox-ID,
+  Reload statt Entfernen, Token/URL bleiben beim Reload normalerweise erhalten.
 - [x] Companion-Importfilter fuer Ordner, Textsuche, Adresse/Domain,
   hinzugefuegt-Datum und bereits vorhandene URLs.
 - [x] Companion-Discovery: LinkVault ueber aktuelle Eingabe, gespeicherte URL,

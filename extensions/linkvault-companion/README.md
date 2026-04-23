@@ -2,6 +2,33 @@
 
 Developer preview for importing browser bookmarks directly into LinkVault.
 
+## Update During Development
+
+Do not remove the temporary extension after every LinkVault change.
+
+Firefox:
+
+1. Update LinkVault or pull the latest repository changes.
+2. Open `about:debugging#/runtime/this-firefox`.
+3. Find `LinkVault Companion`.
+4. Click `Reload`.
+
+Chrome, Edge, Brave, Vivaldi or Opera:
+
+1. Update LinkVault or pull the latest repository changes.
+2. Open the browser's extensions page.
+3. Find `LinkVault Companion`.
+4. Click the reload icon on the unpacked extension.
+
+The extension has a stable Firefox add-on ID in `manifest.json`:
+`linkvault-companion@nanja-at-web.local`. That keeps `storage.local` tied to
+the same extension identity while developing, so the LinkVault URL and API
+token usually stay stored when you reload instead of removing the extension.
+
+If you remove the temporary extension completely or load it from a different
+folder, the browser may treat it as a different installation and you may need
+to enter the URL and token again.
+
 ## Current Features
 
 - Store LinkVault URL and API token.
@@ -51,7 +78,8 @@ If `Test connection` fails:
 1. Open `http://YOUR-LINKVAULT-IP:3080/healthz` in a normal browser tab.
    It should return JSON with `"ok": true`.
 2. Update LinkVault in the LXC so the CORS/OPTIONS support is present.
-3. Remove and reload the temporary extension after each extension code update.
+3. Reload the temporary extension from `about:debugging` or the browser
+   extensions page after each extension code update.
 4. When Firefox asks for host/network permission, allow access to the
    LinkVault host.
 5. Check that the API token was copied completely and still exists under
@@ -66,5 +94,5 @@ self-hosted LinkVault instances. If Firefox shows a warning about upgrading
 `manifest.json`; older temporary loads may still use the previous manifest.
 
 Firefox requires the permission prompt to happen directly from the button
-click. If permission errors persist after updating the extension, remove the
-temporary add-on and load it again from `manifest.json`.
+click. If permission errors persist after reloading the extension, remove the
+temporary add-on once and load it again from `manifest.json`.

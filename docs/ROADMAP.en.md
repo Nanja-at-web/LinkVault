@@ -126,6 +126,8 @@ Status legend:
   selection, popup preview, filtered LinkVault export, safe browser re-import,
   target selection, and duplicate handling exists; packaging, destructive sync,
   and finer per-link selection are still open.
+- [x] Companion developer update path documented: stable Firefox ID, reload
+  instead of remove/reinstall, URL/token usually survive reloads.
 - [x] Companion import filters for folder, text search, address/domain,
   date-added, and URLs that already exist in LinkVault.
 - [x] Companion discovery: find LinkVault through current form value, saved
