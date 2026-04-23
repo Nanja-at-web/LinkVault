@@ -67,9 +67,10 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [ ] Quick-add flow with a short default dialog and optional advanced fields.
 - [x] Bookmark view switcher: compact list, detailed list, and grid.
 - [~] Store display options per user: title, description, notes, tags,
-  collections, domain, date, favorite/pin, and status locally per
-  browser/user; server-side settings and later archive formats are still open.
-- [ ] Save sorting and filters as defaults, inspired by linkding.
+  collections, domain, date, favorite/pin, and status now save server-side per
+  LinkVault instance; later archive/preview views are still open.
+- [~] Save sorting and filters as defaults, inspired by linkding: filters and
+  search are stored server-side, sorting is still open.
 - [x] Grid/card view for visual browsing with current bookmark data.
 
 ## Phase 2: Deduplication And Favorites Cleanup

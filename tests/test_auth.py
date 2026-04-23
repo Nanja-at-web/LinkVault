@@ -247,6 +247,34 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertIn("merge_duplicates", activity_kinds)
                 self.assertIn("merge_undo", activity_kinds)
                 self.assertIn("bulk_update", activity_kinds)
+                default_view = get_json(opener, f"{base_url}/api/settings/bookmark-view")
+                self.assertEqual(default_view["preferences"]["view"], "compact")
+                self.assertFalse(default_view["saved"])
+                saved_view = request_json(
+                    opener,
+                    f"{base_url}/api/settings/bookmark-view",
+                    {
+                        "view": "grid",
+                        "fields": {"title": True, "description": True, "notes": False},
+                        "filters": {
+                            "query": "restore",
+                            "favorite": True,
+                            "pinned": False,
+                            "domain": "example.com",
+                            "tag": "ops",
+                            "collection": "Inbox",
+                            "status": "all",
+                        },
+                    },
+                )
+                self.assertTrue(saved_view["saved"])
+                self.assertEqual(saved_view["preferences"]["view"], "grid")
+                loaded_view = get_json(opener, f"{base_url}/api/settings/bookmark-view")
+                self.assertTrue(loaded_view["saved"])
+                self.assertEqual(loaded_view["preferences"]["filters"]["query"], "restore")
+                reset_view = request_json(opener, f"{base_url}/api/settings/bookmark-view", {}, method="DELETE")
+                self.assertFalse(reset_view["saved"])
+                self.assertEqual(reset_view["preferences"]["view"], "compact")
 
                 request_json(opener, f"{base_url}/api/logout", {})
                 with self.assertRaises(urllib.error.HTTPError) as logged_out:

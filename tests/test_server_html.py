@@ -27,7 +27,8 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("Detailed List", html)
         self.assertIn("Grid/Card", html)
         self.assertIn("data-display-field=\"description\"", html)
-        self.assertIn("linkvault.viewPreferences", html)
+        self.assertIn("/api/settings/bookmark-view", html)
+        self.assertIn("loadViewPreferences", html)
         self.assertIn("Als Standard speichern", html)
 
 

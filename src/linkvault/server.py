@@ -12,6 +12,32 @@ from .auth import AuthStore, User
 from .config import load_config
 from .store import BookmarkFilters, BookmarkStore, checksum_for_text
 
+BOOKMARK_VIEW_SETTING_KEY = "bookmark_default_view"
+BOOKMARK_VIEW_NAMES = {"compact", "detailed", "grid"}
+DEFAULT_BOOKMARK_VIEW_PREFERENCES: dict[str, Any] = {
+    "view": "compact",
+    "fields": {
+        "title": True,
+        "description": False,
+        "notes": False,
+        "tags": True,
+        "collections": True,
+        "domain": True,
+        "date": False,
+        "favoritePin": True,
+        "status": True,
+    },
+    "filters": {
+        "query": "",
+        "favorite": False,
+        "pinned": False,
+        "domain": "",
+        "tag": "",
+        "collection": "",
+        "status": "active",
+    },
+}
+
 
 def make_store() -> BookmarkStore:
     return BookmarkStore(load_config().data_path)
@@ -27,6 +53,39 @@ def linkvault_identity() -> dict[str, Any]:
         "version": __version__,
         "health": "/healthz",
     }
+
+
+def merge_bookmark_view_preferences(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    fields_payload = payload.get("fields")
+    filters_payload = payload.get("filters")
+    fields = fields_payload if isinstance(fields_payload, dict) else {}
+    filters = filters_payload if isinstance(filters_payload, dict) else {}
+    return {
+        "view": str(payload.get("view", DEFAULT_BOOKMARK_VIEW_PREFERENCES["view"]))
+        if str(payload.get("view", DEFAULT_BOOKMARK_VIEW_PREFERENCES["view"])) in BOOKMARK_VIEW_NAMES
+        else DEFAULT_BOOKMARK_VIEW_PREFERENCES["view"],
+        "fields": {
+            key: bool(fields.get(key, value))
+            for key, value in DEFAULT_BOOKMARK_VIEW_PREFERENCES["fields"].items()
+        },
+        "filters": {
+            "query": str(filters.get("query", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["query"])).strip(),
+            "favorite": to_bool(filters.get("favorite", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["favorite"])),
+            "pinned": to_bool(filters.get("pinned", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["pinned"])),
+            "domain": str(filters.get("domain", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["domain"])).strip(),
+            "tag": str(filters.get("tag", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["tag"])).strip(),
+            "collection": str(filters.get("collection", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["collection"])).strip(),
+            "status": normalize_status_filter(filters.get("status", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["status"])),
+        },
+    }
+
+
+def normalize_status_filter(value: Any) -> str:
+    value = str(value or "active").strip().lower()
+    if value in {"active", "all", "merged_duplicate"}:
+        return value
+    return "active"
 
 
 class LinkVaultHandler(BaseHTTPRequestHandler):
@@ -120,6 +179,17 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json({"events": store.activity_events()})
+        elif path == "/api/settings/bookmark-view":
+            if not self.require_auth(auth_store):
+                return
+            setting = store.get_setting(BOOKMARK_VIEW_SETTING_KEY, DEFAULT_BOOKMARK_VIEW_PREFERENCES)
+            self.send_json(
+                {
+                    "preferences": merge_bookmark_view_preferences(setting["value"]),
+                    "saved": bool(setting["saved"]),
+                    "updated_at": setting["updated_at"],
+                }
+            )
         elif path == "/":
             self.send_html(index_html())
         else:
@@ -206,6 +276,18 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                         return
                 bookmark = store.add(payload)
                 self.send_json(bookmark.to_dict(), HTTPStatus.CREATED)
+            elif path == "/api/settings/bookmark-view":
+                if not self.require_auth(auth_store):
+                    return
+                preferences = merge_bookmark_view_preferences(payload)
+                setting = store.set_setting(BOOKMARK_VIEW_SETTING_KEY, preferences)
+                self.send_json(
+                    {
+                        "preferences": setting["value"],
+                        "saved": True,
+                        "updated_at": setting["updated_at"],
+                    }
+                )
             elif path == "/api/import/browser-html":
                 if not self.require_auth(auth_store):
                     return
@@ -347,6 +429,18 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 self.send_json({"error": "api token not found"}, HTTPStatus.NOT_FOUND)
                 return
             self.send_json({"deleted": True})
+            return
+        if path == "/api/settings/bookmark-view":
+            if not self.require_auth(make_auth_store()):
+                return
+            deleted = make_store().delete_setting(BOOKMARK_VIEW_SETTING_KEY)
+            self.send_json(
+                {
+                    "deleted": deleted,
+                    "preferences": DEFAULT_BOOKMARK_VIEW_PREFERENCES,
+                    "saved": False,
+                }
+            )
             return
         if not path.startswith("/api/bookmarks/"):
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -1043,6 +1137,15 @@ def index_html() -> str:
         date: false,
         favoritePin: true,
         status: true
+      },
+      filters: {
+        query: '',
+        favorite: false,
+        pinned: false,
+        domain: '',
+        tag: '',
+        collection: '',
+        status: 'active'
       }
     };
     const viewFieldPresets = {
@@ -1087,7 +1190,7 @@ def index_html() -> str:
       const response = await fetch('/api/me');
       const payload = await response.json();
       if (payload.authenticated) {
-        showApp(payload.user);
+        await showApp(payload.user);
         await refreshAll();
         return;
       }
@@ -1113,13 +1216,13 @@ def index_html() -> str:
       }
     }
 
-    function showApp(user) {
+    async function showApp(user) {
       authPanel.hidden = true;
       appEl.hidden = false;
       appNav.hidden = false;
       userbar.hidden = false;
       currentUser.textContent = user ? user.username : '';
-      loadViewPreferences();
+      await loadViewPreferences();
       setActiveTab(activeTab);
     }
 
@@ -1697,15 +1800,15 @@ def index_html() -> str:
       return JSON.parse(JSON.stringify(preferences));
     }
 
-    function viewPreferencesKey() {
-      const username = currentUser.textContent || 'anonymous';
-      return `linkvault.viewPreferences.${username}`;
-    }
-
-    function loadViewPreferences() {
+    async function loadViewPreferences() {
       try {
-        const saved = localStorage.getItem(viewPreferencesKey());
-        viewPreferences = saved ? mergeViewPreferences(JSON.parse(saved)) : clonePreferences(defaultViewPreferences);
+        const response = await fetch('/api/settings/bookmark-view');
+        if (response.status === 401) {
+          viewPreferences = clonePreferences(defaultViewPreferences);
+        } else {
+          const payload = await response.json();
+          viewPreferences = mergeViewPreferences(payload.preferences);
+        }
       } catch {
         viewPreferences = clonePreferences(defaultViewPreferences);
       }
@@ -1715,7 +1818,14 @@ def index_html() -> str:
     function mergeViewPreferences(saved) {
       return {
         view: ['compact', 'detailed', 'grid'].includes(saved?.view) ? saved.view : defaultViewPreferences.view,
-        fields: {...defaultViewPreferences.fields, ...(saved?.fields || {})}
+        fields: {...defaultViewPreferences.fields, ...(saved?.fields || {})},
+        filters: {
+          ...defaultViewPreferences.filters,
+          ...(saved?.filters || {}),
+          favorite: Boolean(saved?.filters?.favorite),
+          pinned: Boolean(saved?.filters?.pinned),
+          status: saved?.filters?.status || defaultViewPreferences.filters.status
+        }
       };
     }
 
@@ -1726,7 +1836,20 @@ def index_html() -> str:
       });
       return {
         view: document.querySelector('#bookmark-view').value,
-        fields
+        fields,
+        filters: collectFilterPreferences()
+      };
+    }
+
+    function collectFilterPreferences() {
+      return {
+        query: document.querySelector('#search').value.trim(),
+        favorite: document.querySelector('#filter-favorite').checked,
+        pinned: document.querySelector('#filter-pinned').checked,
+        domain: document.querySelector('#filter-domain').value.trim(),
+        tag: document.querySelector('#filter-tag').value.trim(),
+        collection: document.querySelector('#filter-collection').value.trim(),
+        status: document.querySelector('#filter-status').value || 'active'
       };
     }
 
@@ -1735,6 +1858,13 @@ def index_html() -> str:
       document.querySelectorAll('[data-display-field]').forEach((checkbox) => {
         checkbox.checked = Boolean(viewPreferences.fields[checkbox.dataset.displayField]);
       });
+      document.querySelector('#search').value = viewPreferences.filters.query || '';
+      document.querySelector('#filter-favorite').checked = Boolean(viewPreferences.filters.favorite);
+      document.querySelector('#filter-pinned').checked = Boolean(viewPreferences.filters.pinned);
+      document.querySelector('#filter-domain').value = viewPreferences.filters.domain || '';
+      document.querySelector('#filter-tag').value = viewPreferences.filters.tag || '';
+      document.querySelector('#filter-collection').value = viewPreferences.filters.collection || '';
+      document.querySelector('#filter-status').value = viewPreferences.filters.status || 'active';
       if (bookmarksEl) bookmarksEl.className = `bookmark-list view-${viewPreferences.view}`;
     }
 
@@ -1749,19 +1879,35 @@ def index_html() -> str:
       return Boolean(viewPreferences.fields[field]);
     }
 
-    function saveViewPreferences() {
+    async function saveViewPreferences() {
       viewPreferences = collectViewPreferences();
-      localStorage.setItem(viewPreferencesKey(), JSON.stringify(viewPreferences));
+      const response = await fetch('/api/settings/bookmark-view', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(viewPreferences)
+      });
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const payload = await response.json();
+      viewPreferences = mergeViewPreferences(payload.preferences);
+      applyViewControls();
       document.querySelector('#view-preference-status').textContent = 'Ansicht als Standard gespeichert.';
-      refreshBookmarks();
+      await refreshBookmarks();
     }
 
-    function resetViewPreferences() {
-      viewPreferences = clonePreferences(defaultViewPreferences);
-      localStorage.removeItem(viewPreferencesKey());
+    async function resetViewPreferences() {
+      const response = await fetch('/api/settings/bookmark-view', {method: 'DELETE'});
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const payload = await response.json();
+      viewPreferences = mergeViewPreferences(payload.preferences);
       applyViewControls();
       document.querySelector('#view-preference-status').textContent = 'Standardansicht wiederhergestellt.';
-      refreshBookmarks();
+      await refreshBookmarks();
     }
 
     function updateViewPreview(event) {
@@ -1950,7 +2096,7 @@ def index_html() -> str:
         return;
       }
       event.target.reset();
-      showApp(payload.user);
+      await showApp(payload.user);
       await refreshAll();
     });
 
@@ -1968,7 +2114,7 @@ def index_html() -> str:
         return;
       }
       event.target.reset();
-      showApp(payload.user);
+      await showApp(payload.user);
       await refreshAll();
     });
 

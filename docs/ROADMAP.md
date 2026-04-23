@@ -63,9 +63,10 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Feldern.
 - [x] Ansichtsumschalter fuer Bookmarks: Compact List, Detailed List und Grid.
 - [~] Anzeigeoptionen je Nutzer speichern: Titel, Beschreibung, Notizen, Tags,
-  Collections, Domain, Datum, Favorite/Pin und Status lokal pro Browser/User;
-  serverseitige Settings und spaetere Archivformate offen.
-- [ ] Sortierung und Filter als Standard speichern, angelehnt an linkding.
+  Collections, Domain, Datum, Favorite/Pin und Status jetzt serverseitig pro
+  LinkVault-Instanz; spaetere Archiv-/Preview-Ansichten offen.
+- [~] Sortierung und Filter als Standard speichern, angelehnt an linkding:
+  Filter und Suche sind serverseitig gespeichert, Sortierung noch offen.
 - [x] Grid/Card-Ansicht fuer visuelles Browsing mit aktuellen Bookmark-Daten.
 
 ## Phase 2: Dubletten und Favoritenpflege

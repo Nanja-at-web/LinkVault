@@ -100,6 +100,20 @@ class ActivityEvent:
         return payload
 
 
+@dataclass
+class StoredSetting:
+    key: str
+    value_json: str
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "value": json.loads(self.value_json or "null"),
+            "updated_at": self.updated_at,
+        }
+
+
 MetadataFetcher = Callable[[str], PageMetadata]
 
 
@@ -245,6 +259,16 @@ class BookmarkStore:
             )
             connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_created_at ON activity_events(created_at)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_kind ON activity_events(kind)")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_settings (
+                    key TEXT PRIMARY KEY,
+                    value_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_user_settings_updated_at ON user_settings(updated_at)")
             connection.execute(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
@@ -722,6 +746,49 @@ class BookmarkStore:
                 (limit,),
             ).fetchall()
         return [activity_event_from_row(row) for row in rows]
+
+    def get_setting(self, key: str, default: Any = None) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM user_settings WHERE key = ?", (key,)).fetchone()
+
+        if not row:
+            return {
+                "key": key,
+                "value": clone_json_value(default),
+                "updated_at": "",
+                "saved": False,
+            }
+
+        payload = stored_setting_from_row(row).to_dict()
+        payload["saved"] = True
+        return payload
+
+    def set_setting(self, key: str, value: Any) -> dict[str, Any]:
+        updated_at = datetime.now(UTC).isoformat()
+        value_json = json.dumps(value, sort_keys=True)
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO user_settings (key, value_json, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value_json = excluded.value_json,
+                    updated_at = excluded.updated_at
+                """,
+                (key, value_json, updated_at),
+            )
+
+        return {
+            "key": key,
+            "value": json.loads(value_json),
+            "updated_at": updated_at,
+            "saved": True,
+        }
+
+    def delete_setting(self, key: str) -> bool:
+        with self.connect() as connection:
+            cursor = connection.execute("DELETE FROM user_settings WHERE key = ?", (key,))
+        return cursor.rowcount > 0
 
     def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:
         if not enrich_metadata or not self.metadata_fetcher:
@@ -1383,6 +1450,18 @@ def activity_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
         details_json=row["details_json"],
         created_at=row["created_at"],
     ).to_dict()
+
+
+def stored_setting_from_row(row: sqlite3.Row) -> StoredSetting:
+    return StoredSetting(
+        key=row["key"],
+        value_json=row["value_json"],
+        updated_at=row["updated_at"],
+    )
+
+
+def clone_json_value(value: Any) -> Any:
+    return json.loads(json.dumps(value))
 
 
 def checksum_for_text(value: str) -> str:

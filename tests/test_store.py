@@ -358,6 +358,35 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(activity[0]["kind"], "import_session_created")
             self.assertIn("Import 1 neu, 1 Dubletten", activity[0]["summary"])
 
+    def test_user_settings_roundtrip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            default_value = {"view": "compact", "filters": {"status": "active"}}
+
+            missing = store.get_setting("bookmark_default_view", default_value)
+            self.assertFalse(missing["saved"])
+            self.assertEqual(missing["value"], default_value)
+
+            saved = store.set_setting(
+                "bookmark_default_view",
+                {
+                    "view": "grid",
+                    "fields": {"title": True, "notes": False},
+                    "filters": {"query": "gh", "status": "all"},
+                },
+            )
+            self.assertTrue(saved["saved"])
+            self.assertEqual(saved["value"]["view"], "grid")
+
+            loaded = store.get_setting("bookmark_default_view", default_value)
+            self.assertTrue(loaded["saved"])
+            self.assertEqual(loaded["value"]["filters"]["query"], "gh")
+
+            self.assertTrue(store.delete_setting("bookmark_default_view"))
+            deleted = store.get_setting("bookmark_default_view", default_value)
+            self.assertFalse(deleted["saved"])
+            self.assertEqual(deleted["value"], default_value)
+
     def test_dedup_dry_run_preserves_tags_collections_and_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
