@@ -117,9 +117,9 @@ Status-Legende:
 - [~] API-Token-Verwaltung mit sichtbarem Status vorhanden; Test-Button offen.
 - [ ] Webhooks.
 - [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium mit
-  Ordnerauswahl, Popup-Vorschau und sicherem Rueckimport in neuen
-  Browser-Ordner vorhanden; Packaging, echter Sync und feinere
-  Einzel-Link-Auswahl offen.
+  Ordnerauswahl, Popup-Vorschau, gefiltertem LinkVault-Export, sicherem
+  Browser-Rueckimport, Zielauswahl und Duplikatbehandlung vorhanden;
+  Packaging, destruktiver Sync und feinere Einzel-Link-Auswahl offen.
 - [x] Companion-Importfilter fuer Ordner, Textsuche, Adresse/Domain,
   hinzugefuegt-Datum und bereits vorhandene URLs.
 - [x] Companion-Discovery: LinkVault ueber aktuelle Eingabe, gespeicherte URL,
@@ -128,9 +128,14 @@ Status-Legende:
   mit expliziter Browser-History-Berechtigung.
 - [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
 - [x] LinkVault-Export-Endpunkt fuer Browser-Bookmark-Baum:
-  `GET /api/export/browser-bookmarks`.
+  `GET /api/export/browser-bookmarks` mit Query/Favorit/Pin/Domain/Tag/
+  Collection/Status-Filtern.
 - [x] Companion-Rueckimport in den Browser als sicherer erster Schritt:
-  neuer Ordner `LinkVault Import ...`, kein Update/Delete im Browser.
+  Vorschau, Restore in neuen Ordner oder gewaehlten bestehenden Browser-
+  Ordner, sowie Skip/Merge/Update fuer doppelte Links ohne Browserdaten zu
+  loeschen.
+- [ ] Destruktiver Browser-Sync mit Loeschwarnung und vollstaendigem
+  Konfliktlog.
 - [ ] Floccus-/Browser-Sync-Bridge pruefen.
 - [ ] Masonry-Ansicht und Bildoptionen Cover/Contain nach Karakeep-Vorbild,
   sobald Preview-/Archivdaten stabil sind.

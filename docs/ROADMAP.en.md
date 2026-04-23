@@ -123,8 +123,9 @@ Status legend:
 - [~] API token management with visible status exists; test button is still open.
 - [ ] Webhooks.
 - [~] Companion extension: developer preview for Firefox/Chromium with folder
-  selection, popup preview, and safe browser re-import into a new folder
-  exists; packaging, true sync, and finer per-link selection are still open.
+  selection, popup preview, filtered LinkVault export, safe browser re-import,
+  target selection, and duplicate handling exists; packaging, destructive sync,
+  and finer per-link selection are still open.
 - [x] Companion import filters for folder, text search, address/domain,
   date-added, and URLs that already exist in LinkVault.
 - [x] Companion discovery: find LinkVault through current form value, saved
@@ -134,9 +135,12 @@ Status legend:
 - [ ] Evaluate sync setup for browser extension, mobile share, Floccus/WebDAV,
   and API.
 - [x] LinkVault export endpoint for a browser bookmark tree:
-  `GET /api/export/browser-bookmarks`.
-- [x] Companion browser re-import as a safe first step: create a new
-  `LinkVault Import ...` folder without browser-side update/delete.
+  `GET /api/export/browser-bookmarks` with query/favorite/pinned/domain/tag/
+  collection/status filters.
+- [x] Companion browser re-import as a safe first step: preview, restore into
+  a new folder or selected existing browser folder, and skip/merge/update
+  duplicate links without deleting browser data.
+- [ ] Destructive browser sync with delete warnings and full conflict log.
 - [ ] Evaluate Floccus/browser sync bridge.
 - [ ] Masonry view and image cover/contain options inspired by Karakeep once
   preview/archive data is stable.

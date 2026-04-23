@@ -101,7 +101,13 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         elif path == "/api/export/browser-bookmarks":
             if not self.require_auth(auth_store):
                 return
-            self.send_json(store.browser_export_tree())
+            params = parse_qs(parsed_url.query)
+            self.send_json(
+                store.browser_export_tree(
+                    query=get_query_param(params, "q"),
+                    filters=filters_from_query(params),
+                )
+            )
         elif path == "/api/tokens":
             if not self.require_session_auth(auth_store):
                 return

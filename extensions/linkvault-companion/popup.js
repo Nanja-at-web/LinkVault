@@ -6,7 +6,17 @@ const bookmarkFilterQueryEl = document.querySelector("#bookmark-filter-query");
 const bookmarkFilterDomainEl = document.querySelector("#bookmark-filter-domain");
 const bookmarkFilterAddedFromEl = document.querySelector("#bookmark-filter-added-from");
 const bookmarkFilterAddedToEl = document.querySelector("#bookmark-filter-added-to");
+const browserRestoreTargetFolderEl = document.querySelector("#browser-restore-target-folder");
+const browserRestoreTargetModeEl = document.querySelector("#browser-restore-target-mode");
+const browserRestoreFolderNameEl = document.querySelector("#browser-restore-folder-name");
+const browserRestoreDuplicatesEl = document.querySelector("#browser-restore-duplicates");
+const linkvaultExportQueryEl = document.querySelector("#linkvault-export-query");
+const linkvaultExportCollectionEl = document.querySelector("#linkvault-export-collection");
+const linkvaultExportFavoriteEl = document.querySelector("#linkvault-export-favorite");
+const linkvaultExportPinnedEl = document.querySelector("#linkvault-export-pinned");
 const PREVIEW_DETAIL_LIMIT = 30;
+let lastBrowserRestorePreview = null;
+let lastBrowserRestorePreviewKey = "";
 
 function showResult(message, kind = "info") {
   resultEl.textContent = message;
@@ -108,7 +118,10 @@ function previewActionLabel(action) {
     create: "New",
     duplicate_existing: "Exists",
     duplicate_in_import: "Duplicate",
-    invalid_skipped: "Skipped"
+    invalid_skipped: "Skipped",
+    skip_existing: "Skip",
+    update_existing: "Update",
+    merge_existing: "Merge"
   }[action] || action || "Unknown";
 }
 
@@ -123,16 +136,28 @@ async function refreshConnectionState() {
 
 async function refreshBookmarkSources() {
   const currentValue = bookmarkSourceEl.value;
-  const folders = await browserBookmarkFolders();
+  const targetValue = browserRestoreTargetFolderEl.value;
+  const sourceFolders = await browserBookmarkFolders();
+  const targetFolders = await browserBookmarkFolders({includeEmpty: true});
   bookmarkSourceEl.innerHTML = '<option value="">All browser bookmarks</option>';
-  for (const folder of folders) {
+  browserRestoreTargetFolderEl.innerHTML = '<option value="">Choose a browser folder</option>';
+  for (const folder of sourceFolders) {
     const option = document.createElement("option");
     option.value = folder.id;
     option.textContent = `${folder.path} (${folder.count})`;
     bookmarkSourceEl.append(option);
   }
+  for (const folder of targetFolders) {
+    const targetOption = document.createElement("option");
+    targetOption.value = folder.id;
+    targetOption.textContent = `${folder.path} (${folder.count})`;
+    browserRestoreTargetFolderEl.append(targetOption);
+  }
   if ([...bookmarkSourceEl.options].some((option) => option.value === currentValue)) {
     bookmarkSourceEl.value = currentValue;
+  }
+  if ([...browserRestoreTargetFolderEl.options].some((option) => option.value === targetValue)) {
+    browserRestoreTargetFolderEl.value = targetValue;
   }
 }
 
@@ -146,6 +171,96 @@ function selectedBookmarkSource() {
       addedTo: bookmarkFilterAddedToEl.value
     }
   };
+}
+
+function selectedBrowserRestoreOptions() {
+  return {
+    targetMode: browserRestoreTargetModeEl.value,
+    targetFolderId: browserRestoreTargetFolderEl.value,
+    targetTitle: browserRestoreFolderNameEl.value,
+    duplicateAction: browserRestoreDuplicatesEl.value,
+    filters: {
+      query: linkvaultExportQueryEl.value,
+      collection: linkvaultExportCollectionEl.value,
+      favorite: linkvaultExportFavoriteEl.checked,
+      pinned: linkvaultExportPinnedEl.checked,
+      status: "active"
+    }
+  };
+}
+
+function browserRestoreOptionsKey(options) {
+  return JSON.stringify({
+    targetMode: options.targetMode,
+    targetFolderId: options.targetFolderId,
+    targetTitle: options.targetTitle,
+    duplicateAction: options.duplicateAction,
+    filters: options.filters
+  });
+}
+
+function summarizeBrowserRestorePreview(payload) {
+  return `${payload.total} from LinkVault, ${payload.create} new, ${payload.skip_existing} skipped, ${payload.merge_existing} merged, ${payload.update_existing} updated.`;
+}
+
+function renderBrowserRestorePreview(payload) {
+  previewDetailsEl.replaceChildren();
+  previewDetailsEl.hidden = false;
+
+  const heading = document.createElement("h2");
+  heading.textContent = "Browser restore preview";
+  previewDetailsEl.append(heading);
+
+  const note = document.createElement("p");
+  note.className = "muted";
+  note.textContent = "No browser bookmark will be deleted. Review the first rows before running restore.";
+  previewDetailsEl.append(note);
+
+  const records = (payload.records || []).slice(0, PREVIEW_DETAIL_LIMIT);
+  const list = document.createElement("div");
+  list.className = "preview-list";
+  for (const record of records) {
+    list.append(browserRestorePreviewRow(record));
+  }
+  previewDetailsEl.append(list);
+}
+
+function browserRestorePreviewRow(record) {
+  const row = document.createElement("article");
+  row.className = `preview-row ${record.action || ""}`;
+
+  const title = document.createElement("strong");
+  title.textContent = record.title || record.url || "Untitled bookmark";
+
+  const action = document.createElement("span");
+  action.className = "pill";
+  action.textContent = previewActionLabel(record.action);
+
+  const header = document.createElement("div");
+  header.className = "preview-row-header";
+  header.append(title, action);
+
+  const url = document.createElement("p");
+  url.className = "preview-url";
+  url.textContent = record.url || "-";
+
+  const meta = document.createElement("p");
+  meta.className = "muted";
+  meta.textContent = [
+    `target path: ${(record.path || []).join(" / ") || "-"}`,
+    `source: ${record.source_folder_path || record.source_root || "-"}`
+  ].join(" - ");
+
+  row.append(header, url, meta);
+
+  if (record.existing_bookmark) {
+    const duplicate = document.createElement("p");
+    duplicate.className = "muted";
+    duplicate.textContent = `Existing browser bookmark: ${record.existing_bookmark.title || record.existing_bookmark.url} (${record.existing_bookmark.folder_path || "-"})`;
+    row.append(duplicate);
+  }
+
+  return row;
 }
 
 document.querySelector("#open-options").addEventListener("click", () => {
@@ -218,11 +333,35 @@ document.querySelector("#import-bookmarks").addEventListener("click", async () =
 
 document.querySelector("#import-into-browser").addEventListener("click", async () => {
   try {
-    clearPreviewDetails();
-    showResult("Creating LinkVault Import folder in this browser...");
-    const result = await importLinkVaultIntoBrowser();
-    showResult(`Created ${result.created} browser bookmarks in ${result.root_title}.`, "ok");
+    showResult("Restoring LinkVault bookmarks into this browser...");
+    const options = selectedBrowserRestoreOptions();
+    if (options.targetMode === "existing" && !options.targetFolderId) {
+      throw new Error("Choose an existing browser folder or switch target to new folder.");
+    }
+    const result = await importLinkVaultIntoBrowser({
+      ...options,
+      preview: lastBrowserRestorePreviewKey === browserRestoreOptionsKey(options) ? lastBrowserRestorePreview : null
+    });
+    lastBrowserRestorePreview = null;
+    lastBrowserRestorePreviewKey = "";
+    showResult(`${result.created} created, ${result.skipped_existing} skipped, ${result.merged_existing} merged, ${result.updated_existing} updated in ${result.root_title}.`, "ok");
   } catch (error) {
+    showResult(error.message, "error");
+  }
+});
+
+document.querySelector("#preview-browser-restore").addEventListener("click", async () => {
+  try {
+    showResult("Building browser restore preview...");
+    const options = selectedBrowserRestoreOptions();
+    lastBrowserRestorePreview = await previewLinkVaultBrowserImport(options);
+    lastBrowserRestorePreviewKey = browserRestoreOptionsKey(options);
+    showResult(summarizeBrowserRestorePreview(lastBrowserRestorePreview), "ok");
+    renderBrowserRestorePreview(lastBrowserRestorePreview);
+  } catch (error) {
+    lastBrowserRestorePreview = null;
+    lastBrowserRestorePreviewKey = "";
+    clearPreviewDetails();
     showResult(error.message, "error");
   }
 });

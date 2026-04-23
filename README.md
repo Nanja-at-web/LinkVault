@@ -153,6 +153,9 @@ Important endpoints:
 - `POST /api/import/safari-zip/preview`
 - `POST /api/import/safari-zip`
 - `GET /api/export/browser-bookmarks`
+  Optional query params: `q`, `favorite`, `pinned`, `domain`, `tag`,
+  `collection`, `status`. Used by the Companion Extension to preview and
+  restore selected LinkVault bookmarks back into a browser.
 - `GET /api/dedup`
 - `GET /api/dedup/dry-run`
 - `GET /api/dedup/merges`

@@ -715,8 +715,9 @@ class BookmarkStore:
             )
         return {"groups": groups, "group_count": len(groups)}
 
-    def browser_export_tree(self) -> dict[str, Any]:
-        bookmarks = self.list(filters=BookmarkFilters(status="active"))
+    def browser_export_tree(self, query: str = "", filters: BookmarkFilters | None = None) -> dict[str, Any]:
+        filters = filters or BookmarkFilters(status="active")
+        bookmarks = self.list(query=query, filters=filters)
         roots: dict[str, dict[str, Any]] = {}
 
         for bookmark in sorted(bookmarks, key=browser_export_sort_key):
@@ -769,6 +770,15 @@ class BookmarkStore:
         return {
             "root_title": f"LinkVault Import {datetime.now(UTC).date().isoformat()}",
             "bookmark_count": len(bookmarks),
+            "query": query,
+            "filters": {
+                "favorite": filters.favorite,
+                "pinned": filters.pinned,
+                "domain": filters.domain,
+                "tag": filters.tag,
+                "collection": filters.collection,
+                "status": filters.status,
+            },
             "roots": clean_roots,
         }
 

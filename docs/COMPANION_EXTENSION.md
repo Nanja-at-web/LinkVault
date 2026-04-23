@@ -147,9 +147,12 @@ Aktueller Funktionsumfang:
   und Browser-Bookmark-ID werden als Metadaten in LinkVault gespeichert.
 - Import-Vorschau an LinkVault senden und erste Detailzeilen im Popup zeigen.
 - Browser-Bookmarks nach LinkVault importieren.
-- LinkVault-Bookmarks wieder in den Browser importieren, zuerst sicher in
-  einen neuen Ordner `LinkVault Import ...`; bestehende Browser-Bookmarks
-  werden nicht veraendert oder geloescht.
+- LinkVault-Bookmarks wieder in den Browser importieren: mit Vorschau, Zielwahl
+  zwischen neuem Restore-Ordner und bestehendem Browser-Ordner, LinkVault-
+  Exportfiltern und Duplikatstrategie.
+- Beim Browser-Rueckimport werden bestehende Links nie geloescht. Duplikate
+  koennen uebersprungen, vorsichtig gemerged oder aktualisiert und in den
+  Zielordner verschoben werden.
 - Interne Browser-URLs wie `about:`, `place:` oder `moz-extension:` werden
   uebersprungen, weil LinkVault normale HTTP/HTTPS-Bookmarks speichert.
 
@@ -164,9 +167,19 @@ Der erste sichere Rueckweg in den Browser nutzt:
 
 - `GET /api/export/browser-bookmarks`
 
-Die Extension legt daraus einen neuen Browser-Ordner an und baut darunter die
-Ordnerstruktur nach. Ein echter Zwei-Wege-Sync mit Update/Delete bleibt offen
-und braucht spaeter eine Konfliktvorschau.
+Der Endpoint unterstuetzt dieselben einfachen Filter wie die Bookmark-Liste:
+`q`, `favorite`, `pinned`, `domain`, `tag`, `collection` und `status`.
+
+Die Extension erstellt daraus zuerst eine Restore-Vorschau. Danach kann sie:
+
+- einen neuen Ordner wie `LinkVault Restore ...` anlegen,
+- einen bestehenden Browser-Ordner als Ziel nutzen,
+- vorhandene Links ueberspringen,
+- vorhandene Links ohne Verschieben aktualisieren,
+- vorhandene Links aktualisieren und in den Zielordner verschieben.
+
+Ein destruktiver Zwei-Wege-Sync mit Loeschungen bleibt bewusst offen und
+braucht spaeter eine eigene Konfliktvorschau mit klarer Warnung.
 
 Der klassische Netscape-HTML-Import bleibt fuer Dateiimporte und als
 Kompatibilitaetsformat im LinkVault-Core erhalten.

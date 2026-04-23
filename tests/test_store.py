@@ -133,10 +133,16 @@ class StoreTest(unittest.TestCase):
             export = store.browser_export_tree()
 
             self.assertEqual(export["bookmark_count"], 2)
+            self.assertEqual(export["filters"]["status"], "active")
             self.assertEqual(export["roots"][0]["title"], "Bookmarks Toolbar")
             folder = export["roots"][0]["children"][0]
             self.assertEqual(folder["title"], "Dev")
             self.assertEqual([item["title"] for item in folder["children"]], ["B", "A"])
+
+            filtered = store.browser_export_tree(filters=BookmarkFilters(collection="Other", status="active"))
+
+            self.assertEqual(filtered["bookmark_count"], 0)
+            self.assertEqual(filtered["roots"], [])
 
     def test_import_browser_html_preview_shows_new_existing_and_import_duplicates(self):
         with tempfile.TemporaryDirectory() as tmp:

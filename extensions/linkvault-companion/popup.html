@@ -69,8 +69,45 @@
 
     <section class="panel">
       <h2>Import into browser</h2>
-      <p class="muted">Create a new browser folder from LinkVault. Existing browser bookmarks are not changed or deleted.</p>
-      <button id="import-into-browser" type="button">Create LinkVault Import folder</button>
+      <p class="muted">Preview a LinkVault restore plan before creating or updating browser bookmarks. Nothing is deleted.</p>
+      <details class="filter-panel">
+        <summary>LinkVault export filters</summary>
+        <label>Search
+          <input id="linkvault-export-query" placeholder="github, docs, homelab">
+        </label>
+        <label>Collection
+          <input id="linkvault-export-collection" placeholder="Inbox">
+        </label>
+        <div class="checks">
+          <label><input id="linkvault-export-favorite" type="checkbox"> Favorites only</label>
+          <label><input id="linkvault-export-pinned" type="checkbox"> Pins only</label>
+        </div>
+      </details>
+      <label>Target
+        <select id="browser-restore-target-mode">
+          <option value="new">New folder</option>
+          <option value="existing">Existing browser folder</option>
+        </select>
+      </label>
+      <label>New folder name
+        <input id="browser-restore-folder-name" placeholder="LinkVault Restore">
+      </label>
+      <label>Existing target folder
+        <select id="browser-restore-target-folder">
+          <option value="">Choose a browser folder</option>
+        </select>
+      </label>
+      <label>Duplicate links
+        <select id="browser-restore-duplicates">
+          <option value="skip">Skip existing links</option>
+          <option value="merge">Merge metadata safely</option>
+          <option value="update">Update existing links and move into target</option>
+        </select>
+      </label>
+      <div class="actions">
+        <button id="preview-browser-restore" type="button">Preview restore</button>
+        <button id="import-into-browser" type="button">Run restore</button>
+      </div>
     </section>
 
     <section id="result" class="status" role="status"></section>

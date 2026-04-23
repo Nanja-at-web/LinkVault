@@ -54,6 +54,24 @@ function createBrowserBookmark(payload) {
   });
 }
 
+function updateBrowserBookmark(id, changes) {
+  if (globalThis.browser?.bookmarks) {
+    return globalThis.browser.bookmarks.update(id, changes);
+  }
+  return new Promise((resolve) => {
+    linkvaultRuntime.bookmarks.update(id, changes, resolve);
+  });
+}
+
+function moveBrowserBookmark(id, destination) {
+  if (globalThis.browser?.bookmarks) {
+    return globalThis.browser.bookmarks.move(id, destination);
+  }
+  return new Promise((resolve) => {
+    linkvaultRuntime.bookmarks.move(id, destination, resolve);
+  });
+}
+
 function requestPermissions(permissions) {
   if (!linkvaultRuntime.permissions?.request) {
     return Promise.resolve(true);
@@ -353,51 +371,260 @@ async function browserBookmarksToNetscapeHtml(options = {}) {
   return lines.join("\n");
 }
 
-async function importLinkVaultIntoBrowser() {
-  const tree = await linkvaultRequest("/api/export/browser-bookmarks");
-  const rootTitle = tree.root_title || `LinkVault Import ${new Date().toISOString().slice(0, 10)}`;
-  const root = await createBrowserBookmark({title: rootTitle});
-  let created = 0;
-  for (const child of tree.roots || []) {
-    created += await createBookmarkTreeNode(child, root.id);
+async function linkvaultBrowserExport(options = {}) {
+  const query = new URLSearchParams();
+  const filters = options.filters || {};
+  if (filters.query) query.set("q", filters.query);
+  if (filters.collection) query.set("collection", filters.collection);
+  if (filters.favorite) query.set("favorite", "1");
+  if (filters.pinned) query.set("pinned", "1");
+  if (filters.status) query.set("status", filters.status);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return linkvaultRequest(`/api/export/browser-bookmarks${suffix}`);
+}
+
+async function previewLinkVaultBrowserImport(options = {}) {
+  const exportTree = options.exportTree || await linkvaultBrowserExport(options);
+  const records = flattenLinkVaultExportTree(exportTree);
+  const duplicateAction = options.duplicateAction || "skip";
+  const existingIndex = await browserBookmarkUrlIndex();
+  const previewRecords = [];
+  let create = 0;
+  let skipped = 0;
+  let updated = 0;
+  let merged = 0;
+
+  for (const record of records) {
+    const existing = existingIndex.get(comparableBookmarkUrl(record.url));
+    const previewRecord = {
+      ...record,
+      existing_bookmark: existing ? {
+        id: existing.id,
+        title: existing.title || existing.url,
+        url: existing.url,
+        folder_path: existing.folder_path || ""
+      } : null,
+      action: "create"
+    };
+
+    if (existing) {
+      if (duplicateAction === "update") {
+        previewRecord.action = "update_existing";
+        updated += 1;
+      } else if (duplicateAction === "merge") {
+        previewRecord.action = "merge_existing";
+        merged += 1;
+      } else {
+        previewRecord.action = "skip_existing";
+        skipped += 1;
+      }
+    } else {
+      create += 1;
+    }
+    previewRecords.push(previewRecord);
   }
+
   return {
-    root_title: rootTitle,
-    created,
-    bookmark_count: tree.bookmark_count || created
+    root_title: exportTree.root_title || `LinkVault Restore ${new Date().toISOString().slice(0, 10)}`,
+    total: records.length,
+    create,
+    skip_existing: skipped,
+    update_existing: updated,
+    merge_existing: merged,
+    duplicate_action: duplicateAction,
+    records: previewRecords,
+    tree: exportTree
   };
 }
 
-async function createBookmarkTreeNode(node, parentId) {
-  if (node.type === "bookmark" || node.url) {
-    if (!isRegularWebUrl(node.url)) return 0;
+async function importLinkVaultIntoBrowser(options = {}) {
+  const preview = options.preview || await previewLinkVaultBrowserImport(options);
+  const duplicateAction = options.duplicateAction || preview.duplicate_action || "skip";
+  const target = await resolveBrowserRestoreTarget(options, preview);
+  const folderCache = new Map();
+  const existingIndex = await browserBookmarkUrlIndex();
+  let created = 0;
+  let skipped = 0;
+  let updated = 0;
+  let merged = 0;
+
+  for (const record of preview.records || []) {
+    if (!isRegularWebUrl(record.url)) continue;
+    const existing = existingIndex.get(comparableBookmarkUrl(record.url));
+    if (existing) {
+      if (duplicateAction === "update") {
+        const parentId = await ensureBrowserFolderPath(target.id, restorePathForTarget(record.path, target, options), folderCache);
+        await updateBrowserBookmark(existing.id, {title: record.title || existing.title || record.url});
+        await moveBrowserBookmark(existing.id, {parentId});
+        updated += 1;
+      } else if (duplicateAction === "merge") {
+        await updateBrowserBookmark(existing.id, {title: record.title || existing.title || record.url});
+        merged += 1;
+      } else {
+        skipped += 1;
+      }
+      continue;
+    }
+
+    const parentId = await ensureBrowserFolderPath(target.id, restorePathForTarget(record.path, target, options), folderCache);
     await createBrowserBookmark({
       parentId,
-      title: node.title || node.url,
-      url: node.url
+      title: record.title || record.url,
+      url: record.url
     });
-    return 1;
+    created += 1;
   }
 
-  const title = String(node.title || "LinkVault").trim();
-  const folder = await createBrowserBookmark({parentId, title});
-  let created = 0;
-  for (const child of node.children || []) {
-    created += await createBookmarkTreeNode(child, folder.id);
-  }
-  return created;
+  return {
+    root_title: target.title,
+    created,
+    skipped_existing: skipped,
+    updated_existing: updated,
+    merged_existing: merged,
+    bookmark_count: preview.total || created
+  };
 }
 
-async function browserBookmarkFolders() {
+function restorePathForTarget(path, target, options = {}) {
+  const cleanPath = (path || []).filter(Boolean);
+  if (options.targetMode !== "existing" || !cleanPath.length) return cleanPath;
+  const targetTitle = String(target.title || "").trim().toLowerCase();
+  if (targetTitle && cleanPath[0].trim().toLowerCase() === targetTitle) {
+    return cleanPath.slice(1);
+  }
+  return cleanPath;
+}
+
+async function resolveBrowserRestoreTarget(options, preview) {
+  if (options.targetMode === "existing" && options.targetFolderId) {
+    const [folder] = await getBookmarkSubTree(options.targetFolderId);
+    return {
+      id: options.targetFolderId,
+      title: folder?.title || "Selected browser folder"
+    };
+  }
+
+  const rootTitle = String(options.targetTitle || preview.root_title || "").trim()
+    || `LinkVault Restore ${new Date().toISOString().slice(0, 10)}`;
+  const root = await createBrowserBookmark({title: rootTitle});
+  return {id: root.id, title: rootTitle};
+}
+
+async function ensureBrowserFolderPath(rootId, path, folderCache) {
+  let parentId = rootId;
+  for (const title of path || []) {
+    const cleanTitle = String(title || "").trim();
+    if (!cleanTitle) continue;
+    const cacheKey = `${parentId}\n${cleanTitle}`;
+    if (folderCache.has(cacheKey)) {
+      parentId = folderCache.get(cacheKey);
+      continue;
+    }
+    const existing = await findChildFolder(parentId, cleanTitle);
+    if (existing) {
+      parentId = existing.id;
+    } else {
+      const folder = await createBrowserBookmark({parentId, title: cleanTitle});
+      parentId = folder.id;
+    }
+    folderCache.set(cacheKey, parentId);
+  }
+  return parentId;
+}
+
+async function findChildFolder(parentId, title) {
+  const [parent] = await getBookmarkSubTree(parentId);
+  const children = Array.isArray(parent?.children) ? parent.children : [];
+  return children.find((child) => !child.url && child.title === title) || null;
+}
+
+function flattenLinkVaultExportTree(exportTree) {
+  const records = [];
+  for (const root of exportTree.roots || []) {
+    appendExportTreeRecord(records, root, []);
+  }
+  return records;
+}
+
+function appendExportTreeRecord(records, node, path) {
+  if (node.type === "bookmark" || node.url) {
+    if (!isRegularWebUrl(node.url)) return;
+    records.push({
+      title: node.title || node.url,
+      url: node.url,
+      tags: node.tags || [],
+      collections: node.collections || [],
+      path,
+      source_root: node.source_root || "",
+      source_folder_path: node.source_folder_path || path.join(" / "),
+      source_position: Number.isFinite(Number(node.source_position)) ? Number(node.source_position) : records.length
+    });
+    return;
+  }
+
+  const title = String(node.title || "").trim();
+  const nextPath = title ? [...path, title] : path;
+  for (const child of node.children || []) {
+    appendExportTreeRecord(records, child, nextPath);
+  }
+}
+
+async function browserBookmarkUrlIndex() {
+  const tree = await getBookmarkTree();
+  const index = new Map();
+  for (const root of tree) {
+    appendBrowserBookmarkIndex(index, root, []);
+  }
+  return index;
+}
+
+function appendBrowserBookmarkIndex(index, node, path) {
+  if (node.url) {
+    if (!isRegularWebUrl(node.url)) return;
+    const key = comparableBookmarkUrl(node.url);
+    if (!index.has(key)) {
+      index.set(key, {
+        id: node.id,
+        title: node.title || node.url,
+        url: node.url,
+        folder_path: path.join(" / ")
+      });
+    }
+    return;
+  }
+
+  const title = String(node.title || "").trim();
+  const nextPath = title ? [...path, title] : path;
+  for (const child of node.children || []) {
+    appendBrowserBookmarkIndex(index, child, nextPath);
+  }
+}
+
+function comparableBookmarkUrl(value) {
+  try {
+    const parsed = new URL(value);
+    parsed.hash = "";
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (key.startsWith("utm_") || ["fbclid", "gclid", "mc_cid", "mc_eid"].includes(key)) {
+        parsed.searchParams.delete(key);
+      }
+    }
+    return parsed.toString().replace(/\/$/, "").toLowerCase();
+  } catch (error) {
+    return String(value || "").trim().replace(/\/$/, "").toLowerCase();
+  }
+}
+
+async function browserBookmarkFolders(options = {}) {
   const tree = await getBookmarkTree();
   const folders = [];
   for (const node of tree) {
-    appendBookmarkFolder(folders, node, []);
+    appendBookmarkFolder(folders, node, [], Boolean(options.includeEmpty));
   }
-  return folders.filter((folder) => folder.count > 0);
+  return options.includeEmpty ? folders : folders.filter((folder) => folder.count > 0);
 }
 
-function appendBookmarkFolder(folders, node, path) {
+function appendBookmarkFolder(folders, node, path, includeEmpty = false) {
   if (node.url) return countWebBookmarks(node);
 
   const title = String(node.title || "").trim();
@@ -406,10 +633,10 @@ function appendBookmarkFolder(folders, node, path) {
   let count = 0;
 
   for (const child of children) {
-    count += appendBookmarkFolder(folders, child, nextPath);
+    count += appendBookmarkFolder(folders, child, nextPath, includeEmpty);
   }
 
-  if (title && count > 0) {
+  if (title && (includeEmpty || count > 0)) {
     folders.push({
       id: node.id,
       title,
