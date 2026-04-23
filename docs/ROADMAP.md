@@ -6,6 +6,8 @@ Status-Legende:
 - `[~]` teilweise erledigt
 - `[ ]` offen
 
+Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
+
 ## Phase 0: Fundament
 
 - [x] Repository-Struktur festlegen.

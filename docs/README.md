@@ -7,6 +7,7 @@ with:
 
 - [Project README](../README.md)
 - [MVP Roadmap](ROADMAP.en.md)
+- [Roadmap Solutions](ROADMAP_SOLUTIONS.md)
 
 The detailed working documents are currently German-first:
 

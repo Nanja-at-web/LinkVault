@@ -6,6 +6,8 @@ Status legend:
 - `[~]` partially done
 - `[ ]` open
 
+See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
+
 ## Phase 0: Foundation
 
 - [x] Define repository structure.

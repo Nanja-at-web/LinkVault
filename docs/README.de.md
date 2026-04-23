@@ -7,6 +7,7 @@ sind der oeffentliche Einstieg und die Roadmap auf Englisch verfuegbar:
 
 - [Project README](../README.md)
 - [MVP Roadmap English](ROADMAP.en.md)
+- [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md)
 
 Die detaillierten Arbeitsdokumente bleiben aktuell deutsch:
 
