@@ -30,6 +30,7 @@ Der Schwerpunkt liegt auf:
 - [Layout- und Anzeige-UX-Muster](docs/LAYOUT_DISPLAY_UX_PATTERNS.md)
 - [Companion-Extension-Plan](docs/COMPANION_EXTENSION.md)
 - [Windows-Entwicklungssetup](docs/DEVELOPMENT_WINDOWS.md)
+- [Bereinigte Statusanalyse](docs/linkvault_statusanalyse.md)
 - [Einfluss der Installations- und Requirements-Recherche](docs/INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
@@ -121,6 +122,12 @@ Wichtige Endpunkte:
 - `POST /api/login`
 - `POST /api/logout`
 - `GET /api/me`
+- `GET /api/users`
+- `POST /api/users`
+- `PATCH /api/users/{id}`
+- `DELETE /api/users/{id}`
+- `POST /api/users/{id}/reset-password`
+- `POST /api/account/password`
 - `GET /api/tokens`
 - `POST /api/tokens`
 - `DELETE /api/tokens/{id}`
@@ -191,6 +198,10 @@ Daraus folgen nach dem erfolgreichen echten LXC-Backup/Restore-Smoke-Test als
 naechste Produktschritte URL-Duplicate-Preflight, staerkeres Dedup-Dashboard
 und spaeter API-Token mit Sync-Setup. Archiv-Worker, AI und Browser-Sync kommen
 danach schrittweise.
+
+Der aktuelle MVP ist ausserdem nicht mehr rein Single-User: LinkVault hat
+jetzt Admin/User-Rollen, benutzergebundene API-Token, eigenen Passwortwechsel,
+Admin-Passwort-Reset und eine erste Benutzerverwaltung im Bereich `Betrieb`.
 
 ## Lizenz
 

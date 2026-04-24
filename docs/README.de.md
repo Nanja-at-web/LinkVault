@@ -29,6 +29,7 @@ Die detaillierten Arbeitsdokumente bleiben aktuell deutsch:
 - [Backup und Restore](BACKUP_RESTORE.md)
 - [Update](UPDATE.md)
 - [Post-Install Helper](HELPER.md)
+- [Bereinigte Statusanalyse](linkvault_statusanalyse.md)
 - [MVP-Roadmap Deutsch](ROADMAP.md)
 
 Uebersetzungsregel:

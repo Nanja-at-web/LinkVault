@@ -33,7 +33,10 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 
 ## Phase 1: Bookmark Core
 
-- [x] Login and single-user setup with initial setup token.
+- [~] Login, setup, and user accounts: initial setup token, session login,
+  admin/user roles, own password change, admin password reset, user-scoped API
+  tokens, and first user-management flows exist; later profile pages and finer
+  permissions are still open.
 - [~] Create, edit, and delete links.
 - [x] Edit links in the UI: title, description, tags, collections, favorite,
   pin, and notes.
@@ -51,6 +54,9 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [x] Store import session metadata: source, file, checksum, profile, format,
   timestamp, and result counts.
 - [x] API tokens for imports, extensions, and automation.
+- [~] Profiles and account management: the operations UI can now change the
+  current password, list users, create users, change roles, and delete users;
+  later profile pages and personal settings are still open.
 - [x] LinkVault discovery endpoint `/.well-known/linkvault` for Companion
   detection on the local network.
 - [~] Rework home/navigation: tabs for save, import, bookmarks, dedup, and

@@ -230,9 +230,15 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 )
             )
         elif path == "/api/tokens":
-            if not self.require_session_auth(auth_store):
+            user = self.require_session_auth(auth_store)
+            if not user:
                 return
-            self.send_json({"tokens": [token.to_dict() for token in auth_store.list_api_tokens()]})
+            self.send_json({"tokens": [token.to_dict() for token in auth_store.list_api_tokens(user.id)]})
+        elif path == "/api/users":
+            admin = self.require_admin(auth_store)
+            if not admin:
+                return
+            self.send_json({"users": [user.to_dict() for user in auth_store.list_users()]})
         elif path == "/api/import/sessions":
             if not self.require_auth(auth_store):
                 return
@@ -313,9 +319,37 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 auth_store.delete_session(self.session_cookie())
                 self.send_json({"logged_out": True}, headers=[expired_session_cookie_header()])
             elif path == "/api/tokens":
-                if not self.require_session_auth(auth_store):
+                user = self.require_session_auth(auth_store)
+                if not user:
                     return
-                self.send_json(auth_store.create_api_token(str(payload.get("name", ""))), HTTPStatus.CREATED)
+                self.send_json(auth_store.create_api_token(user.id, str(payload.get("name", ""))), HTTPStatus.CREATED)
+            elif path == "/api/account/password":
+                user = self.require_session_auth(auth_store)
+                if not user:
+                    return
+                auth_store.change_password(
+                    user.id,
+                    str(payload.get("current_password", "")),
+                    str(payload.get("new_password", "")),
+                )
+                self.send_json({"changed": True})
+            elif path == "/api/users":
+                admin = self.require_admin(auth_store)
+                if not admin:
+                    return
+                user = auth_store.create_user(
+                    str(payload.get("username", "")),
+                    str(payload.get("password", "")),
+                    str(payload.get("role", "user")),
+                )
+                self.send_json({"user": user.to_dict()}, HTTPStatus.CREATED)
+            elif path.startswith("/api/users/") and path.endswith("/reset-password"):
+                admin = self.require_admin(auth_store)
+                if not admin:
+                    return
+                user_id = path.removeprefix("/api/users/").removesuffix("/reset-password").strip("/")
+                user = auth_store.admin_reset_password(user_id, str(payload.get("new_password", "")))
+                self.send_json({"user": user.to_dict(), "password_reset": True})
             elif path == "/api/bookmarks/bulk":
                 if not self.require_auth(auth_store):
                     return
@@ -605,6 +639,28 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
     def do_PATCH(self) -> None:
+        path = urlparse(self.path).path
+        auth_store = make_auth_store()
+        if path.startswith("/api/users/"):
+            admin = self.require_admin(auth_store)
+            if not admin:
+                return
+            try:
+                payload = self.read_json()
+            except (json.JSONDecodeError, ValueError):
+                self.send_json({"error": "invalid json"}, HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                user = auth_store.update_user(
+                    path.removeprefix("/api/users/").strip("/"),
+                    username=payload.get("username"),
+                    role=payload.get("role"),
+                )
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                return
+            self.send_json({"user": user.to_dict()})
+            return
         self.update_bookmark()
 
     def do_PUT(self) -> None:
@@ -614,11 +670,27 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.startswith("/api/tokens/"):
             auth_store = make_auth_store()
-            if not self.require_session_auth(auth_store):
+            user = self.require_session_auth(auth_store)
+            if not user:
                 return
-            deleted = auth_store.delete_api_token(path.rsplit("/", 1)[-1])
+            deleted = auth_store.delete_api_token(path.rsplit("/", 1)[-1], user.id)
             if not deleted:
                 self.send_json({"error": "api token not found"}, HTTPStatus.NOT_FOUND)
+                return
+            self.send_json({"deleted": True})
+            return
+        if path.startswith("/api/users/"):
+            auth_store = make_auth_store()
+            admin = self.require_admin(auth_store)
+            if not admin:
+                return
+            try:
+                deleted = auth_store.delete_user(path.removeprefix("/api/users/").strip("/"))
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                return
+            if not deleted:
+                self.send_json({"error": "user not found"}, HTTPStatus.NOT_FOUND)
                 return
             self.send_json({"deleted": True})
             return
@@ -711,6 +783,15 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         if user:
             return user
         self.send_json({"error": "browser login required"}, HTTPStatus.UNAUTHORIZED)
+        return None
+
+    def require_admin(self, auth_store: AuthStore) -> User | None:
+        user = self.require_session_auth(auth_store)
+        if not user:
+            return None
+        if user.role == "admin":
+            return user
+        self.send_json({"error": "admin role required"}, HTTPStatus.FORBIDDEN)
         return None
 
     def api_token(self) -> str:
@@ -1351,6 +1432,35 @@ def index_html() -> str:
         <div id="api-token-list" class="history-list"></div>
       </section>
       <section class="mini-card">
+        <h3>Passwort aendern</h3>
+        <p class="muted">Jeder Benutzer kann hier das eigene Passwort aendern.</p>
+        <form id="password-change-form" class="stack">
+          <label>Aktuelles Passwort <input name="current_password" type="password" required></label>
+          <label>Neues Passwort <input name="new_password" type="password" minlength="12" required></label>
+          <button type="submit">Passwort aktualisieren</button>
+        </form>
+        <div id="password-change-status" class="notice" hidden></div>
+      </section>
+      <section id="user-management-section" class="mini-card" hidden>
+        <h3>Benutzerverwaltung</h3>
+        <p class="muted">Admins legen Benutzer an, verwalten Rollen und setzen Passwoerter zurueck.</p>
+        <form id="user-create-form" class="mini-grid">
+          <label>Benutzername <input name="username" placeholder="anna" required></label>
+          <label>Rolle
+            <select name="role">
+              <option value="user" selected>User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>Startpasswort <input name="password" type="password" minlength="12" required></label>
+          <div class="inline-actions" style="align-items:end;">
+            <button type="submit">Benutzer anlegen</button>
+          </div>
+        </form>
+        <div id="user-management-status" class="notice" hidden></div>
+        <div id="user-list" class="history-list"></div>
+      </section>
+      <section class="mini-card">
         <h3>Letzte Merge-Aktionen</h3>
         <div id="merge-history" class="history-list"></div>
       </section>
@@ -1388,8 +1498,15 @@ def index_html() -> str:
     const apiTokenForm = document.querySelector('#api-token-form');
     const apiTokenCreated = document.querySelector('#api-token-created');
     const apiTokenList = document.querySelector('#api-token-list');
+    const passwordChangeForm = document.querySelector('#password-change-form');
+    const passwordChangeStatus = document.querySelector('#password-change-status');
+    const userManagementSection = document.querySelector('#user-management-section');
+    const userCreateForm = document.querySelector('#user-create-form');
+    const userManagementStatus = document.querySelector('#user-management-status');
+    const userListEl = document.querySelector('#user-list');
     const selectedIds = new Set();
     let activeTab = 'bookmarks';
+    let currentUserState = null;
     const defaultViewPreferences = {
       view: 'compact',
       fields: {
@@ -1534,6 +1651,7 @@ def index_html() -> str:
       authError.textContent = '';
       const response = await fetch('/api/me');
       const payload = await response.json();
+      currentUserState = payload.user || null;
       if (payload.authenticated) {
         await showApp(payload.user);
         await refreshAll();
@@ -1555,7 +1673,7 @@ def index_html() -> str:
         loginForm.hidden = true;
       } else {
         authTitle.textContent = 'Login';
-        authHelp.textContent = 'Mit deinem LinkVault-Admin anmelden.';
+        authHelp.textContent = 'Mit deinem LinkVault-Konto anmelden.';
         setupForm.hidden = true;
         loginForm.hidden = false;
       }
@@ -1566,7 +1684,8 @@ def index_html() -> str:
       appEl.hidden = false;
       appNav.hidden = false;
       userbar.hidden = false;
-      currentUser.textContent = user ? user.username : '';
+      currentUserState = user || null;
+      currentUser.textContent = user ? `${user.username} · ${user.role}` : '';
       await loadViewPreferences();
       setActiveTab(activeTab);
     }
@@ -1716,7 +1835,7 @@ def index_html() -> str:
 
     async function refreshOperations() {
       const conflictState = conflictStateFilterEl.value || 'open';
-      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, restoreResponse, activityResponse, conflictResponse] = await Promise.all([
+      const requests = [
         fetch('/healthz'),
         fetch('/api/setup/status'),
         fetch('/api/dedup/merges'),
@@ -1725,7 +1844,11 @@ def index_html() -> str:
         fetch('/api/restore/sessions'),
         fetch('/api/activity'),
         fetch(`/api/conflicts?state=${encodeURIComponent(conflictState)}`)
-      ]);
+      ];
+      if (currentUserState?.role === 'admin') {
+        requests.push(fetch('/api/users'));
+      }
+      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, restoreResponse, activityResponse, conflictResponse, usersResponse] = await Promise.all(requests);
       if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || restoreResponse.status === 401 || activityResponse.status === 401 || conflictResponse.status === 401) {
         await loadAuth();
         return;
@@ -1738,6 +1861,7 @@ def index_html() -> str:
       const restoreSessions = await restoreResponse.json();
       const activity = await activityResponse.json();
       const conflicts = await conflictResponse.json();
+      const users = usersResponse && usersResponse.ok ? await usersResponse.json() : {users: []};
       renderOperations(
         health,
         setup,
@@ -1746,7 +1870,8 @@ def index_html() -> str:
         sessions.sessions || [],
         restoreSessions.sessions || [],
         activity.events || [],
-        conflicts.conflicts || []
+        conflicts.conflicts || [],
+        users.users || []
       );
     }
 
@@ -2013,7 +2138,7 @@ def index_html() -> str:
       });
     }
 
-    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, restoreSessions, activityEvents, conflicts) {
+    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, restoreSessions, activityEvents, conflicts, users) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
           <h3>Health</h3>
@@ -2062,6 +2187,7 @@ def index_html() -> str:
       renderRestoreSessions(restoreSessions);
       renderActivity(activityEvents);
       renderApiTokens(apiTokens);
+      renderUserManagement(users);
 
       if (!mergeEvents.length) {
         mergeHistoryEl.innerHTML = '<div class="empty">Noch keine Merge-Aktionen vorhanden.</div>';
@@ -2393,6 +2519,117 @@ def index_html() -> str:
       apiTokenList.querySelectorAll('[data-delete-token]').forEach((button) => {
         button.addEventListener('click', async () => {
           await fetch(`/api/tokens/${button.dataset.deleteToken}`, {method: 'DELETE'});
+          await refreshOperations();
+        });
+      });
+    }
+
+    function showNotice(host, message, isError = false) {
+      host.hidden = false;
+      host.style.borderColor = isError ? '#d87b70' : '';
+      host.innerHTML = `<p>${escapeHtml(message)}</p>`;
+    }
+
+    function clearNotice(host) {
+      host.hidden = true;
+      host.style.borderColor = '';
+      host.innerHTML = '';
+    }
+
+    function renderUserManagement(users) {
+      const isAdmin = currentUserState?.role === 'admin';
+      userManagementSection.hidden = !isAdmin;
+      if (!isAdmin) {
+        userListEl.innerHTML = '';
+        clearNotice(userManagementStatus);
+        return;
+      }
+      if (!users.length) {
+        userListEl.innerHTML = '<div class="empty">Noch keine Benutzer vorhanden.</div>';
+        return;
+      }
+      userListEl.innerHTML = users.map((user) => `
+        <div class="mini-card">
+          <div class="panel-header">
+            <div>
+              <p><strong>${escapeHtml(user.username)}</strong></p>
+              <p class="muted">${escapeHtml(user.role)} · erstellt ${escapeHtml(user.created_at)}</p>
+            </div>
+          </div>
+          <form class="stack" data-user-update="${escapeAttr(user.id)}">
+            <div class="mini-grid">
+              <label>Benutzername <input name="username" value="${escapeAttr(user.username)}" required></label>
+              <label>Rolle
+                <select name="role">
+                  <option value="user"${user.role === 'user' ? ' selected' : ''}>User</option>
+                  <option value="admin"${user.role === 'admin' ? ' selected' : ''}>Admin</option>
+                </select>
+              </label>
+            </div>
+            <div class="inline-actions">
+              <button type="submit">Profil speichern</button>
+              ${currentUserState?.id === user.id ? '' : `<button type="button" data-user-delete="${escapeAttr(user.id)}">Benutzer loeschen</button>`}
+            </div>
+          </form>
+          <form class="stack" data-user-reset="${escapeAttr(user.id)}">
+            <label>Neues Passwort fuer ${escapeHtml(user.username)}
+              <input name="new_password" type="password" minlength="12" placeholder="Mindestens 12 Zeichen" required>
+            </label>
+            <div class="inline-actions">
+              <button type="submit">Passwort zuruecksetzen</button>
+            </div>
+          </form>
+        </div>
+      `).join('');
+      userListEl.querySelectorAll('[data-user-update]').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const userId = form.dataset.userUpdate;
+          const response = await fetch(`/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: {'content-type': 'application/json'},
+            body: JSON.stringify(Object.fromEntries(new FormData(form)))
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            showNotice(userManagementStatus, payload.error || 'Benutzer konnte nicht aktualisiert werden.', true);
+            return;
+          }
+          showNotice(userManagementStatus, `Profil von ${payload.user.username} aktualisiert.`);
+          if (currentUserState?.id === payload.user.id) {
+            currentUserState = payload.user;
+            currentUser.textContent = `${payload.user.username} · ${payload.user.role}`;
+          }
+          await refreshOperations();
+        });
+      });
+      userListEl.querySelectorAll('[data-user-reset]').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const userId = form.dataset.userReset;
+          const response = await fetch(`/api/users/${userId}/reset-password`, {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: JSON.stringify(Object.fromEntries(new FormData(form)))
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            showNotice(userManagementStatus, payload.error || 'Passwort konnte nicht zurueckgesetzt werden.', true);
+            return;
+          }
+          form.reset();
+          showNotice(userManagementStatus, `Passwort fuer ${payload.user.username} wurde zurueckgesetzt.`);
+        });
+      });
+      userListEl.querySelectorAll('[data-user-delete]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const response = await fetch(`/api/users/${button.dataset.userDelete}`, {method: 'DELETE'});
+          const payload = await response.json();
+          if (!response.ok) {
+            showNotice(userManagementStatus, payload.error || 'Benutzer konnte nicht geloescht werden.', true);
+            return;
+          }
+          showNotice(userManagementStatus, 'Benutzer geloescht.');
           await refreshOperations();
         });
       });
@@ -2997,8 +3234,44 @@ def index_html() -> str:
       await refreshOperations();
     });
 
+    passwordChangeForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const response = await fetch('/api/account/password', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(Object.fromEntries(new FormData(event.target)))
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        showNotice(passwordChangeStatus, payload.error || 'Passwort konnte nicht aktualisiert werden.', true);
+        return;
+      }
+      event.target.reset();
+      showNotice(passwordChangeStatus, 'Passwort erfolgreich aktualisiert.');
+    });
+
+    userCreateForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(Object.fromEntries(new FormData(event.target)))
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        showNotice(userManagementStatus, payload.error || 'Benutzer konnte nicht angelegt werden.', true);
+        return;
+      }
+      event.target.reset();
+      showNotice(userManagementStatus, `Benutzer ${payload.user.username} angelegt.`);
+      await refreshOperations();
+    });
+
     document.querySelector('#logout').addEventListener('click', async () => {
       await fetch('/api/logout', {method: 'POST'});
+      currentUserState = null;
+      clearNotice(passwordChangeStatus);
+      clearNotice(userManagementStatus);
       await loadAuth();
     });
 

@@ -24,6 +24,7 @@ class AuthStoreTest(unittest.TestCase):
             user = auth.create_initial_user("admin", "very-long-password", "secret", "secret")
 
             self.assertEqual(user.username, "admin")
+            self.assertEqual(user.role, "admin")
             self.assertFalse(auth.setup_required())
 
     def test_authenticate_and_session_lookup(self):
@@ -45,16 +46,46 @@ class AuthStoreTest(unittest.TestCase):
             auth = AuthStore(Path(tmp) / "linkvault.sqlite3")
             user = auth.create_initial_user("admin", "very-long-password", "", "")
 
-            created = auth.create_api_token("Firefox")
+            created = auth.create_api_token(user.id, "Firefox")
             token = created["token"]
-            listed = auth.list_api_tokens()
+            listed = auth.list_api_tokens(user.id)
 
             self.assertEqual(len(listed), 1)
             self.assertEqual(listed[0].name, "Firefox")
             self.assertEqual(auth.user_for_api_token(token).id, user.id)
             self.assertEqual(auth.user_for_api_token("wrong"), None)
-            self.assertTrue(auth.delete_api_token(listed[0].id))
+            self.assertTrue(auth.delete_api_token(listed[0].id, user.id))
             self.assertEqual(auth.user_for_api_token(token), None)
+
+    def test_user_management_and_password_flows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = AuthStore(Path(tmp) / "linkvault.sqlite3")
+            admin = auth.create_initial_user("admin", "very-long-password", "", "")
+            user = auth.create_user("alice", "another-long-password", "user")
+
+            self.assertEqual([item.username for item in auth.list_users()], ["admin", "alice"])
+            self.assertEqual(user.role, "user")
+
+            updated = auth.update_user(user.id, role="admin")
+            self.assertEqual(updated.role, "admin")
+
+            auth.change_password(user.id, "another-long-password", "changed-long-password")
+            self.assertIsNotNone(auth.authenticate("alice", "changed-long-password"))
+
+            reset_user = auth.admin_reset_password(user.id, "reset-long-password")
+            self.assertEqual(reset_user.id, user.id)
+            self.assertIsNotNone(auth.authenticate("alice", "reset-long-password"))
+
+    def test_last_admin_cannot_be_removed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = AuthStore(Path(tmp) / "linkvault.sqlite3")
+            admin = auth.create_initial_user("admin", "very-long-password", "", "")
+
+            with self.assertRaises(ValueError):
+                auth.update_user(admin.id, role="user")
+
+            with self.assertRaises(ValueError):
+                auth.delete_user(admin.id)
 
 
 class AuthHttpTest(unittest.TestCase):
@@ -111,6 +142,9 @@ class AuthHttpTest(unittest.TestCase):
                     {"username": "admin", "password": "very-long-password", "setup_token": "secret"},
                 )
                 self.assertEqual(setup["user"]["username"], "admin")
+                self.assertEqual(setup["user"]["role"], "admin")
+                me = get_json(opener, f"{base_url}/api/me")
+                self.assertEqual(me["user"]["role"], "admin")
 
                 bookmark = request_json(opener, f"{base_url}/api/bookmarks", {"url": "http://127.0.0.1:9/a"})
                 self.assertEqual(bookmark["url"], "http://127.0.0.1:9/a")
@@ -190,6 +224,83 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertTrue(token_payload["token"].startswith("lv_pat_"))
                 token_list = get_json(opener, f"{base_url}/api/tokens")
                 self.assertEqual(token_list["tokens"][0]["name"], "Firefox extension")
+
+                created_user = request_json(
+                    opener,
+                    f"{base_url}/api/users",
+                    {"username": "alice", "password": "another-long-password", "role": "user"},
+                )
+                self.assertEqual(created_user["user"]["username"], "alice")
+                viewer_user = request_json(
+                    opener,
+                    f"{base_url}/api/users",
+                    {"username": "bob", "password": "viewer-long-password", "role": "user"},
+                )
+                user_list = get_json(opener, f"{base_url}/api/users")
+                self.assertEqual(len(user_list["users"]), 3)
+
+                viewer_opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+                request_json(
+                    viewer_opener,
+                    f"{base_url}/api/login",
+                    {"username": "bob", "password": "viewer-long-password"},
+                )
+                with self.assertRaises(urllib.error.HTTPError) as non_admin_users:
+                    get_json(viewer_opener, f"{base_url}/api/users")
+                self.assertEqual(non_admin_users.exception.code, 403)
+
+                updated_user = request_json(
+                    opener,
+                    f"{base_url}/api/users/{created_user['user']['id']}",
+                    {"username": "alice", "role": "admin"},
+                    method="PATCH",
+                )
+                self.assertEqual(updated_user["user"]["role"], "admin")
+
+                password_change = request_json(
+                    opener,
+                    f"{base_url}/api/account/password",
+                    {"current_password": "very-long-password", "new_password": "replacement-password"},
+                )
+                self.assertTrue(password_change["changed"])
+
+                request_json(opener, f"{base_url}/api/logout", {})
+                relogin = request_json(
+                    opener,
+                    f"{base_url}/api/login",
+                    {"username": "admin", "password": "replacement-password"},
+                )
+                self.assertEqual(relogin["user"]["username"], "admin")
+
+                password_reset = request_json(
+                    opener,
+                    f"{base_url}/api/users/{created_user['user']['id']}/reset-password",
+                    {"new_password": "alice-reset-password"},
+                )
+                self.assertTrue(password_reset["password_reset"])
+
+                user_opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+                login_user = request_json(
+                    user_opener,
+                    f"{base_url}/api/login",
+                    {"username": "alice", "password": "alice-reset-password"},
+                )
+                self.assertEqual(login_user["user"]["username"], "alice")
+                self.assertEqual(login_user["user"]["role"], "admin")
+
+                user_password_change = request_json(
+                    user_opener,
+                    f"{base_url}/api/account/password",
+                    {"current_password": "alice-reset-password", "new_password": "alice-new-password"},
+                )
+                self.assertTrue(user_password_change["changed"])
+
+                request_json(user_opener, f"{base_url}/api/logout", {})
+                request_json(
+                    user_opener,
+                    f"{base_url}/api/login",
+                    {"username": "alice", "password": "alice-new-password"},
+                )
                 api_bookmark = request_json(
                     opener,
                     f"{base_url}/api/bookmarks",
@@ -477,6 +588,14 @@ class AuthHttpTest(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as token_management:
                     get_json(opener, f"{base_url}/api/tokens", headers={"authorization": f"Bearer {token_payload['token']}"})
                 self.assertEqual(token_management.exception.code, 401)
+
+                request_json(user_opener, f"{base_url}/api/tokens", {"name": "Alice token"})
+                alice_tokens = get_json(user_opener, f"{base_url}/api/tokens")
+                self.assertEqual(len(alice_tokens["tokens"]), 1)
+                self.assertEqual(alice_tokens["tokens"][0]["name"], "Alice token")
+
+                deleted_bob = request_json(user_opener, f"{base_url}/api/users/{viewer_user['user']['id']}", {}, method="DELETE")
+                self.assertTrue(deleted_bob["deleted"])
             finally:
                 server.shutdown()
                 thread.join(timeout=2)

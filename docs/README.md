@@ -29,6 +29,7 @@ The detailed working documents are currently German-first:
 - [Backup und Restore](BACKUP_RESTORE.md)
 - [Update](UPDATE.md)
 - [Post-Install Helper](HELPER.md)
+- [Consolidated Status Analysis](linkvault_statusanalyse.md)
 - [MVP-Roadmap Deutsch](ROADMAP.md)
 
 Translation policy:

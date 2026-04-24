@@ -26,6 +26,9 @@ LinkVault bleibt im Standard klein und LXC-freundlich:
    Sync-/Restore-Konflikte,
    Konfliktvorschau fuer komplexere Strukturfaelle und spaetere
    Konfliktlogik fuer destruktive Syncs.
+   Fuer spaeter vormerken: kleine Struktur-Vorschau pro Konfliktgruppe,
+   also nicht nur Textzaehler wie "3 parallele Ordner", sondern konkrete
+   Mini-Vorher/Nachher-Pfade.
 
 2. **Quick-Add**
    Der Bookmark-Kern ist funktional, aber ein kurzer Standarddialog mit Inbox-
@@ -59,7 +62,7 @@ LinkVault bleibt im Standard klein und LXC-freundlich:
 
 | Offen | Loesung | Prioritaet |
 |---|---|---|
-| Import-Session-Metadaten | Tabellen `import_sessions` und `import_records`; alle Datei- und Extension-Importe erzeugen eine Session. | sehr hoch |
+| Benutzerprofile und Rechte nach dem ersten Multiuser-Schritt | Die Basis mit Admin/User, benutzergebundenen Tokens, Passwortwechsel und Admin-Benutzerverwaltung steht. Als naechstes nur konservativ erweitern: Profilseite fuer den aktuellen Nutzer, persoenliche Anzeige-/Companion-Einstellungen und spaeter feinere Rechte statt sofort komplexer Rollenmatrix. | mittel |
 | Navigation: Favoriten, Tags, Collections, Archiv, Aktivitaet, Einstellungen | Zuerst Aktivitaet und Collections/Favoriten als einfache Filterseiten, spaeter vollstaendige Verwaltungsseiten. | mittel |
 | Quick-Add | Kompakter Dialog: URL, Titel optional, Inbox default, Vorschlaege. Erweiterte Felder ausklappbar. | mittel |
 | Anzeigeoptionen serverseitig speichern | Tabelle `user_settings(key, value_json)`. Lokale Browser-Settings bleiben Fallback. | mittel |
@@ -162,6 +165,21 @@ Warum jetzt:
 
 - Die groesste sichtbare Luecke ist derzeit die UI-Struktur.
 - Das macht den bereits vorhandenen Funktionsumfang besser erkennbar.
+
+### 4. Profilseite fuer den aktuellen Nutzer
+
+Ergebnis:
+
+- Klarer Ort fuer Benutzername, Passwortwechsel, API-Tokens und spaetere
+  persoenliche Einstellungen.
+- Die neue Admin/User-Basis wird damit von "Operations-Unterbau" zu einer
+  erkennbaren Produktfunktion.
+
+Warum jetzt:
+
+- Die Codebasis kann inzwischen mehrere Benutzer sauber verwalten.
+- Sichtbar fehlt aber noch der vertraute Einstieg ueber "Mein Konto" /
+  "Profil".
 
 ## Bewusst spaeter
 

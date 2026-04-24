@@ -19,6 +19,7 @@ SESSION_DAYS = 30
 class User:
     id: str
     username: str
+    role: str
     created_at: str
     updated_at: str
 
@@ -29,6 +30,7 @@ class User:
 @dataclass(frozen=True)
 class ApiToken:
     id: str
+    user_id: str
     name: str
     token_prefix: str
     created_at: str
@@ -61,6 +63,7 @@ class AuthStore:
                 CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY,
                     username TEXT NOT NULL UNIQUE,
+                    role TEXT NOT NULL DEFAULT 'admin',
                     password_hash TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -84,15 +87,37 @@ class AuthStore:
                 """
                 CREATE TABLE IF NOT EXISTS api_tokens (
                     id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
                     name TEXT NOT NULL,
                     token_hash TEXT NOT NULL UNIQUE,
                     token_prefix TEXT NOT NULL,
                     created_at TEXT NOT NULL,
-                    last_used_at TEXT NOT NULL
+                    last_used_at TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
                 )
                 """
             )
             connection.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id)")
+            self.ensure_column(connection, "users", "role", "TEXT NOT NULL DEFAULT 'admin'")
+            self.ensure_column(connection, "api_tokens", "user_id", "TEXT")
+            first_user = connection.execute("SELECT id FROM users ORDER BY created_at ASC LIMIT 1").fetchone()
+            if first_user:
+                connection.execute(
+                    "UPDATE users SET role = 'admin' WHERE role IS NULL OR TRIM(role) = ''"
+                )
+                connection.execute(
+                    "UPDATE api_tokens SET user_id = ? WHERE user_id IS NULL OR TRIM(user_id) = ''",
+                    (first_user["id"],),
+                )
+
+    def ensure_column(self, connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+        columns = {
+            row["name"]
+            for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if column not in columns:
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
     def setup_required(self) -> bool:
         with self.connect() as connection:
@@ -111,16 +136,103 @@ class AuthStore:
             raise ValueError("setup token is not configured")
 
         now = datetime.now(UTC).isoformat()
-        user = User(id=secrets.token_hex(16), username=username, created_at=now, updated_at=now)
+        user = User(id=secrets.token_hex(16), username=username, role="admin", created_at=now, updated_at=now)
         with self.connect() as connection:
             connection.execute(
                 """
-                INSERT INTO users (id, username, password_hash, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (id, username, role, password_hash, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (user.id, user.username, hash_password(password), user.created_at, user.updated_at),
+                (user.id, user.username, user.role, hash_password(password), user.created_at, user.updated_at),
             )
         return user
+
+    def list_users(self) -> list[User]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM users ORDER BY created_at ASC, username COLLATE NOCASE ASC"
+            ).fetchall()
+        return [user_from_row(row) for row in rows]
+
+    def get_user(self, user_id: str) -> User | None:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return user_from_row(row) if row else None
+
+    def create_user(self, username: str, password: str, role: str = "user") -> User:
+        username = clean_username(username)
+        validate_password(password)
+        role = normalize_role(role)
+        now = datetime.now(UTC).isoformat()
+        user = User(id=secrets.token_hex(16), username=username, role=role, created_at=now, updated_at=now)
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO users (id, username, role, password_hash, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (user.id, user.username, user.role, hash_password(password), user.created_at, user.updated_at),
+            )
+        return user
+
+    def update_user(self, user_id: str, *, username: str | None = None, role: str | None = None) -> User:
+        existing = self.get_user(user_id)
+        if not existing:
+            raise ValueError("user not found")
+        new_username = clean_username(username) if username is not None else existing.username
+        new_role = normalize_role(role) if role is not None else existing.role
+        if existing.role == "admin" and new_role != "admin" and self.admin_count() <= 1:
+            raise ValueError("last admin cannot be demoted")
+        updated_at = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE users
+                SET username = ?, role = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (new_username, new_role, updated_at, user_id),
+            )
+        return self.get_user(user_id)
+
+    def delete_user(self, user_id: str) -> bool:
+        existing = self.get_user(user_id)
+        if not existing:
+            return False
+        if existing.role == "admin" and self.admin_count() <= 1:
+            raise ValueError("last admin cannot be deleted")
+        with self.connect() as connection:
+            cursor = connection.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        return cursor.rowcount > 0
+
+    def change_password(self, user_id: str, current_password: str, new_password: str) -> None:
+        validate_password(new_password)
+        with self.connect() as connection:
+            row = connection.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+            if not row:
+                raise ValueError("user not found")
+            if not verify_password(current_password, row["password_hash"]):
+                raise ValueError("current password is invalid")
+            connection.execute(
+                "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                (hash_password(new_password), datetime.now(UTC).isoformat(), user_id),
+            )
+
+    def admin_reset_password(self, user_id: str, new_password: str) -> User:
+        validate_password(new_password)
+        existing = self.get_user(user_id)
+        if not existing:
+            raise ValueError("user not found")
+        with self.connect() as connection:
+            connection.execute(
+                "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                (hash_password(new_password), datetime.now(UTC).isoformat(), user_id),
+            )
+        return self.get_user(user_id)
+
+    def admin_count(self) -> int:
+        with self.connect() as connection:
+            return int(connection.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0])
 
     def authenticate(self, username: str, password: str) -> User | None:
         with self.connect() as connection:
@@ -170,12 +282,16 @@ class AuthStore:
         with self.connect() as connection:
             connection.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
 
-    def create_api_token(self, name: str) -> dict[str, str | dict[str, str]]:
+    def create_api_token(self, user_id: str, name: str) -> dict[str, str | dict[str, str]]:
         name = clean_token_name(name)
+        user = self.get_user(user_id)
+        if not user:
+            raise ValueError("user not found")
         now = datetime.now(UTC).isoformat()
         token = f"lv_pat_{secrets.token_urlsafe(32)}"
         api_token = ApiToken(
             id=secrets.token_hex(16),
+            user_id=user.id,
             name=name,
             token_prefix=token[:14],
             created_at=now,
@@ -184,11 +300,12 @@ class AuthStore:
         with self.connect() as connection:
             connection.execute(
                 """
-                INSERT INTO api_tokens (id, name, token_hash, token_prefix, created_at, last_used_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, created_at, last_used_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     api_token.id,
+                    api_token.user_id,
                     api_token.name,
                     hash_api_token(token),
                     api_token.token_prefix,
@@ -198,20 +315,23 @@ class AuthStore:
             )
         return {"token": token, "api_token": api_token.to_dict()}
 
-    def list_api_tokens(self) -> list[ApiToken]:
+    def list_api_tokens(self, user_id: str) -> list[ApiToken]:
         with self.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT id, name, token_prefix, created_at, last_used_at
+                SELECT id, user_id, name, token_prefix, created_at, last_used_at
                 FROM api_tokens
+                WHERE user_id = ?
                 ORDER BY created_at DESC
                 """
+                ,
+                (user_id,),
             ).fetchall()
         return [api_token_from_row(row) for row in rows]
 
-    def delete_api_token(self, token_id: str) -> bool:
+    def delete_api_token(self, token_id: str, user_id: str) -> bool:
         with self.connect() as connection:
-            cursor = connection.execute("DELETE FROM api_tokens WHERE id = ?", (token_id,))
+            cursor = connection.execute("DELETE FROM api_tokens WHERE id = ? AND user_id = ?", (token_id, user_id))
         return cursor.rowcount > 0
 
     def user_for_api_token(self, token: str) -> User | None:
@@ -222,13 +342,13 @@ class AuthStore:
         now = datetime.now(UTC).isoformat()
         with self.connect() as connection:
             token_row = connection.execute(
-                "SELECT id FROM api_tokens WHERE token_hash = ?",
+                "SELECT id, user_id FROM api_tokens WHERE token_hash = ?",
                 (token_hash,),
             ).fetchone()
             if not token_row:
                 return None
             connection.execute("UPDATE api_tokens SET last_used_at = ? WHERE id = ?", (now, token_row["id"]))
-            user_row = connection.execute("SELECT * FROM users ORDER BY created_at ASC LIMIT 1").fetchone()
+            user_row = connection.execute("SELECT * FROM users WHERE id = ?", (token_row["user_id"],)).fetchone()
         return user_from_row(user_row) if user_row else None
 
 
@@ -248,6 +368,13 @@ def clean_token_name(name: str) -> str:
     if len(cleaned) > 120:
         raise ValueError("token name is too long")
     return cleaned
+
+
+def normalize_role(role: str) -> str:
+    normalized = str(role or "").strip().lower()
+    if normalized not in {"admin", "user"}:
+        raise ValueError("role must be admin or user")
+    return normalized
 
 
 def validate_password(password: str) -> None:
@@ -278,12 +405,19 @@ def hash_api_token(token: str) -> str:
 
 
 def user_from_row(row: sqlite3.Row) -> User:
-    return User(id=row["id"], username=row["username"], created_at=row["created_at"], updated_at=row["updated_at"])
+    return User(
+        id=row["id"],
+        username=row["username"],
+        role=row["role"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
 
 
 def api_token_from_row(row: sqlite3.Row) -> ApiToken:
     return ApiToken(
         id=row["id"],
+        user_id=row["user_id"],
         name=row["name"],
         token_prefix=row["token_prefix"],
         created_at=row["created_at"],

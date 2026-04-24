@@ -30,7 +30,10 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 
 ## Phase 1: Bookmark-Kern
 
-- [x] Login und Single-User-Setup mit initialem Setup-Token.
+- [~] Login, Setup und Benutzerkonten: initiales Setup-Token, Session-Login,
+  Admin/User-Rollen, eigenes Passwort aendern, Admin-Passwort-Reset,
+  benutzergebundene API-Tokens und erste Benutzerverwaltung vorhanden;
+  spaetere Profilseiten und feinere Rechteverwaltung offen.
 - [~] Link anlegen, bearbeiten, loeschen.
 - [x] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
 - [x] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.
@@ -46,6 +49,9 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.
 - [x] API-Token fuer Import, Extension und Automatisierung.
+- [~] Profile und Kontoverwaltung: Operations-UI fuer Passwortwechsel,
+  Benutzerliste, Benutzer anlegen, Rolle aendern und Benutzer loeschen
+  vorhanden; spaetere Profilseiten und persoenliche Einstellungen offen.
 - [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
   Erkennung im lokalen Netzwerk.
 - [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,

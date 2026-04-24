@@ -31,6 +31,7 @@ The current focus is:
 - [Layout and display UX patterns](docs/LAYOUT_DISPLAY_UX_PATTERNS.md)
 - [Companion extension plan](docs/COMPANION_EXTENSION.md)
 - [Windows development setup](docs/DEVELOPMENT_WINDOWS.md)
+- [Consolidated status analysis, German](docs/linkvault_statusanalyse.md)
 - [Installation requirements impact, German](docs/INSTALLATION_REQUIREMENTS.md)
 - [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox community-scripts target, German](docs/PROXMOX_COMMUNITY_SCRIPT.md)
@@ -131,6 +132,12 @@ Important endpoints:
 - `POST /api/login`
 - `POST /api/logout`
 - `GET /api/me`
+- `GET /api/users`
+- `POST /api/users`
+- `PATCH /api/users/{id}`
+- `DELETE /api/users/{id}`
+- `POST /api/users/{id}/reset-password`
+- `POST /api/account/password`
 - `GET /api/tokens`
 - `POST /api/tokens`
 - `DELETE /api/tokens/{id}`
@@ -192,6 +199,10 @@ After the successful real LXC backup/restore smoke test, the next product
 steps are URL duplicate preflight, a stronger dedup dashboard, and later API
 tokens with a sync setup flow. Archive workers, AI, and browser sync should
 come later in smaller, optional layers.
+
+The current MVP is also no longer purely single-user. LinkVault now has
+admin/user roles, user-scoped API tokens, own password changes, admin password
+reset, and a first user-management flow inside the operations area.
 
 ## License
 
