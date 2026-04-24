@@ -157,6 +157,11 @@ Aktueller Funktionsumfang:
 - LinkVault-Bookmarks wieder in den Browser importieren: mit Vorschau, Zielwahl
   zwischen neuem Restore-Ordner und bestehendem Browser-Ordner, LinkVault-
   Exportfiltern und Duplikatstrategie.
+- Die Restore-Vorschau kommt jetzt serverseitig aus LinkVault, damit dieselben
+  Konflikte auch im Conflict Center sichtbar sind.
+- Pro vorhandenen Browser-Link kann die Extension jetzt eine eigene
+  Konfliktentscheidung wie `skip`, `merge` oder `update` speichern, statt nur
+  einen globalen Modus fuer alle Treffer zu nutzen.
 - Beim Browser-Rueckimport werden bestehende Links nie geloescht. Duplikate
   koennen uebersprungen, vorsichtig gemerged oder aktualisiert und in den
   Zielordner verschoben werden.

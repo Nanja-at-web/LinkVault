@@ -230,3 +230,7 @@ button.primary {
   font-size: .8rem;
   white-space: nowrap;
 }
+
+.preview-decision {
+  margin-top: .25rem;
+}

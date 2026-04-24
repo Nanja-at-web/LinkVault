@@ -384,62 +384,24 @@ async function linkvaultBrowserExport(options = {}) {
 }
 
 async function previewLinkVaultBrowserImport(options = {}) {
-  const exportTree = options.exportTree || await linkvaultBrowserExport(options);
-  const records = flattenLinkVaultExportTree(exportTree);
-  const duplicateAction = options.duplicateAction || "skip";
-  const existingIndex = await browserBookmarkUrlIndex();
-  const previewRecords = [];
-  let create = 0;
-  let skipped = 0;
-  let updated = 0;
-  let merged = 0;
-
-  for (const record of records) {
-    const existing = existingIndex.get(comparableBookmarkUrl(record.url));
-    const previewRecord = {
-      ...record,
-      existing_bookmark: existing ? {
-        id: existing.id,
-        title: existing.title || existing.url,
-        url: existing.url,
-        folder_path: existing.folder_path || ""
-      } : null,
-      action: "create"
-    };
-
-    if (existing) {
-      if (duplicateAction === "update") {
-        previewRecord.action = "update_existing";
-        updated += 1;
-      } else if (duplicateAction === "merge") {
-        previewRecord.action = "merge_existing";
-        merged += 1;
-      } else {
-        previewRecord.action = "skip_existing";
-        skipped += 1;
-      }
-    } else {
-      create += 1;
-    }
-    previewRecords.push(previewRecord);
-  }
-
-  return {
-    root_title: exportTree.root_title || `LinkVault Restore ${new Date().toISOString().slice(0, 10)}`,
-    total: records.length,
-    create,
-    skip_existing: skipped,
-    update_existing: updated,
-    merge_existing: merged,
-    duplicate_action: duplicateAction,
-    records: previewRecords,
-    tree: exportTree
-  };
+  const existingItems = options.existingItems || await browserExistingItems();
+  return linkvaultRequest("/api/export/browser-bookmarks/restore-preview", {
+    method: "POST",
+    body: JSON.stringify({
+      query: options.filters?.query || "",
+      filters: options.filters || {},
+      existing_items: existingItems,
+      duplicate_action: options.duplicateAction || "skip",
+      target_mode: options.targetMode || "new",
+      target_folder_id: options.targetFolderId || "",
+      target_title: options.targetTitle || "",
+      decisions: options.decisions || {}
+    })
+  });
 }
 
 async function importLinkVaultIntoBrowser(options = {}) {
   const preview = options.preview || await previewLinkVaultBrowserImport(options);
-  const duplicateAction = options.duplicateAction || preview.duplicate_action || "skip";
   const target = await resolveBrowserRestoreTarget(options, preview);
   const folderCache = new Map();
   const existingIndex = await browserBookmarkUrlIndex();
@@ -451,13 +413,14 @@ async function importLinkVaultIntoBrowser(options = {}) {
   for (const record of preview.records || []) {
     if (!isRegularWebUrl(record.url)) continue;
     const existing = existingIndex.get(comparableBookmarkUrl(record.url));
+    const action = record.action || preview.duplicate_action || "skip_existing";
     if (existing) {
-      if (duplicateAction === "update") {
+      if (action === "update_existing") {
         const parentId = await ensureBrowserFolderPath(target.id, restorePathForTarget(record.path, target, options), folderCache);
         await updateBrowserBookmark(existing.id, {title: record.title || existing.title || record.url});
         await moveBrowserBookmark(existing.id, {parentId});
         updated += 1;
-      } else if (duplicateAction === "merge") {
+      } else if (action === "merge_existing") {
         await updateBrowserBookmark(existing.id, {title: record.title || existing.title || record.url});
         merged += 1;
       } else {
@@ -600,6 +563,11 @@ function appendBrowserBookmarkIndex(index, node, path) {
   }
 }
 
+async function browserExistingItems() {
+  const index = await browserBookmarkUrlIndex();
+  return [...index.values()];
+}
+
 function comparableBookmarkUrl(value) {
   try {
     const parsed = new URL(value);
@@ -613,6 +581,13 @@ function comparableBookmarkUrl(value) {
   } catch (error) {
     return String(value || "").trim().replace(/\/$/, "").toLowerCase();
   }
+}
+
+async function setConflictDecision(conflictId, decision) {
+  return linkvaultRequest(`/api/conflicts/${conflictId}/decision`, {
+    method: "POST",
+    body: JSON.stringify({decision})
+  });
 }
 
 async function browserBookmarkFolders(options = {}) {

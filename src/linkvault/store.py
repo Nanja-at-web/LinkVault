@@ -862,6 +862,157 @@ class BookmarkStore:
             updated = connection.execute("SELECT * FROM conflicts WHERE id = ?", (conflict_id,)).fetchone()
         return conflict_from_row(updated)
 
+    def update_conflict_decision(self, conflict_id: str, decision: str) -> dict[str, Any]:
+        normalized_decision = normalize_restore_action(decision)
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM conflicts WHERE id = ?", (conflict_id,)).fetchone()
+            if not row:
+                raise ValueError("conflict not found")
+            details = json.loads(row["details_json"] or "{}")
+            details["selected_action"] = normalized_decision
+            details["decision_explicit"] = True
+            connection.execute(
+                """
+                UPDATE conflicts
+                SET state = ?, details_json = ?, updated_at = ?, resolved_at = ?
+                WHERE id = ?
+                """,
+                ("resolved", json.dumps(details, sort_keys=True), now, now, conflict_id),
+            )
+            self.record_activity(
+                connection,
+                kind="conflict_decision_changed",
+                object_type="conflict",
+                object_id=conflict_id,
+                summary=f"Konfliktentscheidung auf {normalized_decision} gesetzt",
+                details={
+                    "conflict_id": conflict_id,
+                    "kind": row["kind"],
+                    "source_type": row["source_type"],
+                    "source_id": row["source_id"],
+                    "selected_action": normalized_decision,
+                },
+            )
+            updated = connection.execute("SELECT * FROM conflicts WHERE id = ?", (conflict_id,)).fetchone()
+        return conflict_from_row(updated)
+
+    def preview_browser_restore(
+        self,
+        existing_items: list[dict[str, Any]],
+        *,
+        query: str = "",
+        filters: BookmarkFilters | None = None,
+        duplicate_action: str = "skip",
+        target_mode: str = "new",
+        target_folder_id: str = "",
+        target_title: str = "",
+        decisions: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        filters = filters or BookmarkFilters(status="active")
+        export_tree = self.browser_export_tree(query=query, filters=filters)
+        records = flatten_browser_export_tree(export_tree)
+        existing_index = browser_existing_index(existing_items)
+        decision_map = {str(key): normalize_restore_action(value) for key, value in (decisions or {}).items()}
+        suggested_action = normalize_restore_action(duplicate_action)
+        counts = {
+            "create": 0,
+            "skip_existing": 0,
+            "update_existing": 0,
+            "merge_existing": 0,
+        }
+        preview_id = uuid4().hex
+        preview_records: list[dict[str, Any]] = []
+        conflict_total = 0
+        decision_total = 0
+        with self.connect() as connection:
+            connection.execute(
+                """
+                DELETE FROM conflicts
+                WHERE kind = 'browser_restore_conflict' AND source_type = 'browser_restore_preview'
+                """
+            )
+            for record in records:
+                existing = existing_index.get(comparable_url(normalize_url(str(record.get("url", "")))))
+                action = "create"
+                conflict_id = ""
+                explicit_decision = False
+                available_actions = ["create"]
+                if existing:
+                    available_actions = ["skip_existing", "merge_existing", "update_existing"]
+                    action = suggested_action
+                    if record["id"] in decision_map:
+                        action = decision_map[record["id"]]
+                        explicit_decision = True
+                        decision_total += 1
+                    conflict_total += 1
+                    conflict_id = self.create_conflict(
+                        connection,
+                        kind="browser_restore_conflict",
+                        source_type="browser_restore_preview",
+                        source_id=record["id"],
+                        state="resolved" if explicit_decision else "open",
+                        summary=f"Browser-Restore-Konflikt: {record['title'] or record['url']}",
+                        details={
+                            "preview_id": preview_id,
+                            "url_raw": record["url"],
+                            "url_normalized": comparable_url(normalize_url(record["url"])),
+                            "target_path": " / ".join(record["path"]),
+                            "source_path": record["source_folder_path"],
+                            "source_root": record["source_root"],
+                            "target_mode": target_mode,
+                            "target_folder_id": target_folder_id,
+                            "target_title": target_title,
+                            "available_actions": available_actions,
+                            "suggested_action": suggested_action,
+                            "selected_action": action,
+                            "decision_explicit": explicit_decision,
+                            "record": record,
+                            "existing_bookmark": existing,
+                        },
+                    )
+                counts[action] += 1
+                preview_records.append(
+                    {
+                        **record,
+                        "action": action,
+                        "available_actions": available_actions,
+                        "suggested_action": suggested_action if existing else "create",
+                        "existing_bookmark": existing,
+                        "decision_required": bool(existing and not explicit_decision),
+                        "conflict_id": conflict_id,
+                    }
+                )
+            self.record_activity(
+                connection,
+                kind="browser_restore_preview",
+                object_type="browser_restore",
+                object_id=preview_id,
+                summary=f"Browser-Restore-Vorschau: {counts['create']} neu, {conflict_total} Konflikte",
+                details={
+                    "preview_id": preview_id,
+                    "query": query,
+                    "filters": filters.to_dict(),
+                    "target_mode": target_mode,
+                    "target_folder_id": target_folder_id,
+                    "target_title": target_title,
+                    "duplicate_action": suggested_action,
+                    "conflict_count": conflict_total,
+                    "decision_count": decision_total,
+                },
+            )
+        return {
+            "preview_id": preview_id,
+            "root_title": export_tree["root_title"],
+            "total": len(records),
+            "conflict_count": conflict_total,
+            "decision_count": decision_total,
+            "duplicate_action": suggested_action,
+            "records": preview_records,
+            "tree": export_tree,
+            **counts,
+        }
+
     def get_setting(self, key: str, default: Any = None) -> dict[str, Any]:
         with self.connect() as connection:
             row = connection.execute("SELECT * FROM user_settings WHERE key = ?", (key,)).fetchone()
@@ -1914,6 +2065,79 @@ def similar_url_score(left: str, right: str) -> int:
 def comparable_url(url: str) -> str:
     parts = urlsplit(url)
     return f"{parts.netloc}{parts.path}?{parts.query}".rstrip("?")
+
+
+def normalize_restore_action(value: Any) -> str:
+    action = str(value or "skip").strip().lower()
+    mapping = {
+        "skip": "skip_existing",
+        "update": "update_existing",
+        "merge": "merge_existing",
+        "skip_existing": "skip_existing",
+        "update_existing": "update_existing",
+        "merge_existing": "merge_existing",
+        "create": "create",
+    }
+    normalized = mapping.get(action, "")
+    if normalized:
+        return normalized
+    raise ValueError("invalid restore action")
+
+
+def browser_existing_index(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    index: dict[str, dict[str, Any]] = {}
+    for item in items:
+        url = str(item.get("url", "")).strip()
+        if not url:
+            continue
+        try:
+            key = comparable_url(normalize_url(url))
+        except ValueError:
+            continue
+        index.setdefault(
+            key,
+            {
+                "id": str(item.get("id", "")),
+                "title": str(item.get("title") or url),
+                "url": url,
+                "folder_path": str(item.get("folder_path", "")),
+            },
+        )
+    return index
+
+
+def flatten_browser_export_tree(export_tree: dict[str, Any]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for root in export_tree.get("roots", []):
+        append_browser_export_record(records, root, [])
+    return records
+
+
+def append_browser_export_record(records: list[dict[str, Any]], node: dict[str, Any], path: list[str]) -> None:
+    if node.get("type") == "bookmark" or node.get("url"):
+        url = str(node.get("url", "")).strip()
+        if not url:
+            return
+        records.append(
+            {
+                "id": str(node.get("id", "")),
+                "title": str(node.get("title") or url),
+                "url": url,
+                "tags": clean_list(node.get("tags", [])),
+                "collections": clean_list(node.get("collections", [])),
+                "path": path,
+                "source_root": str(node.get("source_root", "")),
+                "source_folder_path": str(node.get("source_folder_path", "")),
+                "source_position": to_int(node.get("source_position", len(records)), len(records)),
+                "source_bookmark_id": str(node.get("source_bookmark_id", "")),
+            }
+        )
+        return
+
+    title = str(node.get("title", "")).strip()
+    next_path = [*path, title] if title else path
+    for child in node.get("children", []):
+        append_browser_export_record(records, child, next_path)
 
 
 def group_differences(items: list[dict[str, Any]], winner_id: str) -> list[dict[str, Any]]:

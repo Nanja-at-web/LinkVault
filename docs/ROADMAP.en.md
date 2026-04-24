@@ -89,8 +89,10 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [x] Status filter for active and merged duplicates in the API/UI.
 - [x] Merge history with snapshots for winner-before, losers-before, and
   winner-after.
-- [~] Conflict center for import, sync, and merge conflicts: import and merge
-  conflicts are now visible and stateful; sync/restore conflicts still follow.
+- [~] Conflict center for import, sync, and merge conflicts: import, merge,
+  and Companion restore conflicts are now visible; browser restore now has a
+  preview plus per-link decisions, while larger sync/restore conflicts still
+  follow.
 - [~] Show uncategorized favorites, duplicate favorites, and dead favorites.
 - [ ] Collection health score: metadata, archive status, duplicates, dead
   links, categorization.

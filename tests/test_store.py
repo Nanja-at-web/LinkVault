@@ -603,6 +603,51 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(updated["state"], "ignored")
             self.assertEqual(store.activity_events()[0]["kind"], "conflict_state_changed")
 
+    def test_browser_restore_preview_creates_conflicts_and_decisions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bookmark = store.add(
+                {
+                    "url": "https://example.com/docs?a=1&utm_source=news",
+                    "title": "Docs",
+                    "source_root": "Bookmarks Toolbar",
+                    "source_folder_path": "Bookmarks Toolbar / Research",
+                    "source_position": 0,
+                }
+            )
+
+            preview = store.preview_browser_restore(
+                [
+                    {
+                        "id": "browser-1",
+                        "title": "Existing Docs",
+                        "url": "https://example.com/docs?a=1",
+                        "folder_path": "Bookmarks Toolbar / Existing",
+                    }
+                ],
+                duplicate_action="skip",
+                target_mode="new",
+                target_title="LinkVault Restore",
+            )
+
+            self.assertEqual(preview["total"], 1)
+            self.assertEqual(preview["conflict_count"], 1)
+            self.assertEqual(preview["skip_existing"], 1)
+            self.assertEqual(preview["records"][0]["id"], bookmark.id)
+            self.assertTrue(preview["records"][0]["conflict_id"])
+            self.assertTrue(preview["records"][0]["decision_required"])
+
+            conflicts = store.conflicts(state="open")
+            self.assertEqual(len(conflicts), 1)
+            self.assertEqual(conflicts[0]["kind"], "browser_restore_conflict")
+            self.assertEqual(conflicts[0]["source_id"], bookmark.id)
+            self.assertEqual(conflicts[0]["details"]["selected_action"], "skip_existing")
+
+            decided = store.update_conflict_decision(conflicts[0]["id"], "merge")
+            self.assertEqual(decided["state"], "resolved")
+            self.assertEqual(decided["details"]["selected_action"], "merge_existing")
+            self.assertEqual(store.activity_events()[0]["kind"], "conflict_decision_changed")
+
     def test_inactive_bookmarks_are_not_reindexed_by_update(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

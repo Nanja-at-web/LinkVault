@@ -255,6 +255,28 @@ class AuthHttpTest(unittest.TestCase):
                 )
                 self.assertGreaterEqual(browser_export["bookmark_count"], 1)
                 self.assertEqual(browser_export["roots"][0]["title"], "Bookmarks Toolbar")
+                restore_preview = request_json(
+                    opener,
+                    f"{base_url}/api/export/browser-bookmarks/restore-preview",
+                    {
+                        "existing_items": [
+                            {
+                                "id": "browser-1",
+                                "title": "Existing Browser Bookmark",
+                                "url": "http://127.0.0.1:9/from-browser",
+                                "folder_path": "Bookmarks Toolbar / Existing",
+                            }
+                        ],
+                        "duplicate_action": "skip",
+                        "target_mode": "new",
+                        "target_title": "LinkVault Restore",
+                        "filters": {"status": "active"},
+                    },
+                    headers={"authorization": f"Bearer {token_payload['token']}"},
+                )
+                self.assertEqual(restore_preview["conflict_count"], 1)
+                self.assertEqual(restore_preview["records"][0]["action"], "skip_existing")
+                self.assertTrue(restore_preview["records"][0]["conflict_id"])
                 import_sessions = get_json(opener, f"{base_url}/api/import/sessions")
                 self.assertEqual(import_sessions["sessions"][0]["id"], browser_import["import_session_id"])
                 activity = get_json(opener, f"{base_url}/api/activity")
@@ -269,6 +291,14 @@ class AuthHttpTest(unittest.TestCase):
                 import_conflict = next(conflict for conflict in open_conflicts["conflicts"] if conflict["kind"] == "import_duplicate")
                 all_conflicts = get_json(opener, f"{base_url}/api/conflicts?state=all")
                 self.assertTrue(any(conflict["kind"] == "merge_conflict" for conflict in all_conflicts["conflicts"]))
+                restore_conflict = next(conflict for conflict in all_conflicts["conflicts"] if conflict["kind"] == "browser_restore_conflict")
+                decided_conflict = request_json(
+                    opener,
+                    f"{base_url}/api/conflicts/{restore_conflict['id']}/decision",
+                    {"decision": "update"},
+                )
+                self.assertEqual(decided_conflict["state"], "resolved")
+                self.assertEqual(decided_conflict["details"]["selected_action"], "update_existing")
                 updated_conflict = request_json(
                     opener,
                     f"{base_url}/api/conflicts/{import_conflict['id']}/state",

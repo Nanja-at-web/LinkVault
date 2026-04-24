@@ -330,6 +330,11 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 conflict_id = path.removeprefix("/api/conflicts/").removesuffix("/state").strip("/")
                 self.send_json(store.update_conflict_state(conflict_id, payload.get("state", "open")))
+            elif path.startswith("/api/conflicts/") and path.endswith("/decision"):
+                if not self.require_auth(auth_store):
+                    return
+                conflict_id = path.removeprefix("/api/conflicts/").removesuffix("/decision").strip("/")
+                self.send_json(store.update_conflict_decision(conflict_id, payload.get("decision", "skip_existing")))
             elif path == "/api/bookmarks/preflight":
                 if not self.require_auth(auth_store):
                     return
@@ -469,6 +474,27 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not isinstance(items, list):
                     raise ValueError("items must be a list")
                 self.send_json(store.preview_browser_bookmarks_import(items))
+            elif path == "/api/export/browser-bookmarks/restore-preview":
+                if not self.require_auth(auth_store):
+                    return
+                existing_items = payload.get("existing_items", [])
+                if not isinstance(existing_items, list):
+                    raise ValueError("existing_items must be a list")
+                decisions = payload.get("decisions", {})
+                if not isinstance(decisions, dict):
+                    raise ValueError("decisions must be an object")
+                self.send_json(
+                    store.preview_browser_restore(
+                        existing_items,
+                        query=str(payload.get("query", "")),
+                        filters=filters_from_payload(payload.get("filters")),
+                        duplicate_action=str(payload.get("duplicate_action", "skip")),
+                        target_mode=str(payload.get("target_mode", "new")),
+                        target_folder_id=str(payload.get("target_folder_id", "")),
+                        target_title=str(payload.get("target_title", "")),
+                        decisions=decisions,
+                    )
+                )
             elif path == "/api/import/chromium-json":
                 if not self.require_auth(auth_store):
                     return
@@ -2051,6 +2077,9 @@ def index_html() -> str:
       if (details.url_normalized) lines.push(`Normalisiert: ${escapeHtml(details.url_normalized)}`);
       if (details.session_id) lines.push(`Session: ${escapeHtml(details.session_id.slice(0, 8))}`);
       if (details.source_path) lines.push(`Pfad: ${escapeHtml(details.source_path)}`);
+      if (details.target_path) lines.push(`Zielpfad: ${escapeHtml(details.target_path)}`);
+      if (details.selected_action) lines.push(`Entscheidung: ${escapeHtml(details.selected_action)}`);
+      if (details.existing_bookmark?.folder_path) lines.push(`Vorhanden in: ${escapeHtml(details.existing_bookmark.folder_path)}`);
       if (Array.isArray(details.loser_ids) && details.loser_ids.length) {
         lines.push(`Verlierer: ${escapeHtml(details.loser_ids.map((value) => String(value).slice(0, 8)).join(', '))}`);
       }
@@ -2833,6 +2862,18 @@ def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
     )
 
 
+def filters_from_payload(payload: Any) -> BookmarkFilters:
+    values = payload if isinstance(payload, dict) else {}
+    return BookmarkFilters(
+        favorite=to_optional_bool(values.get("favorite")),
+        pinned=to_optional_bool(values.get("pinned")),
+        domain=str(values.get("domain", "")).strip(),
+        tag=str(values.get("tag", "")).strip(),
+        collection=str(values.get("collection", "")).strip(),
+        status=str(values.get("status", "")).strip() or "active",
+    )
+
+
 def build_import_session_meta(
     payload: dict[str, Any],
     *,
@@ -2855,6 +2896,19 @@ def build_import_session_meta(
 def to_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+def to_optional_bool(value: Any) -> bool | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        lowered = value.lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+        return None
     return bool(value)
 
 

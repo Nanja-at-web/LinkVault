@@ -17,6 +17,7 @@ const linkvaultExportPinnedEl = document.querySelector("#linkvault-export-pinned
 const PREVIEW_DETAIL_LIMIT = 30;
 let lastBrowserRestorePreview = null;
 let lastBrowserRestorePreviewKey = "";
+let lastBrowserRestoreDecisions = {};
 
 function showResult(message, kind = "info") {
   resultEl.textContent = message;
@@ -119,9 +120,9 @@ function previewActionLabel(action) {
     duplicate_existing: "Exists",
     duplicate_in_import: "Duplicate",
     invalid_skipped: "Skipped",
-    skip_existing: "Skip",
-    update_existing: "Update",
-    merge_existing: "Merge"
+    skip_existing: "Skip existing",
+    update_existing: "Update existing",
+    merge_existing: "Merge metadata"
   }[action] || action || "Unknown";
 }
 
@@ -200,7 +201,7 @@ function browserRestoreOptionsKey(options) {
 }
 
 function summarizeBrowserRestorePreview(payload) {
-  return `${payload.total} from LinkVault, ${payload.create} new, ${payload.skip_existing} skipped, ${payload.merge_existing} merged, ${payload.update_existing} updated.`;
+  return `${payload.total} from LinkVault, ${payload.create} new, ${payload.skip_existing} skipped, ${payload.merge_existing} merged, ${payload.update_existing} updated, ${payload.conflict_count || 0} conflicts, ${payload.decision_count || 0} decided.`;
 }
 
 function renderBrowserRestorePreview(payload) {
@@ -213,7 +214,7 @@ function renderBrowserRestorePreview(payload) {
 
   const note = document.createElement("p");
   note.className = "muted";
-  note.textContent = "No browser bookmark will be deleted. Review the first rows before running restore.";
+  note.textContent = "No browser bookmark will be deleted. Review rows and choose skip, merge, or update for each conflict before running restore.";
   previewDetailsEl.append(note);
 
   const records = (payload.records || []).slice(0, PREVIEW_DETAIL_LIMIT);
@@ -258,6 +259,34 @@ function browserRestorePreviewRow(record) {
     duplicate.className = "muted";
     duplicate.textContent = `Existing browser bookmark: ${record.existing_bookmark.title || record.existing_bookmark.url} (${record.existing_bookmark.folder_path || "-"})`;
     row.append(duplicate);
+
+    const decisionLabel = document.createElement("label");
+    decisionLabel.textContent = "Conflict decision";
+    const decisionSelect = document.createElement("select");
+    decisionSelect.className = "preview-decision";
+    for (const optionValue of record.available_actions || ["skip_existing", "merge_existing", "update_existing"]) {
+      const option = document.createElement("option");
+      option.value = optionValue;
+      option.textContent = previewActionLabel(optionValue);
+      option.selected = optionValue === record.action;
+      decisionSelect.append(option);
+    }
+    decisionSelect.addEventListener("change", async () => {
+      try {
+        record.action = decisionSelect.value;
+        if (record.id) {
+          lastBrowserRestoreDecisions[record.id] = decisionSelect.value;
+        }
+        if (record.conflict_id) {
+          await setConflictDecision(record.conflict_id, decisionSelect.value);
+        }
+        showResult(`Decision updated: ${record.title || record.url}`, "ok");
+      } catch (error) {
+        showResult(error.message, "error");
+      }
+    });
+    decisionLabel.append(decisionSelect);
+    row.append(decisionLabel);
   }
 
   return row;
@@ -344,6 +373,7 @@ document.querySelector("#import-into-browser").addEventListener("click", async (
     });
     lastBrowserRestorePreview = null;
     lastBrowserRestorePreviewKey = "";
+    lastBrowserRestoreDecisions = {};
     showResult(`${result.created} created, ${result.skipped_existing} skipped, ${result.merged_existing} merged, ${result.updated_existing} updated in ${result.root_title}.`, "ok");
   } catch (error) {
     showResult(error.message, "error");
@@ -354,7 +384,10 @@ document.querySelector("#preview-browser-restore").addEventListener("click", asy
   try {
     showResult("Building browser restore preview...");
     const options = selectedBrowserRestoreOptions();
-    lastBrowserRestorePreview = await previewLinkVaultBrowserImport(options);
+    lastBrowserRestorePreview = await previewLinkVaultBrowserImport({
+      ...options,
+      decisions: lastBrowserRestoreDecisions
+    });
     lastBrowserRestorePreviewKey = browserRestoreOptionsKey(options);
     showResult(summarizeBrowserRestorePreview(lastBrowserRestorePreview), "ok");
     renderBrowserRestorePreview(lastBrowserRestorePreview);
