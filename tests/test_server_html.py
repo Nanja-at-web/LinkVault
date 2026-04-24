@@ -34,6 +34,9 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("loadViewPreferences", html)
         self.assertIn("Als Standard speichern", html)
         self.assertIn("Benannte Ansicht speichern", html)
+        self.assertIn("Inbox Review", html)
+        self.assertIn("Research Grid", html)
+        self.assertIn("Duplicate Cleanup", html)
 
 
 if __name__ == "__main__":

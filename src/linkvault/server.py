@@ -1149,6 +1149,15 @@ def index_html() -> str:
               <button id="save-named-view" type="button">Benannte Ansicht speichern</button>
             </div>
           </div>
+          <div class="saved-view-presets">
+            <strong>Starter-Views</strong>
+            <p class="muted">Praktische Arbeitsansichten fuer Inbox, Recherche und Dublettenpflege.</p>
+            <div class="inline-actions">
+              <button data-starter-view="Inbox Review" type="button">Inbox Review</button>
+              <button data-starter-view="Research Grid" type="button">Research Grid</button>
+              <button data-starter-view="Duplicate Cleanup" type="button">Duplicate Cleanup</button>
+            </div>
+          </div>
           <div class="inline-actions">
             <button id="save-view-preferences" type="button">Als Standard speichern</button>
             <button id="reset-view-preferences" type="button">Zuruecksetzen</button>
@@ -1335,6 +1344,77 @@ def index_html() -> str:
         date: false,
         favoritePin: true,
         status: true
+      }
+    };
+    const starterViewDefinitions = {
+      'Inbox Review': {
+        view: 'detailed',
+        fields: {
+          title: true,
+          description: true,
+          notes: true,
+          tags: true,
+          collections: true,
+          domain: true,
+          date: true,
+          favoritePin: true,
+          status: true
+        },
+        filters: {
+          query: '',
+          favorite: false,
+          pinned: false,
+          domain: '',
+          tag: '',
+          collection: 'Inbox',
+          status: 'active'
+        }
+      },
+      'Research Grid': {
+        view: 'grid',
+        fields: {
+          title: true,
+          description: true,
+          notes: false,
+          tags: true,
+          collections: true,
+          domain: true,
+          date: false,
+          favoritePin: true,
+          status: true
+        },
+        filters: {
+          query: '',
+          favorite: false,
+          pinned: false,
+          domain: '',
+          tag: '',
+          collection: '',
+          status: 'active'
+        }
+      },
+      'Duplicate Cleanup': {
+        view: 'compact',
+        fields: {
+          title: true,
+          description: true,
+          notes: true,
+          tags: true,
+          collections: true,
+          domain: true,
+          date: true,
+          favoritePin: true,
+          status: true
+        },
+        filters: {
+          query: '',
+          favorite: false,
+          pinned: false,
+          domain: '',
+          tag: '',
+          collection: '',
+          status: 'merged_duplicate'
+        }
       }
     };
     let viewPreferences = clonePreferences(defaultViewPreferences);
@@ -2138,6 +2218,34 @@ def index_html() -> str:
       viewStatus(`Ansicht "${name}" gespeichert.`);
     }
 
+    async function applyStarterView(name) {
+      const starter = starterViewDefinitions[name];
+      if (!starter) return;
+      const preferences = mergeViewPreferences(starter);
+      const response = await fetch('/api/settings/bookmark-views', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+          name,
+          preferences
+        })
+      });
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const payload = await response.json();
+      savedViews = Array.isArray(payload.views) ? payload.views : [];
+      defaultSavedViewName = String(payload.default_name || '').trim();
+      viewPreferences = preferences;
+      applyViewControls();
+      renderSavedViews();
+      document.querySelector('#saved-view-select').value = name;
+      document.querySelector('#saved-view-name').value = name;
+      viewStatus(`Starter-View "${name}" bereit. Du kannst ihn jetzt direkt nutzen oder als Default setzen.`);
+      await refreshBookmarks();
+    }
+
     async function loadSelectedView() {
       const view = selectedSavedView();
       if (!view) {
@@ -2477,6 +2585,9 @@ def index_html() -> str:
     });
     document.querySelector('#saved-view-select').addEventListener('change', (event) => {
       document.querySelector('#saved-view-name').value = event.target.value || '';
+    });
+    document.querySelectorAll('[data-starter-view]').forEach((button) => {
+      button.addEventListener('click', () => applyStarterView(button.dataset.starterView));
     });
     document.querySelector('#save-named-view').addEventListener('click', saveNamedView);
     document.querySelector('#load-saved-view').addEventListener('click', loadSelectedView);
