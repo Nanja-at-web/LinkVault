@@ -85,6 +85,36 @@ class ImportSession:
 
 
 @dataclass
+class RestoreSession:
+    id: str
+    source_name: str
+    target_mode: str
+    target_folder_id: str = ""
+    target_title: str = ""
+    query: str = ""
+    filters_json: str = "{}"
+    duplicate_action: str = "skip_existing"
+    total_count: int = 0
+    create_count: int = 0
+    skip_existing_count: int = 0
+    merge_existing_count: int = 0
+    update_existing_count: int = 0
+    conflict_count: int = 0
+    structure_conflict_count: int = 0
+    decision_count: int = 0
+    state: str = "previewed"
+    result_json: str = "{}"
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    completed_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["filters"] = json.loads(self.filters_json or "{}")
+        payload["result"] = json.loads(self.result_json or "{}")
+        return payload
+
+
+@dataclass
 class ActivityEvent:
     id: str
     kind: str
@@ -278,6 +308,34 @@ class BookmarkStore:
             )
             connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_created_at ON activity_events(created_at)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_kind ON activity_events(kind)")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS restore_sessions (
+                    id TEXT PRIMARY KEY,
+                    source_name TEXT NOT NULL,
+                    target_mode TEXT NOT NULL,
+                    target_folder_id TEXT NOT NULL DEFAULT '',
+                    target_title TEXT NOT NULL DEFAULT '',
+                    query TEXT NOT NULL DEFAULT '',
+                    filters_json TEXT NOT NULL DEFAULT '{}',
+                    duplicate_action TEXT NOT NULL DEFAULT 'skip_existing',
+                    total_count INTEGER NOT NULL DEFAULT 0,
+                    create_count INTEGER NOT NULL DEFAULT 0,
+                    skip_existing_count INTEGER NOT NULL DEFAULT 0,
+                    merge_existing_count INTEGER NOT NULL DEFAULT 0,
+                    update_existing_count INTEGER NOT NULL DEFAULT 0,
+                    conflict_count INTEGER NOT NULL DEFAULT 0,
+                    structure_conflict_count INTEGER NOT NULL DEFAULT 0,
+                    decision_count INTEGER NOT NULL DEFAULT 0,
+                    state TEXT NOT NULL DEFAULT 'previewed',
+                    result_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    completed_at TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_restore_sessions_created_at ON restore_sessions(created_at DESC)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_restore_sessions_state ON restore_sessions(state)")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS conflicts (
@@ -798,6 +856,31 @@ class BookmarkStore:
             ).fetchall()
         return [import_session_from_row(row) for row in rows]
 
+    def restore_sessions(self, limit: int = 20) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM restore_sessions
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        sessions = [restore_session_from_row(row) for row in rows]
+        for session in sessions:
+            session["conflict_groups"] = self.restore_session_conflict_groups(session["id"])
+        return sessions
+
+    def restore_session_conflict_groups(self, session_id: str) -> list[dict[str, Any]]:
+        restore_conflicts = [
+            conflict
+            for conflict in self.conflicts(limit=500, state="all")
+            if conflict["source_type"] == "restore_session"
+            and str(conflict.get("details", {}).get("restore_session_id", "")) == session_id
+        ]
+        return summarize_restore_conflict_groups(restore_conflicts)
+
     def activity_events(self, limit: int = 50) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.execute(
@@ -863,7 +946,7 @@ class BookmarkStore:
         return conflict_from_row(updated)
 
     def update_conflict_decision(self, conflict_id: str, decision: str) -> dict[str, Any]:
-        normalized_decision = normalize_restore_action(decision)
+        normalized_decision = normalize_preview_decision(decision)
         now = datetime.now(UTC).isoformat()
         with self.connect() as connection:
             row = connection.execute("SELECT * FROM conflicts WHERE id = ?", (conflict_id,)).fetchone()
@@ -897,10 +980,95 @@ class BookmarkStore:
             updated = connection.execute("SELECT * FROM conflicts WHERE id = ?", (conflict_id,)).fetchone()
         return conflict_from_row(updated)
 
+    def apply_restore_conflict_group_decision(
+        self,
+        session_id: str,
+        group_key: str,
+        decision: str,
+    ) -> dict[str, Any]:
+        now = datetime.now(UTC).isoformat()
+        normalized_group_key = str(group_key or "").strip()
+        if not normalized_group_key:
+            raise ValueError("group key required")
+        normalized_decision = normalize_preview_decision(decision)
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM conflicts
+                WHERE source_type = 'restore_session'
+                ORDER BY created_at ASC
+                """
+            ).fetchall()
+            matching_rows = []
+            skipped_rows = 0
+            for row in rows:
+                conflict = conflict_from_row(row)
+                details = conflict.get("details", {})
+                if str(details.get("restore_session_id", "")) != session_id:
+                    continue
+                if str(conflict.get("group_key", "")) != normalized_group_key:
+                    continue
+                available_actions = details.get("available_actions", []) if isinstance(details.get("available_actions"), list) else []
+                if available_actions and normalized_decision not in available_actions:
+                    skipped_rows += 1
+                    continue
+                matching_rows.append((row, details))
+            if not matching_rows:
+                raise ValueError("restore conflict group not found")
+
+            updated_count = 0
+            for row, details in matching_rows:
+                details["selected_action"] = normalized_decision
+                details["decision_explicit"] = True
+                connection.execute(
+                    """
+                    UPDATE conflicts
+                    SET state = ?, details_json = ?, updated_at = ?, resolved_at = ?
+                    WHERE id = ?
+                    """,
+                    ("resolved", json.dumps(details, sort_keys=True), now, now, row["id"]),
+                )
+                updated_count += 1
+
+            self.record_activity(
+                connection,
+                kind="conflict_group_decision_changed",
+                object_type="restore_session",
+                object_id=session_id,
+                summary=f"Konfliktgruppe {normalized_group_key} auf {normalized_decision} gesetzt",
+                details={
+                    "restore_session_id": session_id,
+                    "group_key": normalized_group_key,
+                    "selected_action": normalized_decision,
+                    "updated_count": updated_count,
+                    "skipped_count": skipped_rows,
+                },
+            )
+
+            session_row = connection.execute(
+                "SELECT * FROM restore_sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+            if not session_row:
+                raise ValueError("restore session not found")
+        session = restore_session_from_row(session_row)
+        session["conflict_groups"] = self.restore_session_conflict_groups(session_id)
+        return {
+            "session_id": session_id,
+            "group_key": normalized_group_key,
+            "selected_action": normalized_decision,
+            "updated_count": updated_count,
+            "skipped_count": skipped_rows,
+            "session": session,
+            "group": next((group for group in session["conflict_groups"] if group["group_key"] == normalized_group_key), None),
+        }
+
     def preview_browser_restore(
         self,
         existing_items: list[dict[str, Any]],
         *,
+        existing_folders: list[dict[str, Any]] | None = None,
         query: str = "",
         filters: BookmarkFilters | None = None,
         duplicate_action: str = "skip",
@@ -913,7 +1081,10 @@ class BookmarkStore:
         export_tree = self.browser_export_tree(query=query, filters=filters)
         records = flatten_browser_export_tree(export_tree)
         existing_index = browser_existing_index(existing_items)
-        decision_map = {str(key): normalize_restore_action(value) for key, value in (decisions or {}).items()}
+        folder_index = browser_existing_folder_index(existing_folders or [])
+        decision_map = {
+            str(key): normalize_preview_decision(value) for key, value in (decisions or {}).items()
+        }
         suggested_action = normalize_restore_action(duplicate_action)
         counts = {
             "create": 0,
@@ -921,18 +1092,66 @@ class BookmarkStore:
             "update_existing": 0,
             "merge_existing": 0,
         }
-        preview_id = uuid4().hex
+        folder_counts = {
+            "folder_create": 0,
+            "reuse_existing_folder": 0,
+            "folder_create_parallel": 0,
+        }
+        session_id = uuid4().hex
         preview_records: list[dict[str, Any]] = []
+        folder_records: list[dict[str, Any]] = []
         conflict_total = 0
         decision_total = 0
         with self.connect() as connection:
-            connection.execute(
-                """
-                DELETE FROM conflicts
-                WHERE kind = 'browser_restore_conflict' AND source_type = 'browser_restore_preview'
-                """
+            folder_plan = build_browser_restore_folder_plan(
+                records,
+                folder_index=folder_index,
+                preview_id=session_id,
+                target_mode=target_mode,
+                target_folder_id=target_folder_id,
+                target_title=target_title or export_tree["root_title"],
+                decisions=decision_map,
             )
+            for folder_record in folder_plan["folder_records"]:
+                if folder_record["existing_folder"]:
+                    explicit_decision = bool(folder_record["decision_explicit"])
+                    if explicit_decision:
+                        decision_total += 1
+                    conflict_total += 1
+                    conflict_id = self.create_conflict(
+                        connection,
+                        kind="browser_restore_structure_conflict",
+                        source_type="restore_session",
+                        source_id=folder_record["id"],
+                        state="resolved" if explicit_decision else "open",
+                        summary=f"Ordner-Konflikt beim Browser-Restore: {folder_record['title']}",
+                        details={
+                            "restore_session_id": session_id,
+                            "folder_title": folder_record["title"],
+                            "source_path": folder_record["source_path"],
+                            "target_parent_path": folder_record["target_parent_path"],
+                            "target_path": folder_record["target_path"],
+                            "resolved_path": folder_record["resolved_path_text"],
+                            "target_mode": target_mode,
+                            "target_folder_id": target_folder_id,
+                            "target_title": target_title,
+                            "available_actions": folder_record["available_actions"],
+                            "suggested_action": folder_record["suggested_action"],
+                            "selected_action": folder_record["action"],
+                            "decision_explicit": explicit_decision,
+                            "existing_folder": folder_record["existing_folder"],
+                            "action_preview": folder_record.get("action_preview", {}),
+                        },
+                    )
+                    folder_record["conflict_id"] = conflict_id
+                folder_counts[folder_record["action"]] += 1
+                folder_records.append(folder_record)
             for record in records:
+                resolved_path = folder_plan["resolved_paths"].get(tuple(record["path"]), record["path"])
+                resolved_browser_path = [
+                    *path_parts(folder_plan["target_root"]["path"]),
+                    *resolved_path,
+                ]
                 existing = existing_index.get(comparable_url(normalize_url(str(record.get("url", "")))))
                 action = "create"
                 conflict_id = ""
@@ -949,15 +1168,16 @@ class BookmarkStore:
                     conflict_id = self.create_conflict(
                         connection,
                         kind="browser_restore_conflict",
-                        source_type="browser_restore_preview",
+                        source_type="restore_session",
                         source_id=record["id"],
                         state="resolved" if explicit_decision else "open",
                         summary=f"Browser-Restore-Konflikt: {record['title'] or record['url']}",
                         details={
-                            "preview_id": preview_id,
+                            "restore_session_id": session_id,
                             "url_raw": record["url"],
                             "url_normalized": comparable_url(normalize_url(record["url"])),
                             "target_path": " / ".join(record["path"]),
+                            "resolved_path": " / ".join(resolved_browser_path),
                             "source_path": record["source_folder_path"],
                             "source_root": record["source_root"],
                             "target_mode": target_mode,
@@ -969,6 +1189,20 @@ class BookmarkStore:
                             "decision_explicit": explicit_decision,
                             "record": record,
                             "existing_bookmark": existing,
+                            "action_preview": {
+                                "skip_existing": {
+                                    "effect": "keep_existing_link",
+                                    "result_path": str(existing.get("folder_path", "")),
+                                },
+                                "merge_existing": {
+                                    "effect": "merge_into_existing_link",
+                                    "result_path": str(existing.get("folder_path", "")),
+                                },
+                                "update_existing": {
+                                    "effect": "update_existing_link",
+                                    "result_path": str(existing.get("folder_path", "")),
+                                },
+                            },
                         },
                     )
                 counts[action] += 1
@@ -980,17 +1214,59 @@ class BookmarkStore:
                         "suggested_action": suggested_action if existing else "create",
                         "existing_bookmark": existing,
                         "decision_required": bool(existing and not explicit_decision),
+                        "resolved_path": resolved_path,
+                        "resolved_browser_path": resolved_browser_path,
                         "conflict_id": conflict_id,
                     }
                 )
+            connection.execute(
+                """
+                INSERT INTO restore_sessions (
+                    id, source_name, target_mode, target_folder_id, target_title,
+                    query, filters_json, duplicate_action, total_count, create_count,
+                    skip_existing_count, merge_existing_count, update_existing_count,
+                    conflict_count, structure_conflict_count, decision_count, state,
+                    result_json, created_at, completed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    "browser_restore",
+                    target_mode,
+                    target_folder_id,
+                    target_title,
+                    query,
+                    json.dumps(filters.to_dict(), sort_keys=True),
+                    suggested_action,
+                    len(records),
+                    counts["create"],
+                    counts["skip_existing"],
+                    counts["merge_existing"],
+                    counts["update_existing"],
+                    conflict_total,
+                    folder_plan["structure_conflict_count"],
+                    decision_total,
+                    "previewed",
+                    json.dumps(
+                        {
+                            "target_root": folder_plan["target_root"],
+                            "folder_counts": folder_counts,
+                        },
+                        sort_keys=True,
+                    ),
+                    datetime.now(UTC).isoformat(),
+                    "",
+                ),
+            )
             self.record_activity(
                 connection,
                 kind="browser_restore_preview",
-                object_type="browser_restore",
-                object_id=preview_id,
+                object_type="restore_session",
+                object_id=session_id,
                 summary=f"Browser-Restore-Vorschau: {counts['create']} neu, {conflict_total} Konflikte",
                 details={
-                    "preview_id": preview_id,
+                    "restore_session_id": session_id,
                     "query": query,
                     "filters": filters.to_dict(),
                     "target_mode": target_mode,
@@ -999,19 +1275,92 @@ class BookmarkStore:
                     "duplicate_action": suggested_action,
                     "conflict_count": conflict_total,
                     "decision_count": decision_total,
+                    "structure_conflict_count": folder_plan["structure_conflict_count"],
+                    "target_root": folder_plan["target_root"],
                 },
             )
         return {
-            "preview_id": preview_id,
+            "session_id": session_id,
+            "preview_id": session_id,
             "root_title": export_tree["root_title"],
             "total": len(records),
             "conflict_count": conflict_total,
             "decision_count": decision_total,
+            "structure_conflict_count": folder_plan["structure_conflict_count"],
             "duplicate_action": suggested_action,
             "records": preview_records,
+            "folder_records": folder_records,
+            "target_root": folder_plan["target_root"],
             "tree": export_tree,
             **counts,
+            **folder_counts,
         }
+
+    def complete_restore_session(
+        self,
+        session_id: str,
+        *,
+        created: int,
+        skipped_existing: int,
+        merged_existing: int,
+        updated_existing: int,
+        root_title: str = "",
+        status: str = "completed",
+    ) -> dict[str, Any]:
+        completed_at = datetime.now(UTC).isoformat()
+        normalized_status = str(status or "completed").strip().lower()
+        if normalized_status not in {"completed", "failed"}:
+            normalized_status = "completed"
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM restore_sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+            if not row:
+                raise ValueError("restore session not found")
+            previous_result = json.loads(row["result_json"] or "{}")
+            result = {
+                **previous_result,
+                "created": created,
+                "skipped_existing": skipped_existing,
+                "merged_existing": merged_existing,
+                "updated_existing": updated_existing,
+                "root_title": root_title,
+            }
+            connection.execute(
+                """
+                UPDATE restore_sessions
+                SET state = ?, result_json = ?, completed_at = ?
+                WHERE id = ?
+                """,
+                (normalized_status, json.dumps(result, sort_keys=True), completed_at, session_id),
+            )
+            self.record_activity(
+                connection,
+                kind="browser_restore_completed" if normalized_status == "completed" else "browser_restore_failed",
+                object_type="restore_session",
+                object_id=session_id,
+                summary=(
+                    f"Browser-Restore abgeschlossen: {created} erstellt, {skipped_existing} uebersprungen, "
+                    f"{merged_existing} zusammengefuehrt, {updated_existing} aktualisiert"
+                    if normalized_status == "completed"
+                    else "Browser-Restore fehlgeschlagen"
+                ),
+                details={
+                    "restore_session_id": session_id,
+                    "created": created,
+                    "skipped_existing": skipped_existing,
+                    "merged_existing": merged_existing,
+                    "updated_existing": updated_existing,
+                    "root_title": root_title,
+                    "state": normalized_status,
+                },
+            )
+            updated = connection.execute(
+                "SELECT * FROM restore_sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+        return restore_session_from_row(updated)
 
     def get_setting(self, key: str, default: Any = None) -> dict[str, Any]:
         with self.connect() as connection:
@@ -1816,6 +2165,31 @@ def import_session_from_row(row: sqlite3.Row) -> dict[str, Any]:
     ).to_dict()
 
 
+def restore_session_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return RestoreSession(
+        id=row["id"],
+        source_name=row["source_name"],
+        target_mode=row["target_mode"],
+        target_folder_id=row["target_folder_id"],
+        target_title=row["target_title"],
+        query=row["query"],
+        filters_json=row["filters_json"],
+        duplicate_action=row["duplicate_action"],
+        total_count=row["total_count"],
+        create_count=row["create_count"],
+        skip_existing_count=row["skip_existing_count"],
+        merge_existing_count=row["merge_existing_count"],
+        update_existing_count=row["update_existing_count"],
+        conflict_count=row["conflict_count"],
+        structure_conflict_count=row["structure_conflict_count"],
+        decision_count=row["decision_count"],
+        state=row["state"],
+        result_json=row["result_json"],
+        created_at=row["created_at"],
+        completed_at=row["completed_at"],
+    ).to_dict()
+
+
 def activity_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
     return ActivityEvent(
         id=row["id"],
@@ -1829,7 +2203,7 @@ def activity_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
 
 
 def conflict_from_row(row: sqlite3.Row) -> dict[str, Any]:
-    return ConflictRecord(
+    payload = ConflictRecord(
         id=row["id"],
         kind=row["kind"],
         source_type=row["source_type"],
@@ -1841,6 +2215,10 @@ def conflict_from_row(row: sqlite3.Row) -> dict[str, Any]:
         updated_at=row["updated_at"],
         resolved_at=row["resolved_at"],
     ).to_dict()
+    if payload["source_type"] == "restore_session":
+        meta = restore_conflict_group_meta(payload)
+        payload.update(meta)
+    return payload
 
 
 def stored_setting_from_row(row: sqlite3.Row) -> StoredSetting:
@@ -1863,6 +2241,113 @@ def normalize_conflict_state(value: Any, *, allow_all: bool = False) -> str:
     if state not in allowed:
         return "all" if allow_all else "open"
     return state
+
+
+def restore_conflict_group_meta(conflict: dict[str, Any]) -> dict[str, Any]:
+    details = conflict.get("details", {}) if isinstance(conflict.get("details"), dict) else {}
+    source_id = str(conflict.get("source_id", ""))
+    if conflict.get("kind") == "browser_restore_structure_conflict":
+        is_target_root = source_id.startswith("root::") or not str(details.get("target_parent_path", "")).strip()
+        if is_target_root:
+            return {
+                "group_key": "target_root",
+                "group_title": "Zielordner",
+                "group_description": "Restore-Ziel kollidiert mit einem vorhandenen Browser-Ordner.",
+            }
+        return {
+            "group_key": "structure",
+            "group_title": "Bestehende Struktur",
+            "group_description": "Ordnerpfade kollidieren mit der vorhandenen Browser-Struktur.",
+        }
+    if conflict.get("kind") == "browser_restore_conflict":
+        return {
+            "group_key": "existing_links",
+            "group_title": "Vorhandene Links",
+            "group_description": "Links existieren bereits im Ziel und brauchen eine Sync-/Restore-Entscheidung.",
+        }
+    return {
+        "group_key": "other",
+        "group_title": "Weitere Konflikte",
+        "group_description": "Weitere Restore-Konflikte ohne feste Gruppe.",
+    }
+
+
+def summarize_restore_conflict_groups(conflicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    for conflict in conflicts:
+        session_id = str(conflict.get("details", {}).get("restore_session_id", ""))
+        group_key = str(conflict.get("group_key", "other"))
+        group_title = str(conflict.get("group_title", "Weitere Konflikte"))
+        group_description = str(conflict.get("group_description", ""))
+        entry = grouped.setdefault(
+            (session_id, group_key),
+            {
+                "session_id": session_id,
+                "group_key": group_key,
+                "group_title": group_title,
+                "group_description": group_description,
+                "total_count": 0,
+                "open_count": 0,
+                "resolved_count": 0,
+                "ignored_count": 0,
+                "explicit_decision_count": 0,
+                "available_actions": [],
+                "selected_actions": {},
+                "paths": [],
+                "target_paths": [],
+                "conflict_ids": [],
+                "action_previews": {},
+            },
+        )
+        entry["total_count"] += 1
+        state = str(conflict.get("state", "open"))
+        entry[f"{state}_count"] = entry.get(f"{state}_count", 0) + 1
+        details = conflict.get("details", {}) if isinstance(conflict.get("details"), dict) else {}
+        if details.get("decision_explicit"):
+            entry["explicit_decision_count"] += 1
+        selected_action = str(details.get("selected_action", "")).strip()
+        if selected_action:
+            entry["selected_actions"][selected_action] = entry["selected_actions"].get(selected_action, 0) + 1
+        for action in details.get("available_actions", []) if isinstance(details.get("available_actions"), list) else []:
+            if action not in entry["available_actions"]:
+                entry["available_actions"].append(action)
+        source_path = str(details.get("source_path", "")).strip()
+        if source_path and source_path not in entry["paths"]:
+            entry["paths"].append(source_path)
+        target_path = str(details.get("resolved_path") or details.get("target_path") or "").strip()
+        if target_path and target_path not in entry["target_paths"]:
+            entry["target_paths"].append(target_path)
+        entry["conflict_ids"].append(str(conflict.get("id", "")))
+        action_preview_map = details.get("action_preview", {}) if isinstance(details.get("action_preview"), dict) else {}
+        for action, preview in action_preview_map.items():
+            if not isinstance(preview, dict):
+                continue
+            action_entry = entry["action_previews"].setdefault(
+                action,
+                {
+                    "action": action,
+                    "count": 0,
+                    "effects": {},
+                    "path_examples": [],
+                },
+            )
+            action_entry["count"] += 1
+            effect = str(preview.get("effect", "")).strip()
+            if effect:
+                action_entry["effects"][effect] = action_entry["effects"].get(effect, 0) + 1
+            result_path = str(preview.get("result_path", "")).strip()
+            if result_path and result_path not in action_entry["path_examples"] and len(action_entry["path_examples"]) < 3:
+                action_entry["path_examples"].append(result_path)
+
+    def sort_key(item: dict[str, Any]) -> tuple[int, str]:
+        order = {"target_root": 0, "structure": 1, "existing_links": 2, "other": 3}
+        return (order.get(item["group_key"], 99), item["group_title"])
+
+    summarized = list(grouped.values())
+    for entry in summarized:
+        entry["paths"] = entry["paths"][:3]
+        entry["target_paths"] = entry["target_paths"][:3]
+    return sorted(summarized, key=sort_key)
 
 
 def checksum_for_text(value: str) -> str:
@@ -2084,6 +2569,30 @@ def normalize_restore_action(value: Any) -> str:
     raise ValueError("invalid restore action")
 
 
+def normalize_structure_action(value: Any, *, default: str = "reuse_existing_folder") -> str:
+    action = str(value or default).strip().lower()
+    mapping = {
+        "reuse": "reuse_existing_folder",
+        "reuse_existing_folder": "reuse_existing_folder",
+        "create_parallel": "folder_create_parallel",
+        "create_parallel_folder": "folder_create_parallel",
+        "folder_create_parallel": "folder_create_parallel",
+        "create": "folder_create",
+        "folder_create": "folder_create",
+    }
+    normalized = mapping.get(action, "")
+    if normalized:
+        return normalized
+    raise ValueError("invalid structure action")
+
+
+def normalize_preview_decision(value: Any) -> str:
+    try:
+        return normalize_restore_action(value)
+    except ValueError:
+        return normalize_structure_action(value)
+
+
 def browser_existing_index(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     index: dict[str, dict[str, Any]] = {}
     for item in items:
@@ -2104,6 +2613,34 @@ def browser_existing_index(items: list[dict[str, Any]]) -> dict[str, dict[str, A
             },
         )
     return index
+
+
+def browser_existing_folder_index(items: list[dict[str, Any]]) -> dict[str, Any]:
+    by_id: dict[str, dict[str, Any]] = {}
+    by_path: dict[str, dict[str, Any]] = {}
+    children_by_parent: dict[str, set[str]] = {}
+    for item in items:
+        title = str(item.get("title", "")).strip()
+        path = str(item.get("path", "")).strip()
+        if not title and not path:
+            continue
+        parent_path = str(item.get("parent_path", "")).strip()
+        folder = {
+            "id": str(item.get("id", "")),
+            "title": title or (path_parts(path)[-1] if path else ""),
+            "path": path,
+            "parent_path": parent_path,
+        }
+        if folder["id"]:
+            by_id[folder["id"]] = folder
+        if path:
+            by_path[path.casefold()] = folder
+        children_by_parent.setdefault(parent_path.casefold(), set()).add(folder["title"])
+    return {
+        "by_id": by_id,
+        "by_path": by_path,
+        "children_by_parent": children_by_parent,
+    }
 
 
 def flatten_browser_export_tree(export_tree: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2138,6 +2675,194 @@ def append_browser_export_record(records: list[dict[str, Any]], node: dict[str, 
     next_path = [*path, title] if title else path
     for child in node.get("children", []):
         append_browser_export_record(records, child, next_path)
+
+
+def build_browser_restore_folder_plan(
+    records: list[dict[str, Any]],
+    *,
+    folder_index: dict[str, Any],
+    preview_id: str,
+    target_mode: str,
+    target_folder_id: str,
+    target_title: str,
+    decisions: dict[str, str],
+) -> dict[str, Any]:
+    by_id = folder_index.get("by_id", {})
+    by_path = folder_index.get("by_path", {})
+    children_by_parent = {
+        key: set(values) for key, values in folder_index.get("children_by_parent", {}).items()
+    }
+    folder_records: list[dict[str, Any]] = []
+    resolved_paths_relative: dict[tuple[str, ...], list[str]] = {}
+    structure_conflict_count = 0
+
+    selected_target = by_id.get(target_folder_id, {}) if target_folder_id else {}
+    target_folder_path = path_parts(str(selected_target.get("path", "")))
+    target_folder_name = str(selected_target.get("title", "")).strip()
+    target_root_title = target_folder_name
+    target_root_id = target_folder_id if target_mode == "existing" else ""
+    target_root_path: list[str] = target_folder_path.copy() if target_mode == "existing" else []
+    root_conflict_record: dict[str, Any] | None = None
+
+    if target_mode != "existing":
+        desired_root_title = str(target_title or f"LinkVault Restore").strip()
+        root_record_id = folder_decision_id([], desired_root_title, kind="root")
+        existing_root = by_path.get(desired_root_title.casefold())
+        if existing_root:
+            structure_conflict_count += 1
+            action = normalize_structure_action(
+                decisions.get(root_record_id),
+                default="folder_create_parallel",
+            )
+            explicit = root_record_id in decisions
+            resolved_title = (
+                parallel_folder_title(desired_root_title, children_by_parent.get("".casefold(), set()))
+                if action == "folder_create_parallel"
+                else desired_root_title
+            )
+            target_root_title = resolved_title
+            target_root_id = str(existing_root["id"]) if action == "reuse_existing_folder" else ""
+            target_root_path = [resolved_title]
+            root_conflict_record = {
+                "id": root_record_id,
+                "title": desired_root_title,
+                "source_path": desired_root_title,
+                "target_parent_path": "",
+                "target_path": desired_root_title,
+                "resolved_path": [],
+                "resolved_path_text": resolved_title,
+                "action": action,
+                "available_actions": ["reuse_existing_folder", "folder_create_parallel"],
+                "suggested_action": "folder_create_parallel",
+                "decision_explicit": explicit,
+                "existing_folder": existing_root,
+                "action_preview": {
+                    "reuse_existing_folder": {
+                        "result_path": str(existing_root.get("path", desired_root_title)),
+                        "effect": "use_existing_root",
+                    },
+                    "folder_create_parallel": {
+                        "result_path": resolved_title,
+                        "effect": "create_parallel_root",
+                    },
+                },
+                "conflict_id": "",
+            }
+            folder_records.append(root_conflict_record)
+        else:
+            children_by_parent.setdefault("".casefold(), set()).add(desired_root_title)
+            target_root_title = desired_root_title
+            target_root_path = [desired_root_title]
+
+    unique_paths: list[list[str]] = []
+    seen_paths: set[tuple[str, ...]] = set()
+    for record in records:
+        relative_path = adjusted_restore_path(record["path"], target_mode, target_folder_name)
+        for index in range(1, len(relative_path) + 1):
+            prefix = tuple(relative_path[:index])
+            if prefix in seen_paths:
+                continue
+            seen_paths.add(prefix)
+            unique_paths.append(list(prefix))
+
+    for source_prefix in unique_paths:
+        title = source_prefix[-1]
+        parent_source_prefix = tuple(source_prefix[:-1])
+        parent_resolved_relative = resolved_paths_relative.get(parent_source_prefix, [])
+        parent_absolute = [*target_root_path, *parent_resolved_relative]
+        parent_path_text = " / ".join(parent_absolute)
+        candidate_path = [*parent_absolute, title]
+        existing_folder = by_path.get(" / ".join(candidate_path).casefold())
+        action = "folder_create"
+        explicit = False
+        conflict_id = ""
+        available_actions = ["folder_create"]
+        resolved_title = title
+        if existing_folder:
+            structure_conflict_count += 1
+            folder_record_id = folder_decision_id(parent_absolute, title)
+            action = normalize_structure_action(
+                decisions.get(folder_record_id),
+                default="reuse_existing_folder",
+            )
+            explicit = folder_record_id in decisions
+            available_actions = ["reuse_existing_folder", "folder_create_parallel"]
+            if action == "folder_create_parallel":
+                resolved_title = parallel_folder_title(title, children_by_parent.get(parent_path_text.casefold(), set()))
+            resolved_relative = [*parent_resolved_relative, resolved_title]
+            resolved_absolute = [*target_root_path, *resolved_relative]
+            folder_records.append(
+                {
+                    "id": folder_record_id,
+                    "title": title,
+                    "source_path": " / ".join(source_prefix),
+                    "target_parent_path": parent_path_text,
+                    "target_path": " / ".join(candidate_path),
+                    "resolved_path": resolved_relative,
+                    "resolved_path_text": " / ".join(resolved_absolute),
+                    "action": action,
+                    "available_actions": available_actions,
+                    "suggested_action": "reuse_existing_folder",
+                    "decision_explicit": explicit,
+                    "existing_folder": existing_folder,
+                    "action_preview": {
+                        "reuse_existing_folder": {
+                            "result_path": " / ".join(candidate_path),
+                            "effect": "reuse_existing_folder",
+                        },
+                        "folder_create_parallel": {
+                            "result_path": " / ".join(resolved_absolute),
+                            "effect": "create_parallel_folder",
+                        },
+                    },
+                    "conflict_id": conflict_id,
+                }
+            )
+        resolved_relative = [*parent_resolved_relative, resolved_title]
+        resolved_paths_relative[tuple(source_prefix)] = resolved_relative
+        children_by_parent.setdefault(parent_path_text.casefold(), set()).add(resolved_title)
+
+    for record in records:
+        relative_path = adjusted_restore_path(record["path"], target_mode, target_folder_name)
+        resolved_paths_relative[tuple(record["path"])] = resolved_paths_relative.get(tuple(relative_path), relative_path)
+
+    return {
+        "folder_records": folder_records,
+        "resolved_paths": resolved_paths_relative,
+        "structure_conflict_count": structure_conflict_count,
+        "target_root": {
+            "title": target_root_title,
+            "id": target_root_id,
+            "path": " / ".join(target_root_path),
+            "reuse_existing": bool(target_root_id),
+        },
+    }
+
+
+def adjusted_restore_path(path: list[str], target_mode: str, target_folder_name: str) -> list[str]:
+    clean_path = [str(part).strip() for part in path if str(part).strip()]
+    if target_mode != "existing" or not clean_path:
+        return clean_path
+    if target_folder_name and clean_path[0].casefold() == target_folder_name.casefold():
+        return clean_path[1:]
+    return clean_path
+
+
+def folder_decision_id(parent_resolved: list[str], title: str, *, kind: str = "folder") -> str:
+    parent_text = " / ".join(parent_resolved)
+    return f"{kind}::{parent_text}::{title}"
+
+
+def parallel_folder_title(title: str, sibling_titles: set[str]) -> str:
+    suffix = f"{title} (LinkVault)"
+    if suffix not in sibling_titles:
+        return suffix
+    index = 2
+    while True:
+        candidate = f"{title} (LinkVault {index})"
+        if candidate not in sibling_titles:
+            return candidate
+        index += 1
 
 
 def group_differences(items: list[dict[str, Any]], winner_id: str) -> list[dict[str, Any]]:

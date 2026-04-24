@@ -237,6 +237,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json({"sessions": store.import_sessions()})
+        elif path == "/api/restore/sessions":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json({"sessions": store.restore_sessions()})
         elif path == "/api/activity":
             if not self.require_auth(auth_store):
                 return
@@ -335,6 +339,19 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 conflict_id = path.removeprefix("/api/conflicts/").removesuffix("/decision").strip("/")
                 self.send_json(store.update_conflict_decision(conflict_id, payload.get("decision", "skip_existing")))
+            elif path.startswith("/api/restore/sessions/") and "/conflict-groups/" in path and path.endswith("/decision"):
+                if not self.require_auth(auth_store):
+                    return
+                session_path = path.removeprefix("/api/restore/sessions/")
+                session_id, _, remainder = session_path.partition("/conflict-groups/")
+                group_key = remainder.removesuffix("/decision").strip("/")
+                self.send_json(
+                    store.apply_restore_conflict_group_decision(
+                        session_id.strip("/"),
+                        unquote(group_key),
+                        payload.get("decision", "skip_existing"),
+                    )
+                )
             elif path == "/api/bookmarks/preflight":
                 if not self.require_auth(auth_store):
                     return
@@ -480,12 +497,16 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 existing_items = payload.get("existing_items", [])
                 if not isinstance(existing_items, list):
                     raise ValueError("existing_items must be a list")
+                existing_folders = payload.get("existing_folders", [])
+                if not isinstance(existing_folders, list):
+                    raise ValueError("existing_folders must be a list")
                 decisions = payload.get("decisions", {})
                 if not isinstance(decisions, dict):
                     raise ValueError("decisions must be an object")
                 self.send_json(
                     store.preview_browser_restore(
                         existing_items,
+                        existing_folders=existing_folders,
                         query=str(payload.get("query", "")),
                         filters=filters_from_payload(payload.get("filters")),
                         duplicate_action=str(payload.get("duplicate_action", "skip")),
@@ -493,6 +514,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                         target_folder_id=str(payload.get("target_folder_id", "")),
                         target_title=str(payload.get("target_title", "")),
                         decisions=decisions,
+                    )
+                )
+            elif path == "/api/export/browser-bookmarks/restore-complete":
+                if not self.require_auth(auth_store):
+                    return
+                self.send_json(
+                    store.complete_restore_session(
+                        str(payload.get("session_id", "")),
+                        created=int(payload.get("created", 0)),
+                        skipped_existing=int(payload.get("skipped_existing", 0)),
+                        merged_existing=int(payload.get("merged_existing", 0)),
+                        updated_existing=int(payload.get("updated_existing", 0)),
+                        root_title=str(payload.get("root_title", "")),
+                        status=str(payload.get("status", "completed")),
                     )
                 )
             elif path == "/api/import/chromium-json":
@@ -1278,7 +1313,7 @@ def index_html() -> str:
         <div class="panel-header">
           <div>
             <h3>Conflict Center</h3>
-            <p class="muted">Import-, Merge- und spaeter Sync-Konflikte an einer Stelle.</p>
+        <p class="muted">Import-, Merge- und spaeter Sync-Konflikte an einer Stelle.</p>
           </div>
           <label>Filter
             <select id="conflict-state-filter">
@@ -1289,11 +1324,17 @@ def index_html() -> str:
             </select>
           </label>
         </div>
+        <div id="conflict-groups" class="history-list" style="margin-bottom:.75rem;"></div>
         <div id="conflict-center" class="history-list"></div>
       </section>
       <section class="mini-card">
         <h3>Letzte Import-Sessions</h3>
         <div id="import-sessions" class="history-list"></div>
+      </section>
+      <section class="mini-card">
+        <h3>Restore-Sessions</h3>
+        <p class="muted">Vorschau, Abschluss und Konfliktlage fuer Browser-Rueckimporte.</p>
+        <div id="restore-sessions" class="history-list"></div>
       </section>
       <section class="mini-card">
         <h3>Aktivitaet</h3>
@@ -1337,9 +1378,11 @@ def index_html() -> str:
     const bookmarkCount = document.querySelector('#bookmark-count');
     const filterSummary = document.querySelector('#filter-summary');
     const operationsStatus = document.querySelector('#operations-status');
+    const conflictGroupsEl = document.querySelector('#conflict-groups');
     const conflictCenterEl = document.querySelector('#conflict-center');
     const conflictStateFilterEl = document.querySelector('#conflict-state-filter');
     const importSessionsEl = document.querySelector('#import-sessions');
+    const restoreSessionsEl = document.querySelector('#restore-sessions');
     const activityLogEl = document.querySelector('#activity-log');
     const mergeHistoryEl = document.querySelector('#merge-history');
     const apiTokenForm = document.querySelector('#api-token-form');
@@ -1673,16 +1716,17 @@ def index_html() -> str:
 
     async function refreshOperations() {
       const conflictState = conflictStateFilterEl.value || 'open';
-      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, activityResponse, conflictResponse] = await Promise.all([
+      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, restoreResponse, activityResponse, conflictResponse] = await Promise.all([
         fetch('/healthz'),
         fetch('/api/setup/status'),
         fetch('/api/dedup/merges'),
         fetch('/api/tokens'),
         fetch('/api/import/sessions'),
+        fetch('/api/restore/sessions'),
         fetch('/api/activity'),
         fetch(`/api/conflicts?state=${encodeURIComponent(conflictState)}`)
       ]);
-      if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || activityResponse.status === 401 || conflictResponse.status === 401) {
+      if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || restoreResponse.status === 401 || activityResponse.status === 401 || conflictResponse.status === 401) {
         await loadAuth();
         return;
       }
@@ -1691,6 +1735,7 @@ def index_html() -> str:
       const mergeHistory = await mergeResponse.json();
       const tokens = await tokenResponse.json();
       const sessions = await importResponse.json();
+      const restoreSessions = await restoreResponse.json();
       const activity = await activityResponse.json();
       const conflicts = await conflictResponse.json();
       renderOperations(
@@ -1699,6 +1744,7 @@ def index_html() -> str:
         mergeHistory.events || [],
         tokens.tokens || [],
         sessions.sessions || [],
+        restoreSessions.sessions || [],
         activity.events || [],
         conflicts.conflicts || []
       );
@@ -1967,7 +2013,7 @@ def index_html() -> str:
       });
     }
 
-    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, activityEvents, conflicts) {
+    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, restoreSessions, activityEvents, conflicts) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
           <h3>Health</h3>
@@ -1995,6 +2041,11 @@ def index_html() -> str:
           <p class="muted">Datei- und Companion-Importe</p>
         </div>
         <div class="mini-card">
+          <h3>Restore-Sessions</h3>
+          <p><strong>${restoreSessions.length}</strong> sichtbar</p>
+          <p class="muted">Browser-Rueckimport mit Vorschau und Abschlussstatus</p>
+        </div>
+        <div class="mini-card">
           <h3>Aktivitaet</h3>
           <p><strong>${activityEvents.length}</strong> Ereignisse</p>
           <p class="muted">Importe, Bulk, Merge, Loeschen</p>
@@ -2008,6 +2059,7 @@ def index_html() -> str:
 
       renderConflicts(conflicts);
       renderImportSessions(importSessions);
+      renderRestoreSessions(restoreSessions);
       renderActivity(activityEvents);
       renderApiTokens(apiTokens);
 
@@ -2041,6 +2093,7 @@ def index_html() -> str:
     }
 
     function renderConflicts(conflicts) {
+      renderConflictGroups(conflicts);
       if (!conflicts.length) {
         conflictCenterEl.innerHTML = '<div class="empty">Keine Konflikte fuer diesen Filter.</div>';
         return;
@@ -2052,6 +2105,7 @@ def index_html() -> str:
           <p>Status: <strong>${escapeHtml(conflict.state)}</strong>${conflict.resolved_at ? ` · erledigt ${escapeHtml(conflict.resolved_at)}` : ''}</p>
           ${renderConflictDetails(conflict.details)}
           <div class="inline-actions">
+            ${renderConflictDecisionControl(conflict)}
             ${conflict.state !== 'open' ? `<button type="button" data-conflict-state="open" data-conflict-id="${escapeAttr(conflict.id)}">Wieder offen</button>` : ''}
             ${conflict.state !== 'resolved' ? `<button type="button" data-conflict-state="resolved" data-conflict-id="${escapeAttr(conflict.id)}">Als erledigt markieren</button>` : ''}
             ${conflict.state !== 'ignored' ? `<button type="button" data-conflict-state="ignored" data-conflict-id="${escapeAttr(conflict.id)}">Ignorieren</button>` : ''}
@@ -2068,6 +2122,156 @@ def index_html() -> str:
           await refreshOperations();
         });
       });
+      conflictCenterEl.querySelectorAll('[data-conflict-decision]').forEach((select) => {
+        select.addEventListener('change', async () => {
+          await fetch(`/api/conflicts/${select.dataset.conflictId}/decision`, {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: JSON.stringify({decision: select.value})
+          });
+          await refreshOperations();
+        });
+      });
+    }
+
+    function renderConflictGroups(conflicts) {
+      const restoreConflicts = conflicts.filter((conflict) => conflict.source_type === 'restore_session' && conflict.group_key);
+      if (!restoreConflicts.length) {
+        conflictGroupsEl.innerHTML = '<div class="empty">Noch keine gruppierten Restore-/Sync-Konflikte sichtbar.</div>';
+        return;
+      }
+      const grouped = new Map();
+      restoreConflicts.forEach((conflict) => {
+        const sessionId = String(conflict.details?.restore_session_id || '');
+        const key = `${sessionId}::${conflict.group_key}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            sessionId,
+            groupKey: conflict.group_key,
+            title: conflict.group_title || conflict.group_key,
+            description: conflict.group_description || '',
+            total: 0,
+            open: 0,
+            resolved: 0,
+            ignored: 0,
+            selectedActions: {},
+            targetPaths: [],
+            sourcePaths: [],
+            actionPreviews: {},
+          });
+        }
+        const entry = grouped.get(key);
+        entry.total += 1;
+        entry[String(conflict.state || 'open')] += 1;
+        const selected = String(conflict.details?.selected_action || '').trim();
+        if (selected) entry.selectedActions[selected] = (entry.selectedActions[selected] || 0) + 1;
+        const targetPath = String(conflict.details?.resolved_path || conflict.details?.target_path || '').trim();
+        if (targetPath && !entry.targetPaths.includes(targetPath)) entry.targetPaths.push(targetPath);
+        const sourcePath = String(conflict.details?.source_path || '').trim();
+        if (sourcePath && !entry.sourcePaths.includes(sourcePath)) entry.sourcePaths.push(sourcePath);
+        const previewMap = conflict.details?.action_preview && typeof conflict.details.action_preview === 'object'
+          ? conflict.details.action_preview
+          : {};
+        Object.entries(previewMap).forEach(([action, preview]) => {
+          if (!entry.actionPreviews[action]) {
+            entry.actionPreviews[action] = {action, count: 0, effects: {}, path_examples: []};
+          }
+          entry.actionPreviews[action].count += 1;
+          const effect = String(preview?.effect || '').trim();
+          if (effect) entry.actionPreviews[action].effects[effect] = (entry.actionPreviews[action].effects[effect] || 0) + 1;
+          const resultPath = String(preview?.result_path || '').trim();
+          if (resultPath && !entry.actionPreviews[action].path_examples.includes(resultPath) && entry.actionPreviews[action].path_examples.length < 3) {
+            entry.actionPreviews[action].path_examples.push(resultPath);
+          }
+        });
+      });
+
+        const cards = Array.from(grouped.values()).sort((a, b) => a.title.localeCompare(b.title)).map((group) => {
+        const selectedActions = Object.entries(group.selectedActions)
+          .map(([name, count]) => `${escapeHtml(name)}: ${count}`)
+          .join(' · ');
+        const pathLine = group.targetPaths.slice(0, 2).map((path) => escapeHtml(path)).join(' · ');
+        const sourceLine = group.sourcePaths.slice(0, 2).map((path) => escapeHtml(path)).join(' · ');
+        const options = restoreGroupActions(group.groupKey);
+        const groupOptions = options.map((action) => `
+          <option value="${escapeAttr(action)}">${escapeHtml(action)}</option>
+        `).join('');
+        const initialAction = options[0] || '';
+        return `
+          <div class="mini-card">
+            <p><strong>${escapeHtml(group.title)}</strong>${group.sessionId ? ` · Session ${escapeHtml(group.sessionId.slice(0, 8))}` : ''}</p>
+            <p class="muted">${escapeHtml(group.description)}</p>
+            <p>Gesamt: ${group.total} · Offen: ${group.open} · Erledigt: ${group.resolved} · Ignoriert: ${group.ignored}</p>
+            ${selectedActions ? `<p class="muted">Entscheidungen: ${selectedActions}</p>` : ''}
+            ${pathLine ? `<p class="muted">Ziele: ${pathLine}</p>` : ''}
+            ${sourceLine ? `<p class="muted">Quellen: ${sourceLine}</p>` : ''}
+            <div class="inline-actions">
+              <label>Sammelentscheidung
+                <select data-conflict-group-select data-session-id="${escapeAttr(group.sessionId)}" data-group-key="${escapeAttr(group.groupKey)}">
+                  ${groupOptions}
+                </select>
+              </label>
+              <button type="button" data-apply-conflict-group data-session-id="${escapeAttr(group.sessionId)}" data-group-key="${escapeAttr(group.groupKey)}">Auf Gruppe anwenden</button>
+            </div>
+            ${initialAction ? `<p class="muted" data-conflict-group-impact data-session-id="${escapeAttr(group.sessionId)}" data-group-key="${escapeAttr(group.groupKey)}">${renderGroupImpactPreview(group, initialAction)}</p>` : ''}
+          </div>
+        `;
+      });
+      conflictGroupsEl.innerHTML = cards.join('');
+      conflictGroupsEl.querySelectorAll('[data-conflict-group-select]').forEach((select) => {
+        select.addEventListener('change', () => {
+          const sessionId = select.dataset.sessionId;
+          const groupKey = select.dataset.groupKey;
+          const impactEl = conflictGroupsEl.querySelector(`[data-conflict-group-impact][data-session-id="${cssEscape(sessionId)}"][data-group-key="${cssEscape(groupKey)}"]`);
+          const card = grouped.get(`${sessionId}::${groupKey}`);
+          if (impactEl && card) impactEl.innerHTML = renderGroupImpactPreview(card, select.value);
+        });
+      });
+      conflictGroupsEl.querySelectorAll('[data-apply-conflict-group]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const sessionId = button.dataset.sessionId;
+          const groupKey = button.dataset.groupKey;
+          const select = conflictGroupsEl.querySelector(`[data-conflict-group-select][data-session-id="${cssEscape(sessionId)}"][data-group-key="${cssEscape(groupKey)}"]`);
+          const decision = select?.value || '';
+          if (!decision) return;
+          await fetch(`/api/restore/sessions/${encodeURIComponent(sessionId)}/conflict-groups/${encodeURIComponent(groupKey)}/decision`, {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: JSON.stringify({decision})
+          });
+          await refreshOperations();
+        });
+      });
+    }
+
+    function restoreGroupActions(groupKey) {
+      if (groupKey === 'existing_links') return ['skip_existing', 'merge_existing', 'update_existing'];
+      if (groupKey === 'target_root' || groupKey === 'structure') return ['reuse_existing_folder', 'folder_create_parallel'];
+      return ['skip_existing'];
+    }
+
+    function renderGroupImpactPreview(group, action) {
+      const preview = group?.actionPreviews?.[action];
+      if (!preview) return 'Keine Vorschau fuer diese Sammelentscheidung vorhanden.';
+      const count = Number(preview.count || 0);
+      let lead = `${count} Konflikte betroffen.`;
+      if (group.groupKey === 'existing_links') {
+        if (action === 'skip_existing') lead = `${count} vorhandene Links bleiben unveraendert.`;
+        if (action === 'merge_existing') lead = `${count} vorhandene Links werden mit LinkVault-Metadaten zusammengefuehrt.`;
+        if (action === 'update_existing') lead = `${count} vorhandene Links werden im Browser aktualisiert.`;
+      }
+      if (group.groupKey === 'target_root' || group.groupKey === 'structure') {
+        if (action === 'reuse_existing_folder') lead = `${count} Strukturkonflikte nutzen vorhandene Browser-Ordner weiter.`;
+        if (action === 'folder_create_parallel') lead = `${count} parallele Ordner/Unterordner werden geplant.`;
+      }
+      const paths = Array.isArray(preview.path_examples) && preview.path_examples.length
+        ? ` Beispielpfade: ${preview.path_examples.map((path) => escapeHtml(path)).join(' · ')}`
+        : '';
+      return `${lead}${paths}`;
+    }
+
+    function cssEscape(value) {
+      return String(value).replace(/["\\]/g, '\\$&');
     }
 
     function renderConflictDetails(details) {
@@ -2076,16 +2280,37 @@ def index_html() -> str:
       if (details.url_raw) lines.push(`URL: ${escapeHtml(details.url_raw)}`);
       if (details.url_normalized) lines.push(`Normalisiert: ${escapeHtml(details.url_normalized)}`);
       if (details.session_id) lines.push(`Session: ${escapeHtml(details.session_id.slice(0, 8))}`);
+      if (details.restore_session_id) lines.push(`Restore-Session: ${escapeHtml(String(details.restore_session_id).slice(0, 8))}`);
       if (details.source_path) lines.push(`Pfad: ${escapeHtml(details.source_path)}`);
       if (details.target_path) lines.push(`Zielpfad: ${escapeHtml(details.target_path)}`);
+      if (details.target_parent_path) lines.push(`Zielordner: ${escapeHtml(details.target_parent_path)}`);
+      if (details.resolved_path) lines.push(`Aktuell geplant: ${escapeHtml(details.resolved_path)}`);
+      if (details.folder_title) lines.push(`Ordner: ${escapeHtml(details.folder_title)}`);
       if (details.selected_action) lines.push(`Entscheidung: ${escapeHtml(details.selected_action)}`);
       if (details.existing_bookmark?.folder_path) lines.push(`Vorhanden in: ${escapeHtml(details.existing_bookmark.folder_path)}`);
+      if (details.existing_folder?.path) lines.push(`Vorhandener Ordner: ${escapeHtml(details.existing_folder.path)}`);
       if (Array.isArray(details.loser_ids) && details.loser_ids.length) {
         lines.push(`Verlierer: ${escapeHtml(details.loser_ids.map((value) => String(value).slice(0, 8)).join(', '))}`);
       }
       if (details.winner_id) lines.push(`Gewinner: ${escapeHtml(String(details.winner_id).slice(0, 8))}`);
       if (!lines.length) return '';
       return `<p class="muted">${lines.join(' · ')}</p>`;
+    }
+
+    function renderConflictDecisionControl(conflict) {
+      const actions = Array.isArray(conflict.details?.available_actions) ? conflict.details.available_actions : [];
+      if (!actions.length) return '';
+      const selected = String(conflict.details?.selected_action || '');
+      const options = actions.map((action) => `
+        <option value="${escapeAttr(action)}"${action === selected ? ' selected' : ''}>${escapeHtml(action)}</option>
+      `).join('');
+      return `
+        <label>Entscheidung
+          <select data-conflict-decision data-conflict-id="${escapeAttr(conflict.id)}">
+            ${options}
+          </select>
+        </label>
+      `;
     }
 
     function renderImportSessions(sessions) {
@@ -2100,6 +2325,44 @@ def index_html() -> str:
           <p>Neu: ${session.created_count} · Dubletten: ${session.duplicate_count} · Konflikte: ${session.conflict_count} · Ungueltig: ${session.invalid_count}</p>
         </div>
       `).join('');
+    }
+
+    function renderRestoreSessions(sessions) {
+      if (!sessions.length) {
+        restoreSessionsEl.innerHTML = '<div class="empty">Noch keine Restore-Sessions vorhanden.</div>';
+        return;
+      }
+      restoreSessionsEl.innerHTML = sessions.map((session) => `
+        <div class="mini-card">
+          <p><strong>${escapeHtml(session.target_title || session.source_name || 'Browser Restore')}</strong></p>
+          <p class="muted">${escapeHtml(session.target_mode)} · ${escapeHtml(session.created_at)}${session.completed_at ? ` · abgeschlossen ${escapeHtml(session.completed_at)}` : ''}</p>
+          <p>Status: <strong>${escapeHtml(session.state)}</strong> · Gesamt: ${session.total_count} · Konflikte: ${session.conflict_count} · Ordnerkonflikte: ${session.structure_conflict_count}</p>
+          <p>Geplant: ${session.create_count} neu · ${session.skip_existing_count} ueberspringen · ${session.merge_existing_count} zusammenfuehren · ${session.update_existing_count} aktualisieren</p>
+          <p>Entscheidungen: ${session.decision_count}${session.result && Object.keys(session.result).length ? ` · Ergebnis: ${escapeHtml(JSON.stringify(session.result))}` : ''}</p>
+          ${renderRestoreSessionGroups(session.conflict_groups || [])}
+        </div>
+      `).join('');
+    }
+
+    function renderRestoreSessionGroups(groups) {
+      if (!groups.length) return '<p class="muted">Noch keine Konfliktgruppen fuer diese Session.</p>';
+      return `
+        <div class="stack">
+          ${groups.map((group) => {
+            const actions = Object.entries(group.selected_actions || {})
+              .map(([name, count]) => `${escapeHtml(name)}: ${count}`)
+              .join(' · ');
+            return `
+              <div class="mini-card">
+                <p><strong>${escapeHtml(group.group_title)}</strong></p>
+                <p class="muted">${escapeHtml(group.group_description || '')}</p>
+                <p>Gesamt: ${group.total_count} · Offen: ${group.open_count} · Erledigt: ${group.resolved_count} · Ignoriert: ${group.ignored_count}</p>
+                ${actions ? `<p class="muted">Entscheidungen: ${actions}</p>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
     }
 
     function renderActivity(events) {

@@ -50,10 +50,18 @@ class ServerHtmlTest(unittest.TestCase):
 
         self.assertIn("Conflict Center", html)
         self.assertIn('id="conflict-center"', html)
+        self.assertIn('id="conflict-groups"', html)
         self.assertIn('id="conflict-state-filter"', html)
         self.assertIn("/api/conflicts", html)
+        self.assertIn("/api/restore/sessions", html)
+        self.assertIn("/api/restore/sessions/${encodeURIComponent(sessionId)}/conflict-groups/${encodeURIComponent(groupKey)}/decision", html)
+        self.assertIn('id="restore-sessions"', html)
         self.assertIn("renderConflicts", html)
+        self.assertIn("renderConflictGroups", html)
+        self.assertIn("renderGroupImpactPreview", html)
+        self.assertIn("data-conflict-group-impact", html)
         self.assertIn("renderConflictDetails", html)
+        self.assertIn("renderRestoreSessions", html)
 
 
 if __name__ == "__main__":
