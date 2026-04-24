@@ -1152,11 +1152,8 @@ def index_html() -> str:
           <div class="saved-view-presets">
             <strong>Starter-Views</strong>
             <p class="muted">Praktische Arbeitsansichten fuer Inbox, Recherche und Dublettenpflege.</p>
-            <div class="inline-actions">
-              <button data-starter-view="Inbox Review" type="button">Inbox Review</button>
-              <button data-starter-view="Research Grid" type="button">Research Grid</button>
-              <button data-starter-view="Duplicate Cleanup" type="button">Duplicate Cleanup</button>
-            </div>
+            <div id="starter-view-list" class="stack"></div>
+            <div class="muted">Jede Starter-View kann direkt angelegt oder sofort als Default gespeichert werden.</div>
           </div>
           <div class="inline-actions">
             <button id="save-view-preferences" type="button">Als Standard speichern</button>
@@ -1348,6 +1345,7 @@ def index_html() -> str:
     };
     const starterViewDefinitions = {
       'Inbox Review': {
+        description: 'Detaillierte Inbox-Sichtung mit Beschreibung, Notizen und Datumsangaben.',
         view: 'detailed',
         fields: {
           title: true,
@@ -1371,6 +1369,7 @@ def index_html() -> str:
         }
       },
       'Research Grid': {
+        description: 'Visuelle Recherche-Ansicht fuer Sammlungen, Tags und schnelles Durchscrollen.',
         view: 'grid',
         fields: {
           title: true,
@@ -1394,6 +1393,7 @@ def index_html() -> str:
         }
       },
       'Duplicate Cleanup': {
+        description: 'Kompakte Pflegeansicht fuer bereits markierte Dubletten und Merge-Nacharbeit.',
         view: 'compact',
         fields: {
           title: true,
@@ -2068,6 +2068,26 @@ def index_html() -> str:
       }
     }
 
+    function renderStarterViews() {
+      const host = document.querySelector('#starter-view-list');
+      host.innerHTML = Object.entries(starterViewDefinitions).map(([name, starter]) => `
+        <div class="mini-card">
+          <p><strong>${escapeHtml(name)}</strong></p>
+          <p class="muted">${escapeHtml(starter.description || '')}</p>
+          <div class="inline-actions">
+            <button data-starter-view="${escapeAttr(name)}" type="button">Anlegen / aktualisieren</button>
+            <button data-starter-view-default="${escapeAttr(name)}" type="button">Als Default anlegen</button>
+          </div>
+        </div>
+      `).join('');
+      host.querySelectorAll('[data-starter-view]').forEach((button) => {
+        button.addEventListener('click', () => applyStarterView(button.dataset.starterView, false));
+      });
+      host.querySelectorAll('[data-starter-view-default]').forEach((button) => {
+        button.addEventListener('click', () => applyStarterView(button.dataset.starterViewDefault, true));
+      });
+    }
+
     async function loadViewPreferences() {
       try {
         const response = await fetch('/api/settings/bookmark-views');
@@ -2189,61 +2209,58 @@ def index_html() -> str:
       await refreshBookmarks();
     }
 
-    async function saveNamedView() {
+    async function saveNamedView(options = {}) {
       const input = document.querySelector('#saved-view-name');
-      const name = input.value.trim();
+      const name = String(options.name || input.value.trim()).trim();
       if (!name) {
         viewStatus('Bitte zuerst einen Namen fuer die Ansicht eingeben.');
         input.focus();
         return;
       }
-      viewPreferences = collectViewPreferences();
-      const response = await fetch('/api/settings/bookmark-views', {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({
-          name,
-          preferences: viewPreferences
-        })
-      });
-      if (response.status === 401) {
-        await loadAuth();
-        return;
-      }
-      const payload = await response.json();
-      savedViews = Array.isArray(payload.views) ? payload.views : [];
-      defaultSavedViewName = String(payload.default_name || '').trim();
-      renderSavedViews();
-      document.querySelector('#saved-view-select').value = name;
-      viewStatus(`Ansicht "${name}" gespeichert.`);
-    }
-
-    async function applyStarterView(name) {
-      const starter = starterViewDefinitions[name];
-      if (!starter) return;
-      const preferences = mergeViewPreferences(starter);
-      const response = await fetch('/api/settings/bookmark-views', {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({
-          name,
-          preferences
-        })
-      });
-      if (response.status === 401) {
-        await loadAuth();
-        return;
-      }
-      const payload = await response.json();
-      savedViews = Array.isArray(payload.views) ? payload.views : [];
-      defaultSavedViewName = String(payload.default_name || '').trim();
+      const preferences = options.preferences
+        ? mergeViewPreferences(options.preferences)
+        : collectViewPreferences();
       viewPreferences = preferences;
+      const response = await fetch('/api/settings/bookmark-views', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+          name,
+          preferences,
+          set_default: Boolean(options.setDefault)
+        })
+      });
+      if (response.status === 401) {
+        await loadAuth();
+        return;
+      }
+      const payload = await response.json();
+      savedViews = Array.isArray(payload.views) ? payload.views : [];
+      defaultSavedViewName = String(payload.default_name || '').trim();
       applyViewControls();
       renderSavedViews();
       document.querySelector('#saved-view-select').value = name;
       document.querySelector('#saved-view-name').value = name;
-      viewStatus(`Starter-View "${name}" bereit. Du kannst ihn jetzt direkt nutzen oder als Default setzen.`);
-      await refreshBookmarks();
+      viewStatus(options.setDefault
+        ? `Ansicht "${name}" gespeichert und als Default gesetzt.`
+        : `Ansicht "${name}" gespeichert.`);
+      if (options.refresh !== false) {
+        await refreshBookmarks();
+      }
+    }
+
+    async function applyStarterView(name, setDefault = false) {
+      const starter = starterViewDefinitions[name];
+      if (!starter) return;
+      const preferences = mergeViewPreferences(starter);
+      await saveNamedView({
+        name,
+        preferences,
+        setDefault,
+      });
+      viewStatus(setDefault
+        ? `Starter-View "${name}" gespeichert und direkt als Default gesetzt.`
+        : `Starter-View "${name}" bereit. Du kannst ihn jetzt direkt nutzen oder spaeter als Default setzen.`);
     }
 
     async function loadSelectedView() {
@@ -2586,9 +2603,7 @@ def index_html() -> str:
     document.querySelector('#saved-view-select').addEventListener('change', (event) => {
       document.querySelector('#saved-view-name').value = event.target.value || '';
     });
-    document.querySelectorAll('[data-starter-view]').forEach((button) => {
-      button.addEventListener('click', () => applyStarterView(button.dataset.starterView));
-    });
+    renderStarterViews();
     document.querySelector('#save-named-view').addEventListener('click', saveNamedView);
     document.querySelector('#load-saved-view').addEventListener('click', loadSelectedView);
     document.querySelector('#set-default-view').addEventListener('click', setSelectedViewAsDefault);

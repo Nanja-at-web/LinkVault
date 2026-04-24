@@ -37,6 +37,8 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("Inbox Review", html)
         self.assertIn("Research Grid", html)
         self.assertIn("Duplicate Cleanup", html)
+        self.assertIn("Als Default anlegen", html)
+        self.assertIn("renderStarterViews", html)
 
 
 if __name__ == "__main__":
