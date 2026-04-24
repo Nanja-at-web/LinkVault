@@ -122,7 +122,10 @@ function previewActionLabel(action) {
     invalid_skipped: "Skipped",
     skip_existing: "Skip existing",
     update_existing: "Update existing",
-    merge_existing: "Merge metadata"
+    merge_existing: "Merge metadata",
+    folder_create: "Create folder",
+    reuse_existing_folder: "Reuse existing folder",
+    folder_create_parallel: "Create parallel folder"
   }[action] || action || "Unknown";
 }
 
@@ -201,7 +204,7 @@ function browserRestoreOptionsKey(options) {
 }
 
 function summarizeBrowserRestorePreview(payload) {
-  return `${payload.total} from LinkVault, ${payload.create} new, ${payload.skip_existing} skipped, ${payload.merge_existing} merged, ${payload.update_existing} updated, ${payload.conflict_count || 0} conflicts, ${payload.decision_count || 0} decided.`;
+  return `${payload.total} from LinkVault, ${payload.create} new, ${payload.skip_existing} skipped, ${payload.merge_existing} merged, ${payload.update_existing} updated, ${payload.conflict_count || 0} conflicts, ${payload.structure_conflict_count || 0} folder conflicts, ${payload.decision_count || 0} decided.`;
 }
 
 function renderBrowserRestorePreview(payload) {
@@ -216,6 +219,24 @@ function renderBrowserRestorePreview(payload) {
   note.className = "muted";
   note.textContent = "No browser bookmark will be deleted. Review rows and choose skip, merge, or update for each conflict before running restore.";
   previewDetailsEl.append(note);
+
+  const folderRecords = (payload.folder_records || []).slice(0, PREVIEW_DETAIL_LIMIT);
+  if (folderRecords.length) {
+    const folderHeading = document.createElement("h3");
+    folderHeading.textContent = "Folder and structure conflicts";
+    previewDetailsEl.append(folderHeading);
+
+    const folderList = document.createElement("div");
+    folderList.className = "preview-list";
+    for (const record of folderRecords) {
+      folderList.append(browserRestoreFolderPreviewRow(record));
+    }
+    previewDetailsEl.append(folderList);
+  }
+
+  const bookmarkHeading = document.createElement("h3");
+  bookmarkHeading.textContent = "Bookmark decisions";
+  previewDetailsEl.append(bookmarkHeading);
 
   const records = (payload.records || []).slice(0, PREVIEW_DETAIL_LIMIT);
   const list = document.createElement("div");
@@ -248,7 +269,7 @@ function browserRestorePreviewRow(record) {
   const meta = document.createElement("p");
   meta.className = "muted";
   meta.textContent = [
-    `target path: ${(record.path || []).join(" / ") || "-"}`,
+    `target path: ${(record.resolved_browser_path || record.path || []).join(" / ") || "-"}`,
     `source: ${record.source_folder_path || record.source_root || "-"}`
   ].join(" - ");
 
@@ -288,6 +309,69 @@ function browserRestorePreviewRow(record) {
     decisionLabel.append(decisionSelect);
     row.append(decisionLabel);
   }
+
+  return row;
+}
+
+function browserRestoreFolderPreviewRow(record) {
+  const row = document.createElement("article");
+  row.className = `preview-row ${record.action || ""}`;
+
+  const title = document.createElement("strong");
+  title.textContent = record.title || "Folder";
+
+  const action = document.createElement("span");
+  action.className = "pill";
+  action.textContent = previewActionLabel(record.action);
+
+  const header = document.createElement("div");
+  header.className = "preview-row-header";
+  header.append(title, action);
+
+  const meta = document.createElement("p");
+  meta.className = "muted";
+  meta.textContent = [
+    `source: ${record.source_path || "-"}`,
+    `target folder: ${record.target_parent_path || "(root)"}`,
+    `planned path: ${record.resolved_path_text || record.target_path || "-"}`
+  ].join(" - ");
+
+  row.append(header, meta);
+
+  if (record.existing_folder) {
+    const duplicate = document.createElement("p");
+    duplicate.className = "muted";
+    duplicate.textContent = `Existing browser folder: ${record.existing_folder.path || record.existing_folder.title || "-"}`;
+    row.append(duplicate);
+  }
+
+  const decisionLabel = document.createElement("label");
+  decisionLabel.textContent = "Folder decision";
+  const decisionSelect = document.createElement("select");
+  decisionSelect.className = "preview-decision";
+  for (const optionValue of record.available_actions || ["reuse_existing_folder", "folder_create_parallel"]) {
+    const option = document.createElement("option");
+    option.value = optionValue;
+    option.textContent = previewActionLabel(optionValue);
+    option.selected = optionValue === record.action;
+    decisionSelect.append(option);
+  }
+  decisionSelect.addEventListener("change", async () => {
+    try {
+      record.action = decisionSelect.value;
+      if (record.id) {
+        lastBrowserRestoreDecisions[record.id] = decisionSelect.value;
+      }
+      if (record.conflict_id) {
+        await setConflictDecision(record.conflict_id, decisionSelect.value);
+      }
+      showResult(`Folder decision updated: ${record.title}`, "ok");
+    } catch (error) {
+      showResult(error.message, "error");
+    }
+  });
+  decisionLabel.append(decisionSelect);
+  row.append(decisionLabel);
 
   return row;
 }
@@ -374,7 +458,8 @@ document.querySelector("#import-into-browser").addEventListener("click", async (
     lastBrowserRestorePreview = null;
     lastBrowserRestorePreviewKey = "";
     lastBrowserRestoreDecisions = {};
-    showResult(`${result.created} created, ${result.skipped_existing} skipped, ${result.merged_existing} merged, ${result.updated_existing} updated in ${result.root_title}.`, "ok");
+    const syncNote = result.restore_session_sync_failed ? ` Restore session sync failed: ${result.restore_session_sync_error}.` : "";
+    showResult(`${result.created} created, ${result.skipped_existing} skipped, ${result.merged_existing} merged, ${result.updated_existing} updated in ${result.root_title}.${syncNote}`, result.restore_session_sync_failed ? "error" : "ok");
   } catch (error) {
     showResult(error.message, "error");
   }

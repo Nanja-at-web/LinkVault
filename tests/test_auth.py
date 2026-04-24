@@ -267,6 +267,14 @@ class AuthHttpTest(unittest.TestCase):
                                 "folder_path": "Bookmarks Toolbar / Existing",
                             }
                         ],
+                        "existing_folders": [
+                            {
+                                "id": "folder-root",
+                                "title": "LinkVault Restore",
+                                "path": "LinkVault Restore",
+                                "parent_path": "",
+                            }
+                        ],
                         "duplicate_action": "skip",
                         "target_mode": "new",
                         "target_title": "LinkVault Restore",
@@ -274,17 +282,36 @@ class AuthHttpTest(unittest.TestCase):
                     },
                     headers={"authorization": f"Bearer {token_payload['token']}"},
                 )
-                self.assertEqual(restore_preview["conflict_count"], 1)
+                self.assertEqual(restore_preview["conflict_count"], 2)
+                self.assertEqual(restore_preview["structure_conflict_count"], 1)
+                self.assertTrue(restore_preview["session_id"])
                 self.assertEqual(restore_preview["records"][0]["action"], "skip_existing")
                 self.assertTrue(restore_preview["records"][0]["conflict_id"])
+                self.assertTrue(restore_preview["folder_records"][0]["conflict_id"])
                 import_sessions = get_json(opener, f"{base_url}/api/import/sessions")
                 self.assertEqual(import_sessions["sessions"][0]["id"], browser_import["import_session_id"])
+                restore_sessions = get_json(opener, f"{base_url}/api/restore/sessions")
+                self.assertEqual(restore_sessions["sessions"][0]["id"], restore_preview["session_id"])
+                self.assertEqual(restore_sessions["sessions"][0]["state"], "previewed")
+                group_keys = {group["group_key"] for group in restore_sessions["sessions"][0]["conflict_groups"]}
+                self.assertIn("target_root", group_keys)
+                self.assertIn("existing_links", group_keys)
+                group_decision = request_json(
+                    opener,
+                    f"{base_url}/api/restore/sessions/{restore_preview['session_id']}/conflict-groups/existing_links/decision",
+                    {"decision": "merge"},
+                    headers={"authorization": f"Bearer {token_payload['token']}"},
+                )
+                self.assertEqual(group_decision["selected_action"], "merge_existing")
+                self.assertEqual(group_decision["updated_count"], 1)
+                self.assertEqual(group_decision["group"]["resolved_count"], 1)
                 activity = get_json(opener, f"{base_url}/api/activity")
                 activity_kinds = {event["kind"] for event in activity["events"]}
                 self.assertIn("import_session_created", activity_kinds)
                 self.assertIn("merge_duplicates", activity_kinds)
                 self.assertIn("merge_undo", activity_kinds)
                 self.assertIn("bulk_update", activity_kinds)
+                self.assertIn("conflict_group_decision_changed", activity_kinds)
                 open_conflicts = get_json(opener, f"{base_url}/api/conflicts?state=open")
                 self.assertTrue(open_conflicts["conflicts"])
                 self.assertTrue(any(conflict["kind"] == "import_duplicate" for conflict in open_conflicts["conflicts"]))
@@ -292,6 +319,9 @@ class AuthHttpTest(unittest.TestCase):
                 all_conflicts = get_json(opener, f"{base_url}/api/conflicts?state=all")
                 self.assertTrue(any(conflict["kind"] == "merge_conflict" for conflict in all_conflicts["conflicts"]))
                 restore_conflict = next(conflict for conflict in all_conflicts["conflicts"] if conflict["kind"] == "browser_restore_conflict")
+                structure_conflict = next(conflict for conflict in all_conflicts["conflicts"] if conflict["kind"] == "browser_restore_structure_conflict")
+                self.assertEqual(restore_conflict["group_key"], "existing_links")
+                self.assertEqual(structure_conflict["group_key"], "target_root")
                 decided_conflict = request_json(
                     opener,
                     f"{base_url}/api/conflicts/{restore_conflict['id']}/decision",
@@ -299,12 +329,36 @@ class AuthHttpTest(unittest.TestCase):
                 )
                 self.assertEqual(decided_conflict["state"], "resolved")
                 self.assertEqual(decided_conflict["details"]["selected_action"], "update_existing")
+                decided_structure_conflict = request_json(
+                    opener,
+                    f"{base_url}/api/conflicts/{structure_conflict['id']}/decision",
+                    {"decision": "reuse"},
+                )
+                self.assertEqual(decided_structure_conflict["state"], "resolved")
+                self.assertEqual(decided_structure_conflict["details"]["selected_action"], "reuse_existing_folder")
                 updated_conflict = request_json(
                     opener,
                     f"{base_url}/api/conflicts/{import_conflict['id']}/state",
                     {"state": "ignored"},
                 )
                 self.assertEqual(updated_conflict["state"], "ignored")
+                completed_restore = request_json(
+                    opener,
+                    f"{base_url}/api/export/browser-bookmarks/restore-complete",
+                    {
+                        "session_id": restore_preview["session_id"],
+                        "created": 1,
+                        "skipped_existing": 0,
+                        "merged_existing": 1,
+                        "updated_existing": 0,
+                        "root_title": "LinkVault Restore",
+                    },
+                    headers={"authorization": f"Bearer {token_payload['token']}"},
+                )
+                self.assertEqual(completed_restore["state"], "completed")
+                self.assertEqual(completed_restore["result"]["created"], 1)
+                restore_sessions = get_json(opener, f"{base_url}/api/restore/sessions")
+                self.assertEqual(restore_sessions["sessions"][0]["state"], "completed")
                 ignored_conflicts = get_json(opener, f"{base_url}/api/conflicts?state=ignored")
                 self.assertTrue(any(conflict["id"] == import_conflict["id"] for conflict in ignored_conflicts["conflicts"]))
                 default_view = get_json(opener, f"{base_url}/api/settings/bookmark-view")

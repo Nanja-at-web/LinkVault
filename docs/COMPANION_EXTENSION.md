@@ -162,6 +162,10 @@ Aktueller Funktionsumfang:
 - Pro vorhandenen Browser-Link kann die Extension jetzt eine eigene
   Konfliktentscheidung wie `skip`, `merge` oder `update` speichern, statt nur
   einen globalen Modus fuer alle Treffer zu nutzen.
+- Strukturkonflikte fuer Browser-Ordner werden jetzt ebenfalls serverseitig
+  erkannt. Die Vorschau zeigt deshalb nicht nur Link-Konflikte, sondern auch
+  Ordner-/Pfad-Konflikte mit Entscheidungen wie vorhandenen Ordner
+  wiederverwenden oder parallelen Ordner anlegen.
 - Beim Browser-Rueckimport werden bestehende Links nie geloescht. Duplikate
   koennen uebersprungen, vorsichtig gemerged oder aktualisiert und in den
   Zielordner verschoben werden.

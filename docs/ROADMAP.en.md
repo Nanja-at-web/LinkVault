@@ -91,8 +91,10 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
   winner-after.
 - [~] Conflict center for import, sync, and merge conflicts: import, merge,
   and Companion restore conflicts are now visible; browser restore now has a
-  preview plus per-link decisions, while larger sync/restore conflicts still
-  follow.
+  preview, per-link and per-folder/structure decisions, restore sessions
+  with completion state, and first conflict groups with bulk decisions for
+  target roots, existing structure, and existing links, while larger
+  sync/restore conflicts still follow.
 - [~] Show uncategorized favorites, duplicate favorites, and dead favorites.
 - [ ] Collection health score: metadata, archive status, duplicates, dead
   links, categorization.
@@ -117,8 +119,8 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [~] Bulk editing: bookmark cleanup exists; archive/status bulk actions are open.
 - [ ] Smart collections.
 - [ ] Optional AI tagging.
-- [~] Activity/audit log exists for imports, bulk actions, merges, and deletes;
-  restores, rules, and later sync actions are still open.
+- [~] Activity/audit log exists for imports, bulk actions, merges, deletes,
+  and browser restore; rules and later sync actions are still open.
 - [ ] Customizable dashboard/operations layout inspired by Linkwarden once
   bookmark, import, and dedup workflows are stable.
 - [x] First keyboard shortcuts for search, save, import, bookmarks, and
@@ -130,8 +132,8 @@ See also: [Roadmap solutions plan](ROADMAP_SOLUTIONS.md).
 - [ ] Webhooks.
 - [~] Companion extension: developer preview for Firefox/Chromium with folder
   selection, popup preview, filtered LinkVault export, safe browser re-import,
-  target selection, and duplicate handling exists; packaging, destructive sync,
-  and finer per-link selection are still open.
+  target selection, duplicate handling, and restore sessions exists;
+  packaging, destructive sync, and finer per-link selection are still open.
 - [x] Companion developer update path documented: stable Firefox ID, reload
   instead of remove/reinstall, URL/token usually survive reloads.
 - [x] Companion import filters for folder, text search, address/domain,

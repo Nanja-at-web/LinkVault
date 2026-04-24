@@ -87,8 +87,11 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Gewinner-nachher.
 - [~] Conflict Center fuer Import-, Sync- und Merge-Konflikte: Import-,
   Merge- und Companion-Restore-Konflikte sind jetzt sichtbar; fuer
-  Browser-Rueckimport gibt es Vorschau und Entscheidungen pro Link, waehrend
-  groessere Sync-/Restore-Konflikte noch folgen.
+  Browser-Rueckimport gibt es Vorschau, Entscheidungen pro Link und pro
+  Ordner/Struktur sowie Restore-Sessions mit Abschlussstatus und ersten
+  Konfliktgruppen mit Sammelentscheidungen fuer Zielordner, bestehende
+  Struktur und vorhandene Links, waehrend groessere Sync-/Restore-
+  Konflikte noch folgen.
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 - [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.
 
@@ -112,8 +115,8 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [~] Bulk-Editing: Bookmark-Pflege vorhanden, Archiv-/Status-Bulk offen.
 - [ ] Smart Collections.
 - [ ] AI-Tagging optional.
-- [~] Activity/Audit-Log fuer Import, Bulk, Merge und Delete vorhanden;
-  Restore, Regeln und spaetere Sync-Aktionen noch offen.
+- [~] Activity/Audit-Log fuer Import, Bulk, Merge, Delete und Browser-
+  Restore vorhanden; Regeln und spaetere Sync-Aktionen noch offen.
 - [ ] Anpassbares Dashboard/Betrieb-Layout nach Linkwarden-Vorbild, sobald
   Bookmark-, Import- und Dedup-Workflows stabil sind.
 - [x] Erste Tastaturkuerzel fuer Suche, Speichern, Import, Bookmarks und
@@ -125,8 +128,9 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [ ] Webhooks.
 - [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium mit
   Ordnerauswahl, Popup-Vorschau, gefiltertem LinkVault-Export, sicherem
-  Browser-Rueckimport, Zielauswahl und Duplikatbehandlung vorhanden;
-  Packaging, destruktiver Sync und feinere Einzel-Link-Auswahl offen.
+  Browser-Rueckimport, Zielauswahl, Konfliktentscheidungen und Restore-
+  Sessions vorhanden; Packaging, destruktiver Sync und feinere Einzel-Link-
+  Auswahl offen.
 - [x] Companion-Entwickler-Updatepfad dokumentiert: stabile Firefox-ID,
   Reload statt Entfernen, Token/URL bleiben beim Reload normalerweise erhalten.
 - [x] Companion-Importfilter fuer Ordner, Textsuche, Adresse/Domain,
@@ -178,7 +182,8 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 ## Phase 6: Migrationen aus bestehenden Tools
 
 - [~] Import-Vorschau mit Dry-Run und Duplikatbericht: Core- und
-  Extension-Vorschau vorhanden, Import-Session/Conflict-Center offen.
+  Extension-Vorschau vorhanden, Import-Sessions und Conflict-Center-
+  Anschluss teilweise umgesetzt; weitere Tool-Migrationen offen.
 - [x] Chromium-JSON-Import fuer Chrome, Edge, Brave, Vivaldi und Opera mit
   Vorschau, Ordnerpfaden, Dublettencheck und Import.
 - [~] Firefox-JSON/JSONLZ4-Import als optionales Enrichment zum HTML-Import:

@@ -385,17 +385,34 @@ async function linkvaultBrowserExport(options = {}) {
 
 async function previewLinkVaultBrowserImport(options = {}) {
   const existingItems = options.existingItems || await browserExistingItems();
+  const existingFolders = options.existingFolders || await browserExistingFolders();
   return linkvaultRequest("/api/export/browser-bookmarks/restore-preview", {
     method: "POST",
     body: JSON.stringify({
       query: options.filters?.query || "",
       filters: options.filters || {},
       existing_items: existingItems,
+      existing_folders: existingFolders,
       duplicate_action: options.duplicateAction || "skip",
       target_mode: options.targetMode || "new",
       target_folder_id: options.targetFolderId || "",
       target_title: options.targetTitle || "",
       decisions: options.decisions || {}
+    })
+  });
+}
+
+async function completeLinkVaultBrowserRestore(sessionId, result = {}) {
+  return linkvaultRequest("/api/export/browser-bookmarks/restore-complete", {
+    method: "POST",
+    body: JSON.stringify({
+      session_id: sessionId,
+      created: Number(result.created || 0),
+      skipped_existing: Number(result.skipped_existing || 0),
+      merged_existing: Number(result.merged_existing || 0),
+      updated_existing: Number(result.updated_existing || 0),
+      root_title: result.root_title || "",
+      status: result.status || "completed"
     })
   });
 }
@@ -416,7 +433,7 @@ async function importLinkVaultIntoBrowser(options = {}) {
     const action = record.action || preview.duplicate_action || "skip_existing";
     if (existing) {
       if (action === "update_existing") {
-        const parentId = await ensureBrowserFolderPath(target.id, restorePathForTarget(record.path, target, options), folderCache);
+        const parentId = await ensureBrowserFolderPath(target.id, record.resolved_path || restorePathForTarget(record.path, target, options), folderCache);
         await updateBrowserBookmark(existing.id, {title: record.title || existing.title || record.url});
         await moveBrowserBookmark(existing.id, {parentId});
         updated += 1;
@@ -429,7 +446,7 @@ async function importLinkVaultIntoBrowser(options = {}) {
       continue;
     }
 
-    const parentId = await ensureBrowserFolderPath(target.id, restorePathForTarget(record.path, target, options), folderCache);
+    const parentId = await ensureBrowserFolderPath(target.id, record.resolved_path || restorePathForTarget(record.path, target, options), folderCache);
     await createBrowserBookmark({
       parentId,
       title: record.title || record.url,
@@ -438,7 +455,8 @@ async function importLinkVaultIntoBrowser(options = {}) {
     created += 1;
   }
 
-  return {
+  const result = {
+    session_id: preview.session_id || preview.preview_id || "",
     root_title: target.title,
     created,
     skipped_existing: skipped,
@@ -446,6 +464,17 @@ async function importLinkVaultIntoBrowser(options = {}) {
     merged_existing: merged,
     bookmark_count: preview.total || created
   };
+
+  if (result.session_id) {
+    try {
+      result.restore_session = await completeLinkVaultBrowserRestore(result.session_id, result);
+    } catch (error) {
+      result.restore_session_sync_failed = true;
+      result.restore_session_sync_error = error.message || String(error);
+    }
+  };
+
+  return result;
 }
 
 function restorePathForTarget(path, target, options = {}) {
@@ -459,6 +488,14 @@ function restorePathForTarget(path, target, options = {}) {
 }
 
 async function resolveBrowserRestoreTarget(options, preview) {
+  const targetRoot = preview.target_root || {};
+  if (options.targetMode !== "existing" && targetRoot.reuse_existing && targetRoot.id) {
+    return {
+      id: targetRoot.id,
+      title: targetRoot.title || "Existing LinkVault folder"
+    };
+  }
+
   if (options.targetMode === "existing" && options.targetFolderId) {
     const [folder] = await getBookmarkSubTree(options.targetFolderId);
     return {
@@ -467,7 +504,7 @@ async function resolveBrowserRestoreTarget(options, preview) {
     };
   }
 
-  const rootTitle = String(options.targetTitle || preview.root_title || "").trim()
+  const rootTitle = String(targetRoot.title || options.targetTitle || preview.root_title || "").trim()
     || `LinkVault Restore ${new Date().toISOString().slice(0, 10)}`;
   const root = await createBrowserBookmark({title: rootTitle});
   return {id: root.id, title: rootTitle};
@@ -568,6 +605,15 @@ async function browserExistingItems() {
   return [...index.values()];
 }
 
+async function browserExistingFolders() {
+  const tree = await getBookmarkTree();
+  const folders = [];
+  for (const root of tree) {
+    appendBrowserFolderIndex(folders, root, []);
+  }
+  return folders;
+}
+
 function comparableBookmarkUrl(value) {
   try {
     const parsed = new URL(value);
@@ -588,6 +634,24 @@ async function setConflictDecision(conflictId, decision) {
     method: "POST",
     body: JSON.stringify({decision})
   });
+}
+
+function appendBrowserFolderIndex(folders, node, path) {
+  if (node.url) return;
+  const title = String(node.title || "").trim();
+  const nextPath = title ? [...path, title] : path;
+  if (title) {
+    folders.push({
+      id: String(node.id || ""),
+      title,
+      path: nextPath.join(" / "),
+      parent_path: path.join(" / "),
+      count: countWebBookmarks(node)
+    });
+  }
+  for (const child of node.children || []) {
+    appendBrowserFolderIndex(folders, child, nextPath);
+  }
 }
 
 async function browserBookmarkFolders(options = {}) {

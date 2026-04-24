@@ -19,22 +19,27 @@ LinkVault bleibt im Standard klein und LXC-freundlich:
 
 ## Naechste Prioritaeten
 
-1. **Import-Sessions und Audit-Log**
-   Jede groessere Aktion braucht nachvollziehbare Historie: Importquelle,
-   Format, Checksumme, Ergebniszahlen, Konflikte, Bulk-Aktionen, Merges,
-   Restore und Extension-Sync.
+1. **Conflict Center weiter ausbauen**
+   Import, Merge und Browser-Restore sind bereits angebunden. Als naechstes
+   fehlen nach den ersten Konfliktgruppen fuer Zielordner, bestehende
+   Struktur und vorhandene Links mit Sammelentscheidungen groessere
+   Sync-/Restore-Konflikte,
+   Konfliktvorschau fuer komplexere Strukturfaelle und spaetere
+   Konfliktlogik fuer destruktive Syncs.
 
-2. **Conflict Center**
-   Konflikte aus Import, Dedup-Merge und Browser-Restore sollen an einer
-   Stelle sichtbar werden. Erst Preview, dann bewusst anwenden.
+2. **Quick-Add**
+   Der Bookmark-Kern ist funktional, aber ein kurzer Standarddialog mit Inbox-
+   Default und aufklappbaren Zusatzfeldern fehlt noch.
 
-3. **Companion-Restore verfeinern**
-   Einzelne Links/Folders auswaehlen, Konfliktlogik verbessern, aber weiter
-   ohne Loeschungen im Browser.
+3. **Frontend-Navigation**
+   Die Kernlogik ist weiter als die sichtbare UI. Favoriten, Tags,
+   Collections, Archiv, Aktivitaet und Einstellungen brauchen noch klarere
+   Einstiege.
 
-4. **Saved Views**
-   Sortierung, Filter und Anzeigeoptionen als Standard speichern. Das macht
-   LinkVault im Alltag deutlich ruhiger und linkding-aehnlich schneller.
+4. **Migrationen verbreitern**
+   Chromium-JSON, Firefox-JSON und Safari-ZIP sind gute Anfaenge; generische
+   CSV/JSON-Migrationsprofile und weitere Tool-Importer sind der naechste
+   Schritt.
 
 5. **Community-Scripts/ProxmoxVED-Vorbereitung**
    Nicht sofort offizieller PR, sondern Layout, Default/Advanced Mode,
@@ -117,45 +122,46 @@ LinkVault bleibt im Standard klein und LXC-freundlich:
 
 ## Empfohlener naechster Sprint
 
-### 1. Import-Sessions
+### 1. Conflict Center / Restore-Sessions
 
 Ergebnis:
 
-- `import_sessions` und `import_records` in SQLite.
-- Browser-Dateiimport und Companion-Import erzeugen Sessions.
-- UI zeigt letzte Import-Sessions im Tab `Betrieb` oder `Import`.
+- `conflicts` und `restore_sessions` in SQLite.
+- Browser-Restore erzeugt serverseitige Vorschau, Konflikte und
+  Abschlussstatus.
+- UI zeigt Konflikte und letzte Restore-Sessions im Tab `Betrieb`.
 
 Warum jetzt:
 
-- Hilft bei allen Migrationen.
-- Liefert Grundlage fuer Conflict Center.
-- Macht grosse Browser-Imports nachvollziehbar.
+- Macht Browser-Rueckimport nachvollziehbar und spaeter sync-faehig.
+- Liefert die Basis fuer groessere Sync-/Restore-Fluesse.
+- Verbindet Extension und Haupt-App ueber denselben Konfliktzustand.
 
-### 2. Merge Undo
+### 2. Quick-Add
 
 Ergebnis:
 
-- Merge-Historie bekommt Undo-Button.
-- Verlierer werden aus Snapshot wieder aktiv.
-- Gewinner wird auf Vorher-Snapshot zurueckgesetzt.
+- Kleiner Standarddialog fuer URL, optional Titel, Inbox default.
+- Erweiterte Felder nur bei Bedarf ausklappen.
+- Duplicate-Preflight und Regelvorschlaege direkt im kurzen Flow.
 
 Warum jetzt:
 
-- Dubletten-Merge ist ein Kernversprechen.
-- Undo erhoeht Vertrauen stark.
+- Beschleunigt den echten Alltagsnutzen.
+- Nutzt den vorhandenen Bookmark-Kern statt nur weitere Infrastruktur zu bauen.
 
-### 3. Saved Views
+### 3. Frontend-Navigation
 
 Ergebnis:
 
-- Nutzer kann Sortierung, Filter, Ansicht und sichtbare Felder als Standard
-  speichern.
-- LinkVault startet direkt in der bevorzugten Arbeitsansicht.
+- Sichtbare Einstiege fuer Favoriten, Tags, Collections, Archiv, Aktivitaet
+  und Einstellungen.
+- Weniger lange Einzelseite, klarere Produktoberflaeche.
 
 Warum jetzt:
 
-- Verbessert Alltagstauglichkeit ohne schweren Backend-Umbau.
-- Passt zu linkding als schnellem Pflege-Vorbild.
+- Die groesste sichtbare Luecke ist derzeit die UI-Struktur.
+- Das macht den bereits vorhandenen Funktionsumfang besser erkennbar.
 
 ## Bewusst spaeter
 
