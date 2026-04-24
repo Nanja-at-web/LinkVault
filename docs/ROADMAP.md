@@ -85,7 +85,9 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] Statusfilter fuer aktive und gemergte Dubletten in API/UI.
 - [x] Merge-Historie mit Snapshots fuer Gewinner-vorher, Verlierer-vorher und
   Gewinner-nachher.
-- [ ] Conflict Center fuer Import-, Sync- und Merge-Konflikte.
+- [~] Conflict Center fuer Import-, Sync- und Merge-Konflikte: Import- und
+  Merge-Konflikte sind jetzt sichtbar und markierbar; Sync-/Restore-Konflikte
+  folgen.
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 - [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.
 

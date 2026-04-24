@@ -101,6 +101,25 @@ class ActivityEvent:
 
 
 @dataclass
+class ConflictRecord:
+    id: str
+    kind: str
+    source_type: str
+    source_id: str
+    state: str = "open"
+    summary: str = ""
+    details_json: str = "{}"
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    resolved_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = asdict(self)
+        payload["details"] = json.loads(self.details_json or "{}")
+        return payload
+
+
+@dataclass
 class StoredSetting:
     key: str
     value_json: str
@@ -259,6 +278,28 @@ class BookmarkStore:
             )
             connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_created_at ON activity_events(created_at)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_events_kind ON activity_events(kind)")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS conflicts (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    source_type TEXT NOT NULL,
+                    source_id TEXT NOT NULL DEFAULT '',
+                    state TEXT NOT NULL DEFAULT 'open',
+                    summary TEXT NOT NULL DEFAULT '',
+                    details_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    resolved_at TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            ensure_column(connection, "conflicts", "summary", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "conflicts", "updated_at", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "conflicts", "resolved_at", "TEXT NOT NULL DEFAULT ''")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_conflicts_created_at ON conflicts(created_at DESC)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_conflicts_state ON conflicts(state)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_conflicts_kind ON conflicts(kind)")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS user_settings (
@@ -654,6 +695,21 @@ class BookmarkStore:
                     "merge_event_id": merge_event_id,
                 },
             )
+            self.create_conflict(
+                connection,
+                kind="merge_conflict",
+                source_type="merge_event",
+                source_id=merge_event_id,
+                state="resolved",
+                summary=f"Merge geprueft: {len(losers)} Dublette(n) in Gewinner uebernommen",
+                details={
+                    "winner_id": winner_id,
+                    "loser_ids": [loser.id for loser in losers],
+                    "winner_after": updated_winner.to_dict(),
+                    "losers_before": losers_before,
+                },
+                timestamp=now,
+            )
 
         merged_losers = [bookmark for loser in losers if (bookmark := self.get(loser.id))]
 
@@ -712,6 +768,14 @@ class BookmarkStore:
                     "winner_after_merge": winner_after.to_dict(),
                 },
             )
+            connection.execute(
+                """
+                UPDATE conflicts
+                SET state = 'open', updated_at = ?, resolved_at = ''
+                WHERE source_type = 'merge_event' AND source_id = ?
+                """,
+                (now, merge_event_id),
+            )
 
         return {
             "merge_event_id": merge_event_id,
@@ -746,6 +810,57 @@ class BookmarkStore:
                 (limit,),
             ).fetchall()
         return [activity_event_from_row(row) for row in rows]
+
+    def conflicts(self, limit: int = 100, state: str = "all") -> list[dict[str, Any]]:
+        query = [
+            """
+            SELECT *
+            FROM conflicts
+            """
+        ]
+        values: list[Any] = []
+        normalized_state = normalize_conflict_state(state, allow_all=True)
+        if normalized_state != "all":
+            query.append("WHERE state = ?")
+            values.append(normalized_state)
+        query.append("ORDER BY created_at DESC LIMIT ?")
+        values.append(limit)
+        with self.connect() as connection:
+            rows = connection.execute("\n".join(query), values).fetchall()
+        return [conflict_from_row(row) for row in rows]
+
+    def update_conflict_state(self, conflict_id: str, state: str) -> dict[str, Any]:
+        normalized_state = normalize_conflict_state(state)
+        now = datetime.now(UTC).isoformat()
+        resolved_at = now if normalized_state == "resolved" else ""
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM conflicts WHERE id = ?", (conflict_id,)).fetchone()
+            if not row:
+                raise ValueError("conflict not found")
+            connection.execute(
+                """
+                UPDATE conflicts
+                SET state = ?, updated_at = ?, resolved_at = ?
+                WHERE id = ?
+                """,
+                (normalized_state, now, resolved_at, conflict_id),
+            )
+            self.record_activity(
+                connection,
+                kind="conflict_state_changed",
+                object_type="conflict",
+                object_id=conflict_id,
+                summary=f"Konflikt auf {normalized_state} gesetzt",
+                details={
+                    "conflict_id": conflict_id,
+                    "kind": row["kind"],
+                    "source_type": row["source_type"],
+                    "source_id": row["source_id"],
+                    "state": normalized_state,
+                },
+            )
+            updated = connection.execute("SELECT * FROM conflicts WHERE id = ?", (conflict_id,)).fetchone()
+        return conflict_from_row(updated)
 
     def get_setting(self, key: str, default: Any = None) -> dict[str, Any]:
         with self.connect() as connection:
@@ -1007,7 +1122,8 @@ class BookmarkStore:
                         str(record.get("raw_payload_json", "{}")),
                         imported_at,
                     ),
-                )
+                    )
+            self.create_import_conflicts(connection, session_id, records, imported_at)
             self.record_activity(
                 connection,
                 kind="import_session_created",
@@ -1025,6 +1141,98 @@ class BookmarkStore:
                 },
             )
         return session_id
+
+    def create_import_conflicts(
+        self,
+        connection: sqlite3.Connection,
+        session_id: str,
+        records: list[dict[str, Any]],
+        created_at: str,
+    ) -> None:
+        for record in records:
+            action = str(record.get("action", "")).strip()
+            if action == "duplicate_existing":
+                payload = json.loads(str(record.get("raw_payload_json", "{}")) or "{}")
+                url = str(record.get("url_raw", "")).strip()
+                self.create_conflict(
+                    connection,
+                    kind="import_duplicate",
+                    source_type="import_session",
+                    source_id=session_id,
+                    state="open",
+                    summary=f"Import-Dublette erkannt: {url or payload.get('title') or 'ohne URL'}",
+                    details={
+                        "session_id": session_id,
+                        "action": action,
+                        "url_raw": url,
+                        "url_normalized": str(record.get("url_normalized", "")),
+                        "source_browser": str(record.get("source_browser", "")),
+                        "source_path": str(record.get("source_path", "")),
+                        "source_id": str(record.get("source_id", "")),
+                        "item": payload,
+                    },
+                    timestamp=created_at,
+                )
+            elif action == "invalid_skipped":
+                payload = json.loads(str(record.get("raw_payload_json", "{}")) or "{}")
+                url = str(record.get("url_raw", "")).strip()
+                self.create_conflict(
+                    connection,
+                    kind="import_invalid",
+                    source_type="import_session",
+                    source_id=session_id,
+                    state="open",
+                    summary=f"Import uebersprungen: {url or payload.get('title') or 'ungueltiger Eintrag'}",
+                    details={
+                        "session_id": session_id,
+                        "action": action,
+                        "url_raw": url,
+                        "source_browser": str(record.get("source_browser", "")),
+                        "source_path": str(record.get("source_path", "")),
+                        "source_id": str(record.get("source_id", "")),
+                        "item": payload,
+                    },
+                    timestamp=created_at,
+                )
+
+    def create_conflict(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        kind: str,
+        source_type: str,
+        source_id: str,
+        state: str,
+        summary: str,
+        details: dict[str, Any] | None = None,
+        timestamp: str | None = None,
+    ) -> str:
+        conflict_id = uuid4().hex
+        created_at = timestamp or datetime.now(UTC).isoformat()
+        normalized_state = normalize_conflict_state(state)
+        resolved_at = created_at if normalized_state == "resolved" else ""
+        connection.execute(
+            """
+            INSERT INTO conflicts (
+                id, kind, source_type, source_id, state, summary,
+                details_json, created_at, updated_at, resolved_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                conflict_id,
+                kind,
+                source_type,
+                source_id,
+                normalized_state,
+                summary,
+                json.dumps(details or {}, sort_keys=True),
+                created_at,
+                created_at,
+                resolved_at,
+            ),
+        )
+        return conflict_id
 
     def record_activity(
         self,
@@ -1469,6 +1677,21 @@ def activity_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
     ).to_dict()
 
 
+def conflict_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return ConflictRecord(
+        id=row["id"],
+        kind=row["kind"],
+        source_type=row["source_type"],
+        source_id=row["source_id"],
+        state=row["state"],
+        summary=row["summary"],
+        details_json=row["details_json"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        resolved_at=row["resolved_at"],
+    ).to_dict()
+
+
 def stored_setting_from_row(row: sqlite3.Row) -> StoredSetting:
     return StoredSetting(
         key=row["key"],
@@ -1479,6 +1702,16 @@ def stored_setting_from_row(row: sqlite3.Row) -> StoredSetting:
 
 def clone_json_value(value: Any) -> Any:
     return json.loads(json.dumps(value))
+
+
+def normalize_conflict_state(value: Any, *, allow_all: bool = False) -> str:
+    state = str(value or "open").strip().lower()
+    allowed = {"open", "resolved", "ignored"}
+    if allow_all:
+        allowed = {*allowed, "all"}
+    if state not in allowed:
+        return "all" if allow_all else "open"
+    return state
 
 
 def checksum_for_text(value: str) -> str:

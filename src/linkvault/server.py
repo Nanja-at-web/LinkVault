@@ -241,6 +241,17 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json({"events": store.activity_events()})
+        elif path == "/api/conflicts":
+            if not self.require_auth(auth_store):
+                return
+            params = parse_qs(parsed_url.query)
+            self.send_json(
+                {
+                    "conflicts": store.conflicts(
+                        state=get_query_param(params, "state") or "all",
+                    )
+                }
+            )
         elif path == "/api/settings/bookmark-view":
             if not self.require_auth(auth_store):
                 return
@@ -314,6 +325,11 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 merge_event_id = path.removeprefix("/api/dedup/merges/").removesuffix("/undo").strip("/")
                 self.send_json(store.undo_merge(merge_event_id))
+            elif path.startswith("/api/conflicts/") and path.endswith("/state"):
+                if not self.require_auth(auth_store):
+                    return
+                conflict_id = path.removeprefix("/api/conflicts/").removesuffix("/state").strip("/")
+                self.send_json(store.update_conflict_state(conflict_id, payload.get("state", "open")))
             elif path == "/api/bookmarks/preflight":
                 if not self.require_auth(auth_store):
                     return
@@ -1233,6 +1249,23 @@ def index_html() -> str:
     <div class="stack">
       <div class="mini-grid" id="operations-status"></div>
       <section class="mini-card">
+        <div class="panel-header">
+          <div>
+            <h3>Conflict Center</h3>
+            <p class="muted">Import-, Merge- und spaeter Sync-Konflikte an einer Stelle.</p>
+          </div>
+          <label>Filter
+            <select id="conflict-state-filter">
+              <option value="all">Alle</option>
+              <option value="open" selected>Offen</option>
+              <option value="resolved">Erledigt</option>
+              <option value="ignored">Ignoriert</option>
+            </select>
+          </label>
+        </div>
+        <div id="conflict-center" class="history-list"></div>
+      </section>
+      <section class="mini-card">
         <h3>Letzte Import-Sessions</h3>
         <div id="import-sessions" class="history-list"></div>
       </section>
@@ -1278,6 +1311,8 @@ def index_html() -> str:
     const bookmarkCount = document.querySelector('#bookmark-count');
     const filterSummary = document.querySelector('#filter-summary');
     const operationsStatus = document.querySelector('#operations-status');
+    const conflictCenterEl = document.querySelector('#conflict-center');
+    const conflictStateFilterEl = document.querySelector('#conflict-state-filter');
     const importSessionsEl = document.querySelector('#import-sessions');
     const activityLogEl = document.querySelector('#activity-log');
     const mergeHistoryEl = document.querySelector('#merge-history');
@@ -1611,15 +1646,17 @@ def index_html() -> str:
     }
 
     async function refreshOperations() {
-      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, activityResponse] = await Promise.all([
+      const conflictState = conflictStateFilterEl.value || 'open';
+      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, activityResponse, conflictResponse] = await Promise.all([
         fetch('/healthz'),
         fetch('/api/setup/status'),
         fetch('/api/dedup/merges'),
         fetch('/api/tokens'),
         fetch('/api/import/sessions'),
-        fetch('/api/activity')
+        fetch('/api/activity'),
+        fetch(`/api/conflicts?state=${encodeURIComponent(conflictState)}`)
       ]);
-      if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || activityResponse.status === 401) {
+      if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || activityResponse.status === 401 || conflictResponse.status === 401) {
         await loadAuth();
         return;
       }
@@ -1629,13 +1666,15 @@ def index_html() -> str:
       const tokens = await tokenResponse.json();
       const sessions = await importResponse.json();
       const activity = await activityResponse.json();
+      const conflicts = await conflictResponse.json();
       renderOperations(
         health,
         setup,
         mergeHistory.events || [],
         tokens.tokens || [],
         sessions.sessions || [],
-        activity.events || []
+        activity.events || [],
+        conflicts.conflicts || []
       );
     }
 
@@ -1902,7 +1941,7 @@ def index_html() -> str:
       });
     }
 
-    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, activityEvents) {
+    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, activityEvents, conflicts) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
           <h3>Health</h3>
@@ -1934,8 +1973,14 @@ def index_html() -> str:
           <p><strong>${activityEvents.length}</strong> Ereignisse</p>
           <p class="muted">Importe, Bulk, Merge, Loeschen</p>
         </div>
+        <div class="mini-card">
+          <h3>Konflikte</h3>
+          <p><strong>${conflicts.length}</strong> sichtbar</p>
+          <p class="muted">Gefiltert nach ${escapeHtml(conflictStateFilterEl.value || 'open')}</p>
+        </div>
       `;
 
+      renderConflicts(conflicts);
       renderImportSessions(importSessions);
       renderActivity(activityEvents);
       renderApiTokens(apiTokens);
@@ -1967,6 +2012,51 @@ def index_html() -> str:
           await refreshAll();
         });
       });
+    }
+
+    function renderConflicts(conflicts) {
+      if (!conflicts.length) {
+        conflictCenterEl.innerHTML = '<div class="empty">Keine Konflikte fuer diesen Filter.</div>';
+        return;
+      }
+      conflictCenterEl.innerHTML = conflicts.map((conflict) => `
+        <div class="mini-card">
+          <p><strong>${escapeHtml(conflict.summary)}</strong></p>
+          <p class="muted">${escapeHtml(conflict.kind)} · ${escapeHtml(conflict.source_type)} · ${escapeHtml(conflict.created_at)}</p>
+          <p>Status: <strong>${escapeHtml(conflict.state)}</strong>${conflict.resolved_at ? ` · erledigt ${escapeHtml(conflict.resolved_at)}` : ''}</p>
+          ${renderConflictDetails(conflict.details)}
+          <div class="inline-actions">
+            ${conflict.state !== 'open' ? `<button type="button" data-conflict-state="open" data-conflict-id="${escapeAttr(conflict.id)}">Wieder offen</button>` : ''}
+            ${conflict.state !== 'resolved' ? `<button type="button" data-conflict-state="resolved" data-conflict-id="${escapeAttr(conflict.id)}">Als erledigt markieren</button>` : ''}
+            ${conflict.state !== 'ignored' ? `<button type="button" data-conflict-state="ignored" data-conflict-id="${escapeAttr(conflict.id)}">Ignorieren</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+      conflictCenterEl.querySelectorAll('[data-conflict-state]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          await fetch(`/api/conflicts/${button.dataset.conflictId}/state`, {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: JSON.stringify({state: button.dataset.conflictState})
+          });
+          await refreshOperations();
+        });
+      });
+    }
+
+    function renderConflictDetails(details) {
+      if (!details || typeof details !== 'object') return '';
+      const lines = [];
+      if (details.url_raw) lines.push(`URL: ${escapeHtml(details.url_raw)}`);
+      if (details.url_normalized) lines.push(`Normalisiert: ${escapeHtml(details.url_normalized)}`);
+      if (details.session_id) lines.push(`Session: ${escapeHtml(details.session_id.slice(0, 8))}`);
+      if (details.source_path) lines.push(`Pfad: ${escapeHtml(details.source_path)}`);
+      if (Array.isArray(details.loser_ids) && details.loser_ids.length) {
+        lines.push(`Verlierer: ${escapeHtml(details.loser_ids.map((value) => String(value).slice(0, 8)).join(', '))}`);
+      }
+      if (details.winner_id) lines.push(`Gewinner: ${escapeHtml(String(details.winner_id).slice(0, 8))}`);
+      if (!lines.length) return '';
+      return `<p class="muted">${lines.join(' · ')}</p>`;
     }
 
     function renderImportSessions(sessions) {
@@ -2650,6 +2740,7 @@ def index_html() -> str:
     document.querySelector('#refresh').addEventListener('click', refreshBookmarks);
     document.querySelector('#dry-run').addEventListener('click', refreshDryRun);
     document.querySelector('#refresh-operations').addEventListener('click', refreshOperations);
+    conflictStateFilterEl.addEventListener('change', refreshOperations);
     document.querySelector('#search').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-favorite').addEventListener('change', refreshBookmarks);
     document.querySelector('#filter-pinned').addEventListener('change', refreshBookmarks);

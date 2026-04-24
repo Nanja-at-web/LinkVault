@@ -45,6 +45,16 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn('id="active-view-chips"', html)
         self.assertIn("renderActiveViewChips", html)
 
+    def test_index_html_has_conflict_center(self):
+        html = index_html()
+
+        self.assertIn("Conflict Center", html)
+        self.assertIn('id="conflict-center"', html)
+        self.assertIn('id="conflict-state-filter"', html)
+        self.assertIn("/api/conflicts", html)
+        self.assertIn("renderConflicts", html)
+        self.assertIn("renderConflictDetails", html)
+
 
 if __name__ == "__main__":
     unittest.main()

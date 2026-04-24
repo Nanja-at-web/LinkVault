@@ -208,12 +208,20 @@ class AuthHttpTest(unittest.TestCase):
                                 "source_root": "Bookmarks Toolbar",
                                 "source_folder_path": "Bookmarks Toolbar / Dev",
                                 "source_position": 0,
-                            }
+                            },
+                            {
+                                "url": "http://127.0.0.1:9/from-browser?utm_source=dup",
+                                "title": "From Browser Duplicate",
+                                "source_root": "Bookmarks Toolbar",
+                                "source_folder_path": "Bookmarks Toolbar / Dev",
+                                "source_position": 1,
+                            },
                         ]
                     },
                     headers={"authorization": f"Bearer {token_payload['token']}"},
                 )
                 self.assertEqual(browser_preview["create"], 1)
+                self.assertEqual(browser_preview["duplicate_in_import"], 1)
                 browser_import = request_json(
                     opener,
                     f"{base_url}/api/import/browser-bookmarks",
@@ -225,12 +233,20 @@ class AuthHttpTest(unittest.TestCase):
                                 "source_root": "Bookmarks Toolbar",
                                 "source_folder_path": "Bookmarks Toolbar / Dev",
                                 "source_position": 0,
-                            }
+                            },
+                            {
+                                "url": "http://127.0.0.1:9/from-browser?utm_source=dup",
+                                "title": "From Browser Duplicate",
+                                "source_root": "Bookmarks Toolbar",
+                                "source_folder_path": "Bookmarks Toolbar / Dev",
+                                "source_position": 1,
+                            },
                         ]
                     },
                     headers={"authorization": f"Bearer {token_payload['token']}"},
                 )
                 self.assertEqual(browser_import["created"], 1)
+                self.assertEqual(browser_import["duplicates_skipped"], 1)
                 self.assertTrue(browser_import["import_session_id"])
                 browser_export = get_json(
                     opener,
@@ -247,6 +263,20 @@ class AuthHttpTest(unittest.TestCase):
                 self.assertIn("merge_duplicates", activity_kinds)
                 self.assertIn("merge_undo", activity_kinds)
                 self.assertIn("bulk_update", activity_kinds)
+                open_conflicts = get_json(opener, f"{base_url}/api/conflicts?state=open")
+                self.assertTrue(open_conflicts["conflicts"])
+                self.assertTrue(any(conflict["kind"] == "import_duplicate" for conflict in open_conflicts["conflicts"]))
+                import_conflict = next(conflict for conflict in open_conflicts["conflicts"] if conflict["kind"] == "import_duplicate")
+                all_conflicts = get_json(opener, f"{base_url}/api/conflicts?state=all")
+                self.assertTrue(any(conflict["kind"] == "merge_conflict" for conflict in all_conflicts["conflicts"]))
+                updated_conflict = request_json(
+                    opener,
+                    f"{base_url}/api/conflicts/{import_conflict['id']}/state",
+                    {"state": "ignored"},
+                )
+                self.assertEqual(updated_conflict["state"], "ignored")
+                ignored_conflicts = get_json(opener, f"{base_url}/api/conflicts?state=ignored")
+                self.assertTrue(any(conflict["id"] == import_conflict["id"] for conflict in ignored_conflicts["conflicts"]))
                 default_view = get_json(opener, f"{base_url}/api/settings/bookmark-view")
                 self.assertEqual(default_view["preferences"]["view"], "compact")
                 self.assertFalse(default_view["saved"])

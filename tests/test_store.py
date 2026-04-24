@@ -357,6 +357,35 @@ class StoreTest(unittest.TestCase):
             activity = store.activity_events()
             self.assertEqual(activity[0]["kind"], "import_session_created")
             self.assertIn("Import 1 neu, 1 Dubletten", activity[0]["summary"])
+            conflicts = store.conflicts()
+            self.assertEqual(len(conflicts), 1)
+            self.assertEqual(conflicts[0]["kind"], "import_duplicate")
+            self.assertEqual(conflicts[0]["state"], "open")
+            self.assertEqual(conflicts[0]["details"]["session_id"], result["import_session_id"])
+
+    def test_invalid_import_creates_open_conflict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+
+            result = store.import_browser_html(
+                """
+                <!DOCTYPE NETSCAPE-Bookmark-file-1>
+                <DL><p>
+                  <DT><A HREF="about:config">Firefox internal</A>
+                </DL><p>
+                """,
+                session_meta={
+                    "source_name": "Browser Bookmark HTML",
+                    "source_format": "browser-html",
+                    "source_file_name": "bookmarks.html",
+                },
+            )
+
+            self.assertEqual(result["invalid_skipped"], 1)
+            conflicts = store.conflicts()
+            self.assertEqual(len(conflicts), 1)
+            self.assertEqual(conflicts[0]["kind"], "import_invalid")
+            self.assertEqual(conflicts[0]["state"], "open")
 
     def test_user_settings_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -552,6 +581,27 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(store.activity_events()[0]["kind"], "merge_undo")
             with self.assertRaises(ValueError):
                 store.undo_merge(merge["merge_event_id"])
+            conflicts = store.conflicts(state="all")
+            self.assertEqual(conflicts[0]["kind"], "merge_conflict")
+            self.assertEqual(conflicts[0]["state"], "open")
+
+    def test_merge_creates_resolved_conflict_and_can_change_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            winner = store.add({"url": "https://example.com/a", "title": "Winner"})
+            loser = store.add({"url": "https://example.com/a?utm_source=news", "title": "Loser"})
+
+            merge = store.merge_duplicates({"winner_id": winner.id, "loser_ids": [loser.id]})
+
+            conflicts = store.conflicts(state="all")
+            self.assertEqual(len(conflicts), 1)
+            self.assertEqual(conflicts[0]["kind"], "merge_conflict")
+            self.assertEqual(conflicts[0]["source_id"], merge["merge_event_id"])
+            self.assertEqual(conflicts[0]["state"], "resolved")
+
+            updated = store.update_conflict_state(conflicts[0]["id"], "ignored")
+            self.assertEqual(updated["state"], "ignored")
+            self.assertEqual(store.activity_events()[0]["kind"], "conflict_state_changed")
 
     def test_inactive_bookmarks_are_not_reindexed_by_update(self):
         with tempfile.TemporaryDirectory() as tmp:
