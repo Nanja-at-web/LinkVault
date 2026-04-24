@@ -30,6 +30,7 @@ The current focus is:
 - [Browser bookmark UX patterns](docs/BROWSER_BOOKMARK_UX_PATTERNS.md)
 - [Layout and display UX patterns](docs/LAYOUT_DISPLAY_UX_PATTERNS.md)
 - [Companion extension plan](docs/COMPANION_EXTENSION.md)
+- [Windows development setup](docs/DEVELOPMENT_WINDOWS.md)
 - [Installation requirements impact, German](docs/INSTALLATION_REQUIREMENTS.md)
 - [Deduplication, sorting, and categorization, German](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox community-scripts target, German](docs/PROXMOX_COMMUNITY_SCRIPT.md)
@@ -202,6 +203,13 @@ Run tests:
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests
+```
+
+Windows note:
+
+```powershell
+$env:PYTHONPATH='src'
+.\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
 ## Guiding Idea

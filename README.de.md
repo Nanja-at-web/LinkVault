@@ -29,6 +29,7 @@ Der Schwerpunkt liegt auf:
 - [Browser-Bookmark-UX-Muster](docs/BROWSER_BOOKMARK_UX_PATTERNS.md)
 - [Layout- und Anzeige-UX-Muster](docs/LAYOUT_DISPLAY_UX_PATTERNS.md)
 - [Companion-Extension-Plan](docs/COMPANION_EXTENSION.md)
+- [Windows-Entwicklungssetup](docs/DEVELOPMENT_WINDOWS.md)
 - [Einfluss der Installations- und Requirements-Recherche](docs/INSTALLATION_REQUIREMENTS.md)
 - [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
 - [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
@@ -201,6 +202,13 @@ Tests:
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests
+```
+
+Windows-Hinweis:
+
+```powershell
+$env:PYTHONPATH='src'
+.\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
 ## Leitidee

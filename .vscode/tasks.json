@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "LinkVault: Python compile check",
+      "type": "shell",
+      "linux": {
+        "command": "python3 -m py_compile src/linkvault/*.py tests/*.py"
+      },
+      "osx": {
+        "command": "python3 -m py_compile src/linkvault/*.py tests/*.py"
+      },
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-Command",
+          "Get-ChildItem src\\linkvault\\*.py, tests\\*.py | ForEach-Object { .\\.venv\\Scripts\\python.exe -m py_compile $_.FullName }"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "LinkVault: Unit tests",
+      "type": "shell",
+      "linux": {
+        "command": "PYTHONPATH=src .venv/bin/python -m unittest discover -s tests"
+      },
+      "osx": {
+        "command": "PYTHONPATH=src .venv/bin/python -m unittest discover -s tests"
+      },
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-Command",
+          "$env:PYTHONPATH='src'; .\\.venv\\Scripts\\python.exe -m unittest discover -s tests"
+        ]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "LinkVault: Companion JS syntax check",
+      "type": "shell",
+      "linux": {
+        "command": "node --check extensions/linkvault-companion/shared.js && node --check extensions/linkvault-companion/options.js && node --check extensions/linkvault-companion/popup.js"
+      },
+      "osx": {
+        "command": "node --check extensions/linkvault-companion/shared.js && node --check extensions/linkvault-companion/options.js && node --check extensions/linkvault-companion/popup.js"
+      },
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-Command",
+          "node --check extensions\\linkvault-companion\\shared.js; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; node --check extensions\\linkvault-companion\\options.js; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; node --check extensions\\linkvault-companion\\popup.js"
+        ]
+      },
+      "problemMatcher": []
+    }
+  ]
+}
