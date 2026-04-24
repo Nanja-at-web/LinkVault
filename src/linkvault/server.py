@@ -1345,6 +1345,7 @@ def index_html() -> str:
     };
     const starterViewDefinitions = {
       'Inbox Review': {
+        badges: ['Inbox', 'Sichtung'],
         description: 'Detaillierte Inbox-Sichtung mit Beschreibung, Notizen und Datumsangaben.',
         view: 'detailed',
         fields: {
@@ -1369,6 +1370,7 @@ def index_html() -> str:
         }
       },
       'Research Grid': {
+        badges: ['Recherche', 'Grid'],
         description: 'Visuelle Recherche-Ansicht fuer Sammlungen, Tags und schnelles Durchscrollen.',
         view: 'grid',
         fields: {
@@ -1393,6 +1395,7 @@ def index_html() -> str:
         }
       },
       'Duplicate Cleanup': {
+        badges: ['Dubletten', 'Pflege'],
         description: 'Kompakte Pflegeansicht fuer bereits markierte Dubletten und Merge-Nacharbeit.',
         view: 'compact',
         fields: {
@@ -2073,6 +2076,7 @@ def index_html() -> str:
       host.innerHTML = Object.entries(starterViewDefinitions).map(([name, starter]) => `
         <div class="mini-card">
           <p><strong>${escapeHtml(name)}</strong></p>
+          <p>${(starter.badges || []).map((badge) => `<span class="badge">${escapeHtml(badge)}</span>`).join('')}</p>
           <p class="muted">${escapeHtml(starter.description || '')}</p>
           <div class="inline-actions">
             <button data-starter-view="${escapeAttr(name)}" type="button">Anlegen / aktualisieren</button>
