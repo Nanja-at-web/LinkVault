@@ -42,6 +42,8 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("Inbox", html)
         self.assertIn("Recherche", html)
         self.assertIn("Dubletten", html)
+        self.assertIn('id="active-view-chips"', html)
+        self.assertIn("renderActiveViewChips", html)
 
 
 if __name__ == "__main__":

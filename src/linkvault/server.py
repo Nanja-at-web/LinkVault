@@ -1105,6 +1105,7 @@ def index_html() -> str:
       </span>
       <span class="filter-summary"><span id="selected-count">0</span> ausgewaehlt</span>
     </div>
+    <div id="active-view-chips" class="inline-actions"></div>
 
     <details class="drawer" id="view-drawer">
       <summary>Ansicht</summary>
@@ -1423,6 +1424,7 @@ def index_html() -> str:
     let viewPreferences = clonePreferences(defaultViewPreferences);
     let savedViews = [];
     let defaultSavedViewName = '';
+    let currentViewLabel = '';
 
     async function loadAuth() {
       authError.textContent = '';
@@ -2018,6 +2020,49 @@ def index_html() -> str:
       document.querySelector('#selected-count').textContent = String(selectedIds.size);
     }
 
+    function activeViewContext() {
+      const selected = selectedSavedView();
+      if (selected) {
+        const starter = starterViewDefinitions[selected.name];
+        return {
+          label: selected.name,
+          badges: starter?.badges || [],
+        };
+      }
+      const status = document.querySelector('#filter-status').value || 'active';
+      const collection = document.querySelector('#filter-collection').value.trim();
+      if (collection.toLowerCase() === 'inbox') {
+        return {label: 'Inbox Arbeit', badges: ['Inbox']};
+      }
+      if (status === 'merged_duplicate') {
+        return {label: 'Dublettenpflege', badges: ['Dubletten']};
+      }
+      if (viewPreferences.view === 'grid') {
+        return {label: 'Rechercheansicht', badges: ['Recherche']};
+      }
+      return {label: currentViewLabel || 'Aktive Ansicht', badges: []};
+    }
+
+    function renderActiveViewChips() {
+      const host = document.querySelector('#active-view-chips');
+      const context = activeViewContext();
+      const chips = [];
+      chips.push(`<span class="badge">${escapeHtml(context.label)}</span>`);
+      for (const badge of context.badges) {
+        chips.push(`<span class="badge">${escapeHtml(badge)}</span>`);
+      }
+      chips.push(`<span class="badge">${escapeHtml(viewPreferences.view === 'grid' ? 'Grid/Card' : viewPreferences.view === 'detailed' ? 'Detailed List' : 'Compact List')}</span>`);
+      const status = document.querySelector('#filter-status').value || 'active';
+      if (status === 'merged_duplicate') {
+        chips.push('<span class="badge">Gemergte Dubletten</span>');
+      } else if (status === 'all') {
+        chips.push('<span class="badge">Alle</span>');
+      } else {
+        chips.push('<span class="badge">Aktiv</span>');
+      }
+      host.innerHTML = chips.join('');
+    }
+
     function updateFilterSummary(query, status) {
       const parts = [];
       if (query) parts.push(`Suche: ${query}`);
@@ -2033,6 +2078,7 @@ def index_html() -> str:
         if (value) parts.push(`${label}: ${value}`);
       }
       filterSummary.textContent = parts.length ? parts.join(' · ') : 'Keine Zusatzfilter aktiv.';
+      renderActiveViewChips();
     }
 
     function clonePreferences(preferences) {
@@ -2099,16 +2145,19 @@ def index_html() -> str:
           viewPreferences = clonePreferences(defaultViewPreferences);
           savedViews = [];
           defaultSavedViewName = '';
+          currentViewLabel = '';
         } else {
           const payload = await response.json();
           viewPreferences = mergeViewPreferences(payload.preferences);
           savedViews = Array.isArray(payload.views) ? payload.views : [];
           defaultSavedViewName = String(payload.default_name || '').trim();
+          currentViewLabel = defaultSavedViewName;
         }
       } catch {
         viewPreferences = clonePreferences(defaultViewPreferences);
         savedViews = [];
         defaultSavedViewName = '';
+        currentViewLabel = '';
       }
       applyViewControls();
       renderSavedViews();
@@ -2165,6 +2214,7 @@ def index_html() -> str:
       document.querySelector('#filter-collection').value = viewPreferences.filters.collection || '';
       document.querySelector('#filter-status').value = viewPreferences.filters.status || 'active';
       if (bookmarksEl) bookmarksEl.className = `bookmark-list view-${viewPreferences.view}`;
+      renderActiveViewChips();
     }
 
     function applyViewFieldPreset(view) {
@@ -2193,6 +2243,7 @@ def index_html() -> str:
       viewPreferences = mergeViewPreferences(payload.preferences);
       applyViewControls();
       defaultSavedViewName = '';
+      currentViewLabel = '';
       renderSavedViews();
       viewStatus('Ansicht als Standard gespeichert.');
       await refreshBookmarks();
@@ -2208,6 +2259,7 @@ def index_html() -> str:
       viewPreferences = mergeViewPreferences(payload.preferences);
       applyViewControls();
       defaultSavedViewName = '';
+      currentViewLabel = '';
       renderSavedViews();
       viewStatus('Standardansicht wiederhergestellt.');
       await refreshBookmarks();
@@ -2245,6 +2297,7 @@ def index_html() -> str:
       renderSavedViews();
       document.querySelector('#saved-view-select').value = name;
       document.querySelector('#saved-view-name').value = name;
+      currentViewLabel = name;
       viewStatus(options.setDefault
         ? `Ansicht "${name}" gespeichert und als Default gesetzt.`
         : `Ansicht "${name}" gespeichert.`);
@@ -2274,6 +2327,7 @@ def index_html() -> str:
         return;
       }
       viewPreferences = mergeViewPreferences(view.preferences);
+      currentViewLabel = view.name;
       applyViewControls();
       document.querySelector('#saved-view-name').value = view.name;
       viewStatus(`Ansicht "${view.name}" geladen.`);
@@ -2299,6 +2353,7 @@ def index_html() -> str:
       savedViews = Array.isArray(payload.views) ? payload.views : [];
       defaultSavedViewName = String(payload.default_name || '').trim();
       viewPreferences = mergeViewPreferences(payload.preferences);
+      currentViewLabel = view.name;
       applyViewControls();
       renderSavedViews();
       document.querySelector('#saved-view-select').value = view.name;
@@ -2325,6 +2380,8 @@ def index_html() -> str:
       defaultSavedViewName = String(payload.default_name || '').trim();
       renderSavedViews();
       document.querySelector('#saved-view-name').value = '';
+      currentViewLabel = '';
+      renderActiveViewChips();
       viewStatus(`Ansicht "${view.name}" geloescht.`);
     }
 
