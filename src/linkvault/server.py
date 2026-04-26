@@ -1200,6 +1200,7 @@ def index_html() -> str:
     <button type="button" data-tab-trigger="bookmarks">Bookmarks</button>
     <button type="button" data-tab-trigger="dedup">Dubletten</button>
     <button type="button" data-tab-trigger="operations">Betrieb</button>
+    <button type="button" data-tab-trigger="admin" id="admin-nav-btn" hidden>Admin</button>
     <button type="button" data-tab-trigger="profile">Profil</button>
   </nav>
 
@@ -1434,25 +1435,6 @@ def index_html() -> str:
         <h3>Aktivitaet</h3>
         <div id="activity-log" class="history-list"></div>
       </section>
-      <section id="user-management-section" class="mini-card" hidden>
-        <h3>Benutzerverwaltung</h3>
-        <p class="muted">Admins legen Benutzer an, verwalten Rollen und setzen Passwoerter zurueck.</p>
-        <form id="user-create-form" class="mini-grid">
-          <label>Benutzername <input name="username" placeholder="anna" required></label>
-          <label>Rolle
-            <select name="role">
-              <option value="user" selected>User</option>
-              <option value="admin">Admin</option>
-            </select>
-          </label>
-          <label>Startpasswort <input name="password" type="password" minlength="12" required></label>
-          <div class="inline-actions" style="align-items:end;">
-            <button type="submit">Benutzer anlegen</button>
-          </div>
-        </form>
-        <div id="user-management-status" class="notice" hidden></div>
-        <div id="user-list" class="history-list"></div>
-      </section>
       <section class="mini-card">
         <h3>Letzte Merge-Aktionen</h3>
         <div id="merge-history" class="history-list"></div>
@@ -1494,6 +1476,39 @@ def index_html() -> str:
       </section>
     </div>
   </section>
+
+  <section id="admin" class="panel tab-panel" data-tab-panel="admin" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Admin</h2>
+        <p class="subtitle">Benutzerverwaltung, Rollen und Passwort-Reset.</p>
+      </div>
+      <button id="refresh-admin" type="button">Aktualisieren</button>
+    </div>
+    <div class="stack">
+      <section class="mini-card">
+        <h3>Benutzer anlegen</h3>
+        <form id="user-create-form" class="mini-grid">
+          <label>Benutzername <input name="username" placeholder="anna" required></label>
+          <label>Rolle
+            <select name="role">
+              <option value="user" selected>User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>Startpasswort <input name="password" type="password" minlength="12" required></label>
+          <div class="inline-actions" style="align-items:end;">
+            <button type="submit">Benutzer anlegen</button>
+          </div>
+        </form>
+        <div id="user-management-status" class="notice" hidden></div>
+      </section>
+      <section class="mini-card">
+        <h3>Alle Benutzer</h3>
+        <div id="user-list" class="history-list"></div>
+      </section>
+    </div>
+  </section>
   </main>
 </div>
 
@@ -1529,7 +1544,7 @@ def index_html() -> str:
     const passwordChangeForm = document.querySelector('#password-change-form');
     const passwordChangeStatus = document.querySelector('#password-change-status');
     const profileInfo = document.querySelector('#profile-info');
-    const userManagementSection = document.querySelector('#user-management-section');
+    const adminNavBtn = document.querySelector('#admin-nav-btn');
     const userCreateForm = document.querySelector('#user-create-form');
     const userManagementStatus = document.querySelector('#user-management-status');
     const userListEl = document.querySelector('#user-list');
@@ -1715,6 +1730,7 @@ def index_html() -> str:
       userbar.hidden = false;
       currentUserState = user || null;
       currentUser.textContent = user ? `${user.username} · ${user.role}` : '';
+      adminNavBtn.hidden = user?.role !== 'admin';
       await loadViewPreferences();
       setActiveTab(activeTab);
     }
@@ -1728,6 +1744,7 @@ def index_html() -> str:
         button.classList.toggle('active', button.dataset.tabTrigger === tab);
       });
       if (tab === 'profile') refreshProfile();
+      if (tab === 'admin') refreshAdmin();
     }
 
     function clearBookmarkFilters() {
@@ -1865,7 +1882,7 @@ def index_html() -> str:
 
     async function refreshOperations() {
       const conflictState = conflictStateFilterEl.value || 'open';
-      const requests = [
+      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, restoreResponse, activityResponse, conflictResponse] = await Promise.all([
         fetch('/healthz'),
         fetch('/api/setup/status'),
         fetch('/api/dedup/merges'),
@@ -1874,11 +1891,7 @@ def index_html() -> str:
         fetch('/api/restore/sessions'),
         fetch('/api/activity'),
         fetch(`/api/conflicts?state=${encodeURIComponent(conflictState)}`)
-      ];
-      if (currentUserState?.role === 'admin') {
-        requests.push(fetch('/api/users'));
-      }
-      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, restoreResponse, activityResponse, conflictResponse, usersResponse] = await Promise.all(requests);
+      ]);
       if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || restoreResponse.status === 401 || activityResponse.status === 401 || conflictResponse.status === 401) {
         await loadAuth();
         return;
@@ -1891,7 +1904,6 @@ def index_html() -> str:
       const restoreSessions = await restoreResponse.json();
       const activity = await activityResponse.json();
       const conflicts = await conflictResponse.json();
-      const users = usersResponse && usersResponse.ok ? await usersResponse.json() : {users: []};
       renderOperations(
         health,
         setup,
@@ -1900,8 +1912,7 @@ def index_html() -> str:
         sessions.sessions || [],
         restoreSessions.sessions || [],
         activity.events || [],
-        conflicts.conflicts || [],
-        users.users || []
+        conflicts.conflicts || []
       );
     }
 
@@ -1926,6 +1937,14 @@ def index_html() -> str:
       if (response.status === 401) { await loadAuth(); return; }
       const payload = await response.json();
       renderApiTokens(payload.tokens || []);
+    }
+
+    async function refreshAdmin() {
+      if (currentUserState?.role !== 'admin') return;
+      const response = await fetch('/api/users');
+      if (response.status === 401) { await loadAuth(); return; }
+      const payload = await response.json();
+      renderUserManagement(payload.users || []);
     }
 
     function renderDedupDryRun(payload) {
@@ -2191,7 +2210,7 @@ def index_html() -> str:
       });
     }
 
-    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, restoreSessions, activityEvents, conflicts, users) {
+    function renderOperations(health, setup, mergeEvents, apiTokens, importSessions, restoreSessions, activityEvents, conflicts) {
       operationsStatus.innerHTML = `
         <div class="mini-card">
           <h3>Health</h3>
@@ -2239,7 +2258,6 @@ def index_html() -> str:
       renderImportSessions(importSessions);
       renderRestoreSessions(restoreSessions);
       renderActivity(activityEvents);
-      renderUserManagement(users);
 
       if (!mergeEvents.length) {
         mergeHistoryEl.innerHTML = '<div class="empty">Noch keine Merge-Aktionen vorhanden.</div>';
@@ -2589,13 +2607,6 @@ def index_html() -> str:
     }
 
     function renderUserManagement(users) {
-      const isAdmin = currentUserState?.role === 'admin';
-      userManagementSection.hidden = !isAdmin;
-      if (!isAdmin) {
-        userListEl.innerHTML = '';
-        clearNotice(userManagementStatus);
-        return;
-      }
       if (!users.length) {
         userListEl.innerHTML = '<div class="empty">Noch keine Benutzer vorhanden.</div>';
         return;
@@ -2652,7 +2663,7 @@ def index_html() -> str:
             currentUserState = payload.user;
             currentUser.textContent = `${payload.user.username} · ${payload.user.role}`;
           }
-          await refreshOperations();
+          await refreshAdmin();
         });
       });
       userListEl.querySelectorAll('[data-user-reset]').forEach((form) => {
@@ -2682,7 +2693,7 @@ def index_html() -> str:
             return;
           }
           showNotice(userManagementStatus, 'Benutzer geloescht.');
-          await refreshOperations();
+          await refreshAdmin();
         });
       });
     }
@@ -3316,7 +3327,7 @@ def index_html() -> str:
       }
       event.target.reset();
       showNotice(userManagementStatus, `Benutzer ${payload.user.username} angelegt.`);
-      await refreshOperations();
+      await refreshAdmin();
     });
 
     document.querySelector('#logout').addEventListener('click', async () => {
@@ -3387,6 +3398,7 @@ def index_html() -> str:
     document.querySelectorAll('[data-tab-trigger]').forEach((button) => {
       button.addEventListener('click', () => setActiveTab(button.dataset.tabTrigger));
     });
+    document.querySelector('#refresh-admin').addEventListener('click', refreshAdmin);
     document.addEventListener('keydown', async (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
