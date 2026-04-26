@@ -379,6 +379,8 @@ class BookmarkStore:
             # Migrate old single-key schema (no user_id column) to per-user schema
             old_cols = {row["name"] for row in connection.execute("PRAGMA table_info(user_settings)")}
             if "user_id" not in old_cols:
+                # Drop leftover temp table from any previously interrupted migration
+                connection.execute("DROP TABLE IF EXISTS user_settings_new")
                 connection.execute(
                     """
                     CREATE TABLE user_settings_new (
