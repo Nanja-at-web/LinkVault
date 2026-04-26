@@ -97,10 +97,12 @@ class AuthStore:
                 )
                 """
             )
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)")
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id)")
+            # ensure_column must run before any index that references the added
+            # column — on older DBs the column does not exist yet when we get here
             self.ensure_column(connection, "users", "role", "TEXT NOT NULL DEFAULT 'admin'")
             self.ensure_column(connection, "api_tokens", "user_id", "TEXT")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id)")
             first_user = connection.execute("SELECT id FROM users ORDER BY created_at ASC LIMIT 1").fetchone()
             if first_user:
                 connection.execute(
