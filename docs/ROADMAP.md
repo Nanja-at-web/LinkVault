@@ -56,8 +56,8 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
   Erkennung im lokalen Netzwerk.
 - [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
-  Bookmarks, Dubletten, Betrieb, Admin (nur Admin-User) und Profil vorhanden;
-  eigene Favoriten-, Tags-, Collections-, Archiv- und Einstellungs-Tabs offen.
+  Bookmarks, Favoriten, Tags, Collections, Einstellungen, Dubletten, Betrieb,
+  Admin (nur Admin-User) und Profil vorhanden; Archiv-Tab noch offen.
 - [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
   Arbeitsleisten auslagern.
 - [x] Inbox/Unsortiert: neue Links ohne Collection landen automatisch in

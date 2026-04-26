@@ -280,6 +280,14 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not user:
                 return
             self.send_json(named_bookmark_views_payload(store, user.id))
+        elif path == "/api/tags":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json({"tags": store.list_tags()})
+        elif path == "/api/collections":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json({"collections": store.list_collections()})
         elif path == "/":
             self.send_html(index_html())
         else:
@@ -1147,6 +1155,18 @@ def index_html() -> str:
     .diff-values { display: grid; gap: .35rem; }
     .diff-winner { font-weight: 700; }
     .history-list { display: grid; gap: .6rem; }
+    .tag-cloud { display: flex; flex-wrap: wrap; gap: .5rem; padding: .25rem 0; }
+    .tag-chip { display: inline-flex; align-items: center; gap: .35rem; background: #e8f0e1; border: 1px solid #c6d4ba; border-radius: 999px; padding: .25rem .75rem; cursor: pointer; font-size: .9rem; white-space: nowrap; }
+    .tag-chip:hover { background: #d3e4c7; border-color: #9ab88a; }
+    .tag-chip .tag-count { color: var(--muted); font-size: .8rem; }
+    .collection-row { display: flex; align-items: center; justify-content: space-between; background: #f5f7f2; border: 1px solid #dde5d5; border-radius: 8px; padding: .5rem .85rem; cursor: pointer; }
+    .collection-row:hover { background: #e8f0e1; border-color: #c6d4ba; }
+    .collection-row .coll-name { font-weight: 500; }
+    .collection-row .coll-count { color: var(--muted); font-size: .9rem; }
+    .fav-card { background: #f5f7f2; border: 1px solid #dde5d5; border-radius: 8px; padding: .6rem .85rem; }
+    .fav-card a.fav-title { font-weight: 500; color: var(--ink); text-decoration: none; }
+    .fav-card a.fav-title:hover { text-decoration: underline; }
+    .fav-card .fav-meta { color: var(--muted); font-size: .85rem; margin-top: .2rem; }
     .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
     .shortcut-hint { color: var(--muted); margin: .35rem 0 0; font-size: .9rem; }
     @media (max-width: 760px) {
@@ -1198,8 +1218,12 @@ def index_html() -> str:
     <button type="button" data-inbox-trigger>Inbox</button>
     <button type="button" data-tab-trigger="import">Import</button>
     <button type="button" data-tab-trigger="bookmarks">Bookmarks</button>
+    <button type="button" data-tab-trigger="favorites">Favoriten</button>
+    <button type="button" data-tab-trigger="tags">Tags</button>
+    <button type="button" data-tab-trigger="collections">Collections</button>
     <button type="button" data-tab-trigger="dedup">Dubletten</button>
     <button type="button" data-tab-trigger="operations">Betrieb</button>
+    <button type="button" data-tab-trigger="settings">Einstellungen</button>
     <button type="button" data-tab-trigger="admin" id="admin-nav-btn" hidden>Admin</button>
     <button type="button" data-tab-trigger="profile">Profil</button>
   </nav>
@@ -1383,6 +1407,61 @@ def index_html() -> str:
     <div id="bookmarks" class="bookmark-list"></div>
   </section>
 
+  <section id="favorites" class="panel tab-panel" data-tab-panel="favorites" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Favoriten</h2>
+        <p class="subtitle">Deine gespeicherten Lieblingsbookmarks.</p>
+      </div>
+      <div class="inline-actions">
+        <button type="button" id="show-favorites-in-bookmarks">In Bookmarks</button>
+        <button type="button" id="refresh-favorites">Aktualisieren</button>
+      </div>
+    </div>
+    <div id="favorites-list" class="history-list"></div>
+  </section>
+
+  <section id="tags" class="panel tab-panel" data-tab-panel="tags" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Tags</h2>
+        <p class="subtitle">Alle Tags mit Anzahl. Klick filtert die Bookmark-Liste.</p>
+      </div>
+      <button type="button" id="refresh-tags">Aktualisieren</button>
+    </div>
+    <div id="tags-list" class="tag-cloud"></div>
+  </section>
+
+  <section id="collections" class="panel tab-panel" data-tab-panel="collections" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Collections</h2>
+        <p class="subtitle">Alle Sammlungen mit Anzahl. Klick filtert die Bookmark-Liste.</p>
+      </div>
+      <button type="button" id="refresh-collections">Aktualisieren</button>
+    </div>
+    <div id="collections-list" class="history-list"></div>
+  </section>
+
+  <section id="settings" class="panel tab-panel" data-tab-panel="settings" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Einstellungen</h2>
+        <p class="subtitle">Kontoeinstellungen und Anzeigeoptionen.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <section class="mini-card">
+        <h3>Anzeigeoptionen</h3>
+        <p class="muted">Ansicht, Felder und gespeicherte Ansichten findest du im <button type="button" class="link-btn" data-tab-trigger="bookmarks">Bookmarks-Tab</button> unter Ansichtsoptionen.</p>
+      </section>
+      <section class="mini-card">
+        <h3>Konto</h3>
+        <p class="muted">Passwort und API-Token findest du unter <button type="button" class="link-btn" data-tab-trigger="profile">Profil</button>.</p>
+      </section>
+    </div>
+  </section>
+
   <section id="dedup" class="panel tab-panel" data-tab-panel="dedup" hidden>
     <div class="panel-header">
       <div>
@@ -1548,6 +1627,9 @@ def index_html() -> str:
     const userCreateForm = document.querySelector('#user-create-form');
     const userManagementStatus = document.querySelector('#user-management-status');
     const userListEl = document.querySelector('#user-list');
+    const favoritesListEl = document.querySelector('#favorites-list');
+    const tagsListEl = document.querySelector('#tags-list');
+    const collectionsListEl = document.querySelector('#collections-list');
     const selectedIds = new Set();
     let activeTab = 'bookmarks';
     let currentUserState = null;
@@ -1745,6 +1827,9 @@ def index_html() -> str:
       });
       if (tab === 'profile') refreshProfile();
       if (tab === 'admin') refreshAdmin();
+      if (tab === 'favorites') refreshFavorites();
+      if (tab === 'tags') refreshTags();
+      if (tab === 'collections') refreshCollections();
     }
 
     function clearBookmarkFilters() {
@@ -1945,6 +2030,76 @@ def index_html() -> str:
       if (response.status === 401) { await loadAuth(); return; }
       const payload = await response.json();
       renderUserManagement(payload.users || []);
+    }
+
+    async function refreshFavorites() {
+      const response = await fetch('/api/bookmarks?favorite=true&status=active');
+      if (response.status === 401) { await loadAuth(); return; }
+      const payload = await response.json();
+      const bookmarks = payload.bookmarks || [];
+      if (!bookmarks.length) {
+        favoritesListEl.innerHTML = '<div class="empty">Noch keine Favoriten vorhanden. Bookmarks mit &#9733; markieren.</div>';
+        return;
+      }
+      favoritesListEl.innerHTML = bookmarks.map((b) => `
+        <div class="fav-card">
+          <a class="fav-title" href="${escapeAttr(b.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(b.title || b.url)}</a>
+          <div class="fav-meta">
+            ${escapeHtml(b.domain || '')}
+            ${b.tags && b.tags.length ? ' &middot; ' + b.tags.map((t) => escapeHtml(t)).join(', ') : ''}
+            ${b.collections && b.collections.length ? ' &middot; ' + b.collections.map((c) => escapeHtml(c)).join(', ') : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function refreshTags() {
+      const response = await fetch('/api/tags');
+      if (response.status === 401) { await loadAuth(); return; }
+      const payload = await response.json();
+      const tags = payload.tags || [];
+      if (!tags.length) {
+        tagsListEl.innerHTML = '<div class="empty">Noch keine Tags vorhanden.</div>';
+        return;
+      }
+      tagsListEl.innerHTML = tags.map((t) => `
+        <button type="button" class="tag-chip" data-filter-tag="${escapeAttr(t.tag)}">
+          ${escapeHtml(t.tag)} <span class="tag-count">${t.count}</span>
+        </button>
+      `).join('');
+      tagsListEl.querySelectorAll('[data-filter-tag]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          clearBookmarkFilters();
+          document.querySelector('#filter-tag').value = btn.dataset.filterTag;
+          setActiveTab('bookmarks');
+          refreshBookmarks();
+        });
+      });
+    }
+
+    async function refreshCollections() {
+      const response = await fetch('/api/collections');
+      if (response.status === 401) { await loadAuth(); return; }
+      const payload = await response.json();
+      const collections = payload.collections || [];
+      if (!collections.length) {
+        collectionsListEl.innerHTML = '<div class="empty">Noch keine Collections vorhanden.</div>';
+        return;
+      }
+      collectionsListEl.innerHTML = collections.map((c) => `
+        <div class="collection-row" data-filter-collection="${escapeAttr(c.collection)}">
+          <span class="coll-name">${escapeHtml(c.collection)}</span>
+          <span class="coll-count">${c.count} Bookmark${c.count !== 1 ? 's' : ''}</span>
+        </div>
+      `).join('');
+      collectionsListEl.querySelectorAll('[data-filter-collection]').forEach((row) => {
+        row.addEventListener('click', () => {
+          clearBookmarkFilters();
+          document.querySelector('#filter-collection').value = row.dataset.filterCollection;
+          setActiveTab('bookmarks');
+          refreshBookmarks();
+        });
+      });
     }
 
     function renderDedupDryRun(payload) {
@@ -3399,6 +3554,15 @@ def index_html() -> str:
       button.addEventListener('click', () => setActiveTab(button.dataset.tabTrigger));
     });
     document.querySelector('#refresh-admin').addEventListener('click', refreshAdmin);
+    document.querySelector('#refresh-favorites').addEventListener('click', refreshFavorites);
+    document.querySelector('#refresh-tags').addEventListener('click', refreshTags);
+    document.querySelector('#refresh-collections').addEventListener('click', refreshCollections);
+    document.querySelector('#show-favorites-in-bookmarks').addEventListener('click', () => {
+      clearBookmarkFilters();
+      document.querySelector('#filter-favorite').checked = true;
+      setActiveTab('bookmarks');
+      refreshBookmarks();
+    });
     document.addEventListener('keydown', async (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();

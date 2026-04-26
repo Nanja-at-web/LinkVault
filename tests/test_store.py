@@ -927,6 +927,86 @@ class StoreTest(unittest.TestCase):
 
             self.assertEqual([bookmark.id for bookmark in results], [first.id])
 
+    def test_list_tags_returns_counts_sorted_by_frequency(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "tags": "python,selfhost"})
+            store.add({"url": "https://b.example.com", "title": "B", "tags": "python,devops"})
+            store.add({"url": "https://c.example.com", "title": "C", "tags": "selfhost"})
+
+            tags = store.list_tags()
+
+            tag_names = [t["tag"] for t in tags]
+            self.assertIn("python", tag_names)
+            self.assertIn("selfhost", tag_names)
+            self.assertIn("devops", tag_names)
+            python_entry = next(t for t in tags if t["tag"] == "python")
+            selfhost_entry = next(t for t in tags if t["tag"] == "selfhost")
+            devops_entry = next(t for t in tags if t["tag"] == "devops")
+            self.assertEqual(python_entry["count"], 2)
+            self.assertEqual(selfhost_entry["count"], 2)
+            self.assertEqual(devops_entry["count"], 1)
+            # Higher counts come first; ties broken alphabetically
+            self.assertLess(tag_names.index("devops"), len(tag_names))
+            self.assertGreater(tag_names.index("devops"), tag_names.index("python"))
+
+    def test_list_tags_counts_active_bookmarks_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            winner = store.add({"url": "https://example.com/a", "title": "Winner", "tags": "shared"})
+            loser = store.add({"url": "https://example.com/a?x=1", "title": "Loser", "tags": "shared"})
+
+            # Before merge: shared appears on 2 active bookmarks
+            tags_before = store.list_tags()
+            shared_before = next(t for t in tags_before if t["tag"] == "shared")
+            self.assertEqual(shared_before["count"], 2)
+
+            store.merge_duplicates({"winner_id": winner.id, "loser_ids": [loser.id]})
+
+            # After merge: loser is inactive, shared only counted once (on the winner)
+            tags_after = store.list_tags()
+            shared_after = next(t for t in tags_after if t["tag"] == "shared")
+            self.assertEqual(shared_after["count"], 1)
+
+    def test_list_collections_returns_counts_sorted_by_frequency(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "collections": "Dev,Research"})
+            store.add({"url": "https://b.example.com", "title": "B", "collections": "Dev,Tools"})
+            store.add({"url": "https://c.example.com", "title": "C", "collections": "Research"})
+
+            colls = store.list_collections()
+
+            coll_names = [c["collection"] for c in colls]
+            self.assertIn("Dev", coll_names)
+            self.assertIn("Research", coll_names)
+            self.assertIn("Tools", coll_names)
+            dev_entry = next(c for c in colls if c["collection"] == "Dev")
+            research_entry = next(c for c in colls if c["collection"] == "Research")
+            tools_entry = next(c for c in colls if c["collection"] == "Tools")
+            self.assertEqual(dev_entry["count"], 2)
+            self.assertEqual(research_entry["count"], 2)
+            self.assertEqual(tools_entry["count"], 1)
+            self.assertGreater(coll_names.index("Tools"), coll_names.index("Dev"))
+
+    def test_list_collections_counts_active_bookmarks_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            winner = store.add({"url": "https://example.com/a", "title": "Winner", "collections": "Shared"})
+            loser = store.add({"url": "https://example.com/a?x=1", "title": "Loser", "collections": "Shared"})
+
+            # Before merge: Shared appears on 2 active bookmarks
+            colls_before = store.list_collections()
+            shared_before = next(c for c in colls_before if c["collection"] == "Shared")
+            self.assertEqual(shared_before["count"], 2)
+
+            store.merge_duplicates({"winner_id": winner.id, "loser_ids": [loser.id]})
+
+            # After merge: loser is inactive, Shared only counted once (on the winner)
+            colls_after = store.list_collections()
+            shared_after = next(c for c in colls_after if c["collection"] == "Shared")
+            self.assertEqual(shared_after["count"], 1)
+
     def test_search_filters_by_flags_domain_tag_and_collection(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

@@ -63,6 +63,44 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("renderConflictDetails", html)
         self.assertIn("renderRestoreSessions", html)
 
+    def test_index_html_has_favorites_tab(self):
+        html = index_html()
+
+        self.assertIn('data-tab-trigger="favorites"', html)
+        self.assertIn('id="favorites"', html)
+        self.assertIn('id="favorites-list"', html)
+        self.assertIn('id="refresh-favorites"', html)
+        self.assertIn('id="show-favorites-in-bookmarks"', html)
+        self.assertIn("refreshFavorites", html)
+        self.assertIn("/api/bookmarks", html)
+
+    def test_index_html_has_tags_tab(self):
+        html = index_html()
+
+        self.assertIn('data-tab-trigger="tags"', html)
+        self.assertIn('id="tags"', html)
+        self.assertIn('id="tags-list"', html)
+        self.assertIn('id="refresh-tags"', html)
+        self.assertIn("refreshTags", html)
+        self.assertIn("/api/tags", html)
+
+    def test_index_html_has_collections_tab(self):
+        html = index_html()
+
+        self.assertIn('data-tab-trigger="collections"', html)
+        self.assertIn('id="collections"', html)
+        self.assertIn('id="collections-list"', html)
+        self.assertIn('id="refresh-collections"', html)
+        self.assertIn("refreshCollections", html)
+        self.assertIn("/api/collections", html)
+
+    def test_index_html_has_settings_tab(self):
+        html = index_html()
+
+        self.assertIn('data-tab-trigger="settings"', html)
+        self.assertIn('id="settings"', html)
+        self.assertIn("Einstellungen", html)
+
 
 if __name__ == "__main__":
     unittest.main()

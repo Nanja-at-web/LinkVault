@@ -518,6 +518,38 @@ class BookmarkStore:
             row = connection.execute("SELECT * FROM bookmarks WHERE id = ?", (bookmark_id,)).fetchone()
         return bookmark_from_row(row) if row else None
 
+    def list_tags(self) -> list[dict[str, Any]]:
+        """Return all tags used in active bookmarks, sorted by count descending."""
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT tags FROM bookmarks WHERE status = 'active' AND TRIM(tags) != ''"
+            ).fetchall()
+        counts: dict[str, int] = {}
+        for row in rows:
+            for tag in decode_list(row["tags"]):
+                if tag:
+                    counts[tag] = counts.get(tag, 0) + 1
+        return sorted(
+            [{"tag": t, "count": c} for t, c in counts.items()],
+            key=lambda x: (-x["count"], x["tag"].lower()),
+        )
+
+    def list_collections(self) -> list[dict[str, Any]]:
+        """Return all collections used in active bookmarks, sorted by count descending."""
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT collections FROM bookmarks WHERE status = 'active' AND TRIM(collections) != ''"
+            ).fetchall()
+        counts: dict[str, int] = {}
+        for row in rows:
+            for coll in decode_list(row["collections"]):
+                if coll:
+                    counts[coll] = counts.get(coll, 0) + 1
+        return sorted(
+            [{"collection": c, "count": n} for c, n in counts.items()],
+            key=lambda x: (-x["count"], x["collection"].lower()),
+        )
+
     def add(self, payload: dict[str, Any], *, enrich_metadata: bool = True) -> Bookmark:
         now = datetime.now(UTC).isoformat()
         payload = self.with_metadata(payload, enrich_metadata=enrich_metadata)
