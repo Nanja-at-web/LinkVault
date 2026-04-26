@@ -929,6 +929,7 @@ def index_html() -> str:
       border-bottom: 1px solid var(--line);
     }
     .subtitle { margin: 0; color: var(--muted); max-width: 58rem; }
+    .link-btn { background: none; border: none; padding: 0; color: var(--ink); cursor: pointer; font: inherit; text-decoration: underline; }
     .nav {
       display: flex;
       flex-wrap: wrap;
@@ -1170,7 +1171,7 @@ def index_html() -> str:
       <p class="shortcut-hint">Shortcuts: Ctrl/Cmd+K Suche, N Speichern, I Import, D Dubletten, B Bookmarks.</p>
     </div>
     <div id="userbar" hidden>
-      <span id="current-user"></span>
+      <button id="current-user" type="button" data-tab-trigger="profile" class="link-btn"></button>
       <button id="logout" type="button">Logout</button>
     </div>
   </div>
@@ -1199,6 +1200,7 @@ def index_html() -> str:
     <button type="button" data-tab-trigger="bookmarks">Bookmarks</button>
     <button type="button" data-tab-trigger="dedup">Dubletten</button>
     <button type="button" data-tab-trigger="operations">Betrieb</button>
+    <button type="button" data-tab-trigger="profile">Profil</button>
   </nav>
 
   <main id="app" class="workspace" hidden>
@@ -1432,26 +1434,6 @@ def index_html() -> str:
         <h3>Aktivitaet</h3>
         <div id="activity-log" class="history-list"></div>
       </section>
-      <section class="mini-card">
-        <h3>API-Token fuer Companion Extension</h3>
-        <p class="muted">Token erlauben Import und Automatisierung ohne Browser-Login. Der Klartext wird nur einmal angezeigt.</p>
-        <form id="api-token-form" class="inline-actions">
-          <label>Name <input name="name" placeholder="Firefox auf MacBook" required></label>
-          <button>Token erstellen</button>
-        </form>
-        <div id="api-token-created" class="notice" hidden></div>
-        <div id="api-token-list" class="history-list"></div>
-      </section>
-      <section class="mini-card">
-        <h3>Passwort aendern</h3>
-        <p class="muted">Jeder Benutzer kann hier das eigene Passwort aendern.</p>
-        <form id="password-change-form" class="stack">
-          <label>Aktuelles Passwort <input name="current_password" type="password" required></label>
-          <label>Neues Passwort <input name="new_password" type="password" minlength="12" required></label>
-          <button type="submit">Passwort aktualisieren</button>
-        </form>
-        <div id="password-change-status" class="notice" hidden></div>
-      </section>
       <section id="user-management-section" class="mini-card" hidden>
         <h3>Benutzerverwaltung</h3>
         <p class="muted">Admins legen Benutzer an, verwalten Rollen und setzen Passwoerter zurueck.</p>
@@ -1474,6 +1456,41 @@ def index_html() -> str:
       <section class="mini-card">
         <h3>Letzte Merge-Aktionen</h3>
         <div id="merge-history" class="history-list"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="profile" class="panel tab-panel" data-tab-panel="profile" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Mein Profil</h2>
+        <p class="subtitle">Kontodetails, API-Token und Passwort.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <section class="mini-card">
+        <h3>Konto</h3>
+        <div id="profile-info" class="mini-grid"></div>
+      </section>
+      <section class="mini-card">
+        <h3>API-Token</h3>
+        <p class="muted">Token erlauben Import und Automatisierung ohne Browser-Login. Der Klartext wird nur einmal angezeigt.</p>
+        <form id="api-token-form" class="inline-actions">
+          <label>Name <input name="name" placeholder="Firefox auf MacBook" required></label>
+          <button>Token erstellen</button>
+        </form>
+        <div id="api-token-created" class="notice" hidden></div>
+        <div id="api-token-list" class="history-list"></div>
+      </section>
+      <section class="mini-card">
+        <h3>Passwort aendern</h3>
+        <p class="muted">Jeder Benutzer kann hier das eigene Passwort aendern.</p>
+        <form id="password-change-form" class="stack">
+          <label>Aktuelles Passwort <input name="current_password" type="password" required></label>
+          <label>Neues Passwort <input name="new_password" type="password" minlength="12" required></label>
+          <button type="submit">Passwort aktualisieren</button>
+        </form>
+        <div id="password-change-status" class="notice" hidden></div>
       </section>
     </div>
   </section>
@@ -1511,6 +1528,7 @@ def index_html() -> str:
     const apiTokenList = document.querySelector('#api-token-list');
     const passwordChangeForm = document.querySelector('#password-change-form');
     const passwordChangeStatus = document.querySelector('#password-change-status');
+    const profileInfo = document.querySelector('#profile-info');
     const userManagementSection = document.querySelector('#user-management-section');
     const userCreateForm = document.querySelector('#user-create-form');
     const userManagementStatus = document.querySelector('#user-management-status');
@@ -1709,6 +1727,7 @@ def index_html() -> str:
       document.querySelectorAll('[data-tab-trigger]').forEach((button) => {
         button.classList.toggle('active', button.dataset.tabTrigger === tab);
       });
+      if (tab === 'profile') refreshProfile();
     }
 
     function clearBookmarkFilters() {
@@ -1884,6 +1903,29 @@ def index_html() -> str:
         conflicts.conflicts || [],
         users.users || []
       );
+    }
+
+    async function refreshProfile() {
+      if (!currentUserState) return;
+      const user = currentUserState;
+      profileInfo.innerHTML = `
+        <div class="mini-card">
+          <h3>Benutzername</h3>
+          <p><strong>${escapeHtml(user.username)}</strong></p>
+        </div>
+        <div class="mini-card">
+          <h3>Rolle</h3>
+          <p><strong>${escapeHtml(user.role)}</strong></p>
+        </div>
+        <div class="mini-card">
+          <h3>Konto erstellt</h3>
+          <p class="muted">${escapeHtml(user.created_at ? user.created_at.slice(0, 10) : '-')}</p>
+        </div>
+      `;
+      const response = await fetch('/api/tokens');
+      if (response.status === 401) { await loadAuth(); return; }
+      const payload = await response.json();
+      renderApiTokens(payload.tokens || []);
     }
 
     function renderDedupDryRun(payload) {
@@ -2197,7 +2239,6 @@ def index_html() -> str:
       renderImportSessions(importSessions);
       renderRestoreSessions(restoreSessions);
       renderActivity(activityEvents);
-      renderApiTokens(apiTokens);
       renderUserManagement(users);
 
       if (!mergeEvents.length) {
@@ -2530,7 +2571,7 @@ def index_html() -> str:
       apiTokenList.querySelectorAll('[data-delete-token]').forEach((button) => {
         button.addEventListener('click', async () => {
           await fetch(`/api/tokens/${button.dataset.deleteToken}`, {method: 'DELETE'});
-          await refreshOperations();
+          await refreshProfile();
         });
       });
     }
@@ -3242,7 +3283,7 @@ def index_html() -> str:
         <code>${escapeHtml(payload.token)}</code>
       `;
       event.target.reset();
-      await refreshOperations();
+      await refreshProfile();
     });
 
     passwordChangeForm.addEventListener('submit', async (event) => {
