@@ -32,8 +32,8 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 
 - [~] Login, Setup und Benutzerkonten: initiales Setup-Token, Session-Login,
   Admin/User-Rollen, eigenes Passwort aendern, Admin-Passwort-Reset,
-  benutzergebundene API-Tokens und erste Benutzerverwaltung vorhanden;
-  spaetere Profilseiten und feinere Rechteverwaltung offen.
+  benutzergebundene API-Tokens, Benutzerverwaltung und dedizierter Admin-Tab
+  vorhanden; feinere Rechteverwaltung offen.
 - [~] Link anlegen, bearbeiten, loeschen.
 - [x] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
 - [x] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.
@@ -49,14 +49,15 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
   Format, Zeitpunkt und Ergebniszahlen.
 - [x] API-Token fuer Import, Extension und Automatisierung.
-- [~] Profile und Kontoverwaltung: Operations-UI fuer Passwortwechsel,
-  Benutzerliste, Benutzer anlegen, Rolle aendern und Benutzer loeschen
-  vorhanden; spaetere Profilseiten und persoenliche Einstellungen offen.
+- [x] Profile und Kontoverwaltung: eigener Profil-Tab mit Benutzerinfo,
+  API-Token-Verwaltung und Passwortwechsel; Admin-Tab mit Benutzerliste,
+  Benutzer anlegen, Rolle aendern, Passwort-Reset und Benutzer loeschen;
+  Saved Views per Nutzer gespeichert (user_id-Scope).
 - [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
   Erkennung im lokalen Netzwerk.
 - [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
-  Bookmarks, Dubletten und Betrieb vorhanden; Favoriten, Tags,
-  Collections, Archiv, Aktivitaet und Einstellungen offen.
+  Bookmarks, Dubletten, Betrieb, Admin (nur Admin-User) und Profil vorhanden;
+  eigene Favoriten-, Tags-, Collections-, Archiv- und Einstellungs-Tabs offen.
 - [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
   Arbeitsleisten auslagern.
 - [x] Inbox/Unsortiert: neue Links ohne Collection landen automatisch in
