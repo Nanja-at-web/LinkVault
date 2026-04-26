@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ssl
+import sys
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from urllib.error import URLError
@@ -29,6 +30,7 @@ def fetch_url_metadata(url: str, timeout: float = 5.0) -> PageMetadata:
     except URLError as exc:
         if "CERTIFICATE_VERIFY_FAILED" not in str(exc):
             raise
+        print(f"[LinkVault] SSL certificate verification failed for {url!r}, retrying without verification", file=sys.stderr)
         insecure_context = ssl._create_unverified_context()
         return fetch_request_metadata(request, timeout=timeout, context=insecure_context)
 

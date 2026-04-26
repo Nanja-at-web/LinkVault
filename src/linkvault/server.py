@@ -762,6 +762,8 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
 
     def read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("content-length", "0"))
+        if length > 10_000_000:
+            raise ValueError("request body too large")
         body = self.rfile.read(length)
         payload = json.loads(body.decode("utf-8") or "{}")
         if not isinstance(payload, dict):

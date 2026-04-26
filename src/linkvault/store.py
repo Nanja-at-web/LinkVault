@@ -20,6 +20,13 @@ from .metadata import PageMetadata, fetch_url_metadata
 from .url_tools import normalize_url
 
 
+def _safe_json(s: str, default: Any) -> Any:
+    try:
+        return json.loads(s)
+    except (json.JSONDecodeError, TypeError):
+        return default
+
+
 @dataclass
 class Bookmark:
     id: str
@@ -80,7 +87,7 @@ class ImportSession:
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
-        payload["summary"] = json.loads(self.raw_summary_json or "{}")
+        payload["summary"] = _safe_json(self.raw_summary_json, {})
         return payload
 
 
@@ -109,8 +116,8 @@ class RestoreSession:
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
-        payload["filters"] = json.loads(self.filters_json or "{}")
-        payload["result"] = json.loads(self.result_json or "{}")
+        payload["filters"] = _safe_json(self.filters_json, {})
+        payload["result"] = _safe_json(self.result_json, {})
         return payload
 
 
@@ -126,7 +133,7 @@ class ActivityEvent:
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
-        payload["details"] = json.loads(self.details_json or "{}")
+        payload["details"] = _safe_json(self.details_json, {})
         return payload
 
 
@@ -145,7 +152,7 @@ class ConflictRecord:
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
-        payload["details"] = json.loads(self.details_json or "{}")
+        payload["details"] = _safe_json(self.details_json, {})
         return payload
 
 
@@ -158,7 +165,7 @@ class StoredSetting:
     def to_dict(self) -> dict[str, Any]:
         return {
             "key": self.key,
-            "value": json.loads(self.value_json or "null"),
+            "value": _safe_json(self.value_json, None),
             "updated_at": self.updated_at,
         }
 
@@ -175,7 +182,7 @@ class BookmarkStore:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
-        connection = sqlite3.connect(self.path)
+        connection = sqlite3.connect(self.path, timeout=5.0)
         connection.row_factory = sqlite3.Row
         try:
             with connection:
