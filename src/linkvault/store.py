@@ -396,9 +396,16 @@ class BookmarkStore:
                     "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
                 ).fetchone()
                 if users_table:
-                    first_admin = connection.execute(
-                        "SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1"
-                    ).fetchone()
+                    try:
+                        first_admin = connection.execute(
+                            "SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1"
+                        ).fetchone()
+                    except sqlite3.OperationalError:
+                        # role column not yet added by AuthStore.migrate() —
+                        # fall back to the first user regardless of role
+                        first_admin = connection.execute(
+                            "SELECT id FROM users ORDER BY created_at ASC LIMIT 1"
+                        ).fetchone()
                     if first_admin:
                         connection.execute(
                             "INSERT INTO user_settings_new (user_id, key, value_json, updated_at) "
