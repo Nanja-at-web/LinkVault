@@ -2467,7 +2467,7 @@ def index_html() -> str:
     }
 
     function cssEscape(value) {
-      return String(value).replace(/["\\]/g, '\\$&');
+      return CSS.escape(String(value));
     }
 
     function renderConflictDetails(details) {
