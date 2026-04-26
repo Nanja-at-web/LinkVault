@@ -98,11 +98,11 @@ def bookmark_view_name_from_key(key: str) -> str:
     return key.removeprefix(BOOKMARK_VIEW_NAMED_PREFIX)
 
 
-def named_bookmark_views_payload(store: BookmarkStore) -> dict[str, Any]:
-    named_settings = store.list_settings(BOOKMARK_VIEW_NAMED_PREFIX)
-    default_name_setting = store.get_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, "")
+def named_bookmark_views_payload(store: BookmarkStore, user_id: str) -> dict[str, Any]:
+    named_settings = store.list_settings(user_id, BOOKMARK_VIEW_NAMED_PREFIX)
+    default_name_setting = store.get_setting(user_id, BOOKMARK_VIEW_DEFAULT_NAME_KEY, "")
     default_name = str(default_name_setting["value"] or "").strip()
-    legacy_default = store.get_setting(BOOKMARK_VIEW_SETTING_KEY, DEFAULT_BOOKMARK_VIEW_PREFERENCES)
+    legacy_default = store.get_setting(user_id, BOOKMARK_VIEW_SETTING_KEY, DEFAULT_BOOKMARK_VIEW_PREFERENCES)
 
     views = []
     for setting in named_settings:
@@ -263,9 +263,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 }
             )
         elif path == "/api/settings/bookmark-view":
-            if not self.require_auth(auth_store):
+            user = self.require_auth(auth_store)
+            if not user:
                 return
-            payload = named_bookmark_views_payload(store)
+            payload = named_bookmark_views_payload(store, user.id)
             self.send_json(
                 {
                     "preferences": payload["preferences"],
@@ -275,9 +276,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 }
             )
         elif path == "/api/settings/bookmark-views":
-            if not self.require_auth(auth_store):
+            user = self.require_auth(auth_store)
+            if not user:
                 return
-            self.send_json(named_bookmark_views_payload(store))
+            self.send_json(named_bookmark_views_payload(store, user.id))
         elif path == "/":
             self.send_html(index_html())
         else:
@@ -416,11 +418,12 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 bookmark = store.add(payload)
                 self.send_json(bookmark.to_dict(), HTTPStatus.CREATED)
             elif path == "/api/settings/bookmark-view":
-                if not self.require_auth(auth_store):
+                user = self.require_auth(auth_store)
+                if not user:
                     return
                 preferences = merge_bookmark_view_preferences(payload)
-                setting = store.set_setting(BOOKMARK_VIEW_SETTING_KEY, preferences)
-                store.delete_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY)
+                setting = store.set_setting(user.id, BOOKMARK_VIEW_SETTING_KEY, preferences)
+                store.delete_setting(user.id, BOOKMARK_VIEW_DEFAULT_NAME_KEY)
                 self.send_json(
                     {
                         "preferences": setting["value"],
@@ -429,7 +432,8 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     }
                 )
             elif path == "/api/settings/bookmark-views":
-                if not self.require_auth(auth_store):
+                user = self.require_auth(auth_store)
+                if not user:
                     return
                 name = str(payload.get("name", "")).strip()
                 if not name:
@@ -438,6 +442,7 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 preferences = merge_bookmark_view_preferences(payload.get("preferences"))
                 set_default = to_bool(payload.get("set_default", False))
                 setting = store.set_setting(
+                    user.id,
                     bookmark_view_setting_key(name),
                     {
                         "name": name,
@@ -445,9 +450,9 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     },
                 )
                 if set_default:
-                    store.set_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, name)
-                    store.delete_setting(BOOKMARK_VIEW_SETTING_KEY)
-                payload = named_bookmark_views_payload(store)
+                    store.set_setting(user.id, BOOKMARK_VIEW_DEFAULT_NAME_KEY, name)
+                    store.delete_setting(user.id, BOOKMARK_VIEW_SETTING_KEY)
+                payload = named_bookmark_views_payload(store, user.id)
                 self.send_json(
                     {
                         "view": {
@@ -462,19 +467,20 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     HTTPStatus.CREATED,
                 )
             elif path == "/api/settings/bookmark-views/default":
-                if not self.require_auth(auth_store):
+                user = self.require_auth(auth_store)
+                if not user:
                     return
                 name = str(payload.get("name", "")).strip()
                 if not name:
                     self.send_json({"error": "view name is required"}, HTTPStatus.BAD_REQUEST)
                     return
-                existing = store.get_setting(bookmark_view_setting_key(name))
+                existing = store.get_setting(user.id, bookmark_view_setting_key(name))
                 if not existing["saved"]:
                     self.send_json({"error": "saved view not found"}, HTTPStatus.NOT_FOUND)
                     return
-                store.set_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, name)
-                store.delete_setting(BOOKMARK_VIEW_SETTING_KEY)
-                self.send_json(named_bookmark_views_payload(store))
+                store.set_setting(user.id, BOOKMARK_VIEW_DEFAULT_NAME_KEY, name)
+                store.delete_setting(user.id, BOOKMARK_VIEW_SETTING_KEY)
+                self.send_json(named_bookmark_views_payload(store, user.id))
             elif path == "/api/import/browser-html":
                 if not self.require_auth(auth_store):
                     return
@@ -695,9 +701,10 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             self.send_json({"deleted": True})
             return
         if path == "/api/settings/bookmark-view":
-            if not self.require_auth(make_auth_store()):
+            user = self.require_auth(make_auth_store())
+            if not user:
                 return
-            deleted = make_store().delete_setting(BOOKMARK_VIEW_SETTING_KEY)
+            deleted = make_store().delete_setting(user.id, BOOKMARK_VIEW_SETTING_KEY)
             self.send_json(
                 {
                     "deleted": deleted,
@@ -707,21 +714,23 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             )
             return
         if path.startswith("/api/settings/bookmark-views/"):
-            if not self.require_auth(make_auth_store()):
+            auth_store = make_auth_store()
+            user = self.require_auth(auth_store)
+            if not user:
                 return
             name = unquote(path.removeprefix("/api/settings/bookmark-views/")).strip()
             if not name:
                 self.send_json({"error": "view name is required"}, HTTPStatus.BAD_REQUEST)
                 return
             store = make_store()
-            deleted = store.delete_setting(bookmark_view_setting_key(name))
-            default_name_setting = store.get_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY, "")
+            deleted = store.delete_setting(user.id, bookmark_view_setting_key(name))
+            default_name_setting = store.get_setting(user.id, BOOKMARK_VIEW_DEFAULT_NAME_KEY, "")
             if str(default_name_setting["value"] or "").strip() == name:
-                store.delete_setting(BOOKMARK_VIEW_DEFAULT_NAME_KEY)
+                store.delete_setting(user.id, BOOKMARK_VIEW_DEFAULT_NAME_KEY)
             self.send_json(
                 {
                     "deleted": deleted,
-                    **named_bookmark_views_payload(store),
+                    **named_bookmark_views_payload(store, user.id),
                 }
             )
             return

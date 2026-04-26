@@ -368,13 +368,46 @@ class BookmarkStore:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS user_settings (
-                    key TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    key TEXT NOT NULL,
                     value_json TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (user_id, key)
                 )
                 """
             )
-            connection.execute("CREATE INDEX IF NOT EXISTS idx_user_settings_updated_at ON user_settings(updated_at)")
+            # Migrate old single-key schema (no user_id column) to per-user schema
+            old_cols = {row["name"] for row in connection.execute("PRAGMA table_info(user_settings)")}
+            if "user_id" not in old_cols:
+                connection.execute(
+                    """
+                    CREATE TABLE user_settings_new (
+                        user_id TEXT NOT NULL,
+                        key TEXT NOT NULL,
+                        value_json TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        PRIMARY KEY (user_id, key)
+                    )
+                    """
+                )
+                users_table = connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+                ).fetchone()
+                if users_table:
+                    first_admin = connection.execute(
+                        "SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1"
+                    ).fetchone()
+                    if first_admin:
+                        connection.execute(
+                            "INSERT INTO user_settings_new (user_id, key, value_json, updated_at) "
+                            "SELECT ?, key, value_json, updated_at FROM user_settings",
+                            (first_admin["id"],),
+                        )
+                connection.execute("DROP TABLE user_settings")
+                connection.execute("ALTER TABLE user_settings_new RENAME TO user_settings")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id)"
+            )
             connection.execute(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
@@ -1369,9 +1402,11 @@ class BookmarkStore:
             ).fetchone()
         return restore_session_from_row(updated)
 
-    def get_setting(self, key: str, default: Any = None) -> dict[str, Any]:
+    def get_setting(self, user_id: str, key: str, default: Any = None) -> dict[str, Any]:
         with self.connect() as connection:
-            row = connection.execute("SELECT * FROM user_settings WHERE key = ?", (key,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM user_settings WHERE user_id = ? AND key = ?", (user_id, key)
+            ).fetchone()
 
         if not row:
             return {
@@ -1385,19 +1420,19 @@ class BookmarkStore:
         payload["saved"] = True
         return payload
 
-    def set_setting(self, key: str, value: Any) -> dict[str, Any]:
+    def set_setting(self, user_id: str, key: str, value: Any) -> dict[str, Any]:
         updated_at = datetime.now(UTC).isoformat()
         value_json = json.dumps(value, sort_keys=True)
         with self.connect() as connection:
             connection.execute(
                 """
-                INSERT INTO user_settings (key, value_json, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(key) DO UPDATE SET
+                INSERT INTO user_settings (user_id, key, value_json, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(user_id, key) DO UPDATE SET
                     value_json = excluded.value_json,
                     updated_at = excluded.updated_at
                 """,
-                (key, value_json, updated_at),
+                (user_id, key, value_json, updated_at),
             )
 
         return {
@@ -1407,13 +1442,13 @@ class BookmarkStore:
             "saved": True,
         }
 
-    def list_settings(self, prefix: str = "") -> list[dict[str, Any]]:
-        query = "SELECT * FROM user_settings"
-        parameters: tuple[Any, ...] = ()
+    def list_settings(self, user_id: str, prefix: str = "") -> list[dict[str, Any]]:
         if prefix:
-            query += " WHERE key LIKE ?"
-            parameters = (f"{prefix}%",)
-        query += " ORDER BY updated_at DESC, key ASC"
+            query = "SELECT * FROM user_settings WHERE user_id = ? AND key LIKE ? ORDER BY updated_at DESC, key ASC"
+            parameters: tuple[Any, ...] = (user_id, f"{prefix}%")
+        else:
+            query = "SELECT * FROM user_settings WHERE user_id = ? ORDER BY updated_at DESC, key ASC"
+            parameters = (user_id,)
         with self.connect() as connection:
             rows = connection.execute(query, parameters).fetchall()
         return [
@@ -1424,9 +1459,11 @@ class BookmarkStore:
             for row in rows
         ]
 
-    def delete_setting(self, key: str) -> bool:
+    def delete_setting(self, user_id: str, key: str) -> bool:
         with self.connect() as connection:
-            cursor = connection.execute("DELETE FROM user_settings WHERE key = ?", (key,))
+            cursor = connection.execute(
+                "DELETE FROM user_settings WHERE user_id = ? AND key = ?", (user_id, key)
+            )
         return cursor.rowcount > 0
 
     def with_metadata(self, payload: dict[str, Any], *, enrich_metadata: bool) -> dict[str, Any]:

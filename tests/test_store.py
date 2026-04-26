@@ -390,13 +390,15 @@ class StoreTest(unittest.TestCase):
     def test_user_settings_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            uid = "user-test-1"
             default_value = {"view": "compact", "filters": {"status": "active"}}
 
-            missing = store.get_setting("bookmark_default_view", default_value)
+            missing = store.get_setting(uid, "bookmark_default_view", default_value)
             self.assertFalse(missing["saved"])
             self.assertEqual(missing["value"], default_value)
 
             saved = store.set_setting(
+                uid,
                 "bookmark_default_view",
                 {
                     "view": "grid",
@@ -407,23 +409,34 @@ class StoreTest(unittest.TestCase):
             self.assertTrue(saved["saved"])
             self.assertEqual(saved["value"]["view"], "grid")
 
-            loaded = store.get_setting("bookmark_default_view", default_value)
+            loaded = store.get_setting(uid, "bookmark_default_view", default_value)
             self.assertTrue(loaded["saved"])
             self.assertEqual(loaded["value"]["filters"]["query"], "gh")
 
-            self.assertTrue(store.delete_setting("bookmark_default_view"))
-            deleted = store.get_setting("bookmark_default_view", default_value)
+            self.assertTrue(store.delete_setting(uid, "bookmark_default_view"))
+            deleted = store.get_setting(uid, "bookmark_default_view", default_value)
             self.assertFalse(deleted["saved"])
             self.assertEqual(deleted["value"], default_value)
+
+    def test_user_settings_are_scoped_per_user(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.set_setting("user-a", "pref", {"view": "grid"})
+            store.set_setting("user-b", "pref", {"view": "compact"})
+
+            self.assertEqual(store.get_setting("user-a", "pref")["value"]["view"], "grid")
+            self.assertEqual(store.get_setting("user-b", "pref")["value"]["view"], "compact")
+            self.assertFalse(store.get_setting("user-c", "pref")["saved"])
 
     def test_list_settings_filters_by_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
-            store.set_setting("bookmark_view.named.Inbox Review", {"name": "Inbox Review"})
-            store.set_setting("bookmark_view.named.Research Grid", {"name": "Research Grid"})
-            store.set_setting("bookmark_default_view", {"view": "compact"})
+            uid = "user-test-1"
+            store.set_setting(uid, "bookmark_view.named.Inbox Review", {"name": "Inbox Review"})
+            store.set_setting(uid, "bookmark_view.named.Research Grid", {"name": "Research Grid"})
+            store.set_setting(uid, "bookmark_default_view", {"view": "compact"})
 
-            named = store.list_settings("bookmark_view.named.")
+            named = store.list_settings(uid, "bookmark_view.named.")
 
             self.assertEqual(len(named), 2)
             self.assertEqual({item["value"]["name"] for item in named}, {"Inbox Review", "Research Grid"})
