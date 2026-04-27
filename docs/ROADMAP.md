@@ -202,12 +202,16 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Anschluss teilweise umgesetzt; weitere Tool-Migrationen offen.
 - [x] Chromium-JSON-Import fuer Chrome, Edge, Brave, Vivaldi und Opera mit
   Vorschau, Ordnerpfaden, Dublettencheck und Import.
-- [~] Firefox-JSON/JSONLZ4-Import als optionales Enrichment zum HTML-Import:
-  JSON-Parser vorhanden, JSONLZ4 offen.
-- [~] Safari-ZIP-Import mit `Bookmarks.html` und Reading-List-Erkennung:
-  ZIP mit `Bookmarks.html` vorhanden, Reading-List-Erkennung offen.
-- [ ] CSV-/JSON-Import fuer andere Bookmark-Tools als generische
-  Migrationsprofile.
+- [x] Firefox-JSON/JSONLZ4-Import: JSON-Parser und Pure-Python-MozLZ4-Decoder
+  vorhanden; `.jsonlz4`-Backups werden als base64 entgegengenommen,
+  dekomprimiert und ueber den bestehenden Firefox-JSON-Parser importiert.
+- [x] Safari-ZIP-Import mit `Bookmarks.html` und Reading-List-Erkennung:
+  ZIP mit `Bookmarks.html` vorhanden; `READING_LIST="true"` auf H3 und
+  `TOREADLIST="true"` auf A-Tags werden erkannt und mit Tag `reading-list`
+  markiert.
+- [x] CSV-/JSON-Import fuer andere Bookmark-Tools als generische
+  Migrationsprofile: Spalten-Inferenz, konfigurierbares Field-Mapping,
+  Vorschau-Endpunkt und Import-Endpunkt vorhanden.
 - [ ] Rohdaten-Erhaltung fuer Browser-/Vendor-Felder via `raw_vendor_payload`.
 - [ ] linkding Import via API/Export.
 - [ ] Karakeep Import.

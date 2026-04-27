@@ -117,7 +117,7 @@ Collections-, Tags-, Archiv- und Einstellungs-Tabs fehlen noch.
 | Phase 3 - Archivierung | ~5 % | Weiter bewusst zurueckgestellt | Reader-Extrakt, Archivstatus, Screenshot/PDF, Single-HTML |
 | Phase 4 - Automatisierung | ~45 % | Activity/Audit-Log teilweise, API-Token, Companion Extension mit Discovery, Filtern, Preview, Rueckimport und Konfliktentscheidungen | Rule Engine; Smart Collections; API-Token-Testbutton; vollstaendiger Sync; History-Enrichment nur optional |
 | Phase 5 - Proxmox | ~80 % | Echter LXC-Betrieb, Installations-, Backup-, Restore-, Update- und Migrationstest, Post-Install-Helper | `build.func`/`install.func`-Konventionen; Default-/Advanced-Mode; ProxmoxVED-/community-scripts-Vorbereitung |
-| Phase 6 - Migrationen | ~30 % | Chromium-JSON, Firefox-JSON teilweise, Safari-ZIP teilweise, HTML-Import mit Vorschau | JSONLZ4, generischer CSV/JSON-Import, weitere Tool-Importe |
+| Phase 6 - Migrationen | ~55 % | Chromium-JSON, Firefox-JSON, Firefox-JSONLZ4 (Pure-Python-MozLZ4-Decoder), Safari-ZIP mit Reading-List-Erkennung, generischer CSV/JSON-Import mit Spalten-Inferenz und Field-Mapping, HTML-Import mit Vorschau | Rohdaten-Erhaltung via raw_vendor_payload, linkding/Karakeep/Linkwarden/Readeck-Importer, JSONLZ4-weitere-Tool-Importe |
 
 ## Was jetzt laut Roadmap wirklich als naechstes sinnvoll ist
 
@@ -189,7 +189,16 @@ Standard (sort_by/sort_order in BookmarkFilters, Saved Views, Chips-Anzeige),
 Favoriten-Pflege-Report (uncategorized/duplicated/dead, Favoriten-Tab-Drawer),
 Link-Health-Check light (check_url_health HEAD/GET, ThreadPoolExecutor max 8,
 link_checks-Tabelle), Pflege-Score je Collection (Metadaten 40%/Dedup 30%/
-Tags 15%/Links 15%, 0-100-Score, Farb-Badge gruen/gelb/rot im Collections-Tab).
+Tags 15%/Links 15%, 0-100-Score, Farb-Badge gruen/gelb/rot im Collections-Tab),
+API-Token-Testbutton (testApiToken, client-seitiger Bearer-Test gegen /api/me,
+Sofort-testen-Button nach Token-Erstellung, Testen-Link pro Token-Karte),
+Firefox-JSONLZ4-Import (Pure-Python-MozLZ4-Decoder, decompress_mozlz4,
+_lz4_block_decompress, parse_firefox_jsonlz4, base64-Input, Vorschau-Endpunkt),
+Safari-Reading-List-Erkennung (READING_LIST="true" auf H3, TOREADLIST="true" auf A,
+Tag reading-list, Ordner-Tiefenverfolgung in BrowserBookmarkParser),
+Generischer CSV/JSON-Import (infer_generic_columns, parse_generic_csv,
+parse_generic_json, Spalten-Inferenz-Endpunkt /api/import/generic/columns,
+Field-Mapping-UI in der Import-Form, Vorschau- und Import-Endpunkt).
 
 ## Fazit
 

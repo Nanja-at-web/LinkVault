@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import base64
+import csv
 import io
 import json
 import sqlite3
+import struct
 import zipfile
 from hashlib import sha256
 from contextlib import contextmanager
@@ -2027,6 +2029,23 @@ class BookmarkStore:
     def import_safari_zip(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.import_items(parse_safari_zip(data), session_meta=session_meta)
 
+    def import_firefox_jsonlz4(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.import_items(parse_firefox_jsonlz4(data), session_meta=session_meta)
+
+    def import_generic(
+        self,
+        data: str,
+        fmt: str,
+        mapping: dict[str, str],
+        *,
+        session_meta: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if fmt == "csv":
+            items = parse_generic_csv(data, mapping)
+        else:
+            items = parse_generic_json(data, mapping)
+        return self.import_items(items, session_meta=session_meta)
+
     def import_items(self, items: list[dict[str, Any]], *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
         created = 0
         duplicates = 0
@@ -2327,6 +2346,39 @@ class BookmarkStore:
 
     def preview_safari_zip_import(self, data: str) -> dict[str, Any]:
         return self.preview_import_items(parse_safari_zip(data))
+
+    def preview_firefox_jsonlz4_import(self, data: str) -> dict[str, Any]:
+        return self.preview_import_items(parse_firefox_jsonlz4(data))
+
+    def preview_generic_import(self, data: str, fmt: str, mapping: dict[str, str]) -> dict[str, Any]:
+        if fmt == "csv":
+            items = parse_generic_csv(data, mapping)
+        else:
+            items = parse_generic_json(data, mapping)
+        return self.preview_import_items(items)
+
+    def infer_generic_import_columns(self, data: str, fmt: str) -> dict[str, Any]:
+        """Detect column headers and return auto-inferred field mapping."""
+        if fmt == "csv":
+            reader = csv.DictReader(io.StringIO(data))
+            headers = list(reader.fieldnames or [])
+        else:
+            try:
+                payload = json.loads(data)
+            except json.JSONDecodeError as exc:
+                raise ValueError("Invalid JSON.") from exc
+            if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+                headers = list(payload[0].keys())
+            elif isinstance(payload, dict):
+                for v in payload.values():
+                    if isinstance(v, list) and v and isinstance(v[0], dict):
+                        headers = list(v[0].keys())
+                        break
+                else:
+                    headers = list(payload.keys())
+            else:
+                headers = []
+        return {"headers": headers, "inferred": infer_generic_columns(headers)}
 
     def preview_import_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         existing = {
@@ -3775,6 +3827,9 @@ class BrowserBookmarkParser(HTMLParser):
         self.text_parts: list[str] = []
         self.root_depth_seen = False
         self.position_stack: list[int] = [0]
+        # Safari Reading List tracking
+        self._pending_reading_list: bool = False
+        self._reading_list_folder_depths: list[bool] = [False]
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
@@ -3782,11 +3837,21 @@ class BrowserBookmarkParser(HTMLParser):
         if tag == "h3":
             self.current_tag = "h3"
             self.text_parts = []
+            self._pending_reading_list = attrs_dict.get("reading_list", "").upper() == "TRUE"
         elif tag == "a" and "href" in attrs_dict:
             self.current_tag = "a"
+            raw_tags = attrs_dict.get("tags", "")
+            base_tags = [t.strip() for t in raw_tags.split(",") if t.strip()] if raw_tags else []
+            is_reading = (
+                self._pending_reading_list
+                or self._reading_list_folder_depths[-1]
+                or attrs_dict.get("toreadlist", "").upper() == "TRUE"
+            )
+            if is_reading and "reading-list" not in base_tags:
+                base_tags = [*base_tags, "reading-list"]
             self.current_link = {
                 "url": attrs_dict["href"],
-                "tags": attrs_dict.get("tags", ""),
+                "tags": base_tags,
                 "collections": list(self.folder_stack),
                 "source_browser": "browser-html",
                 "source_root": self.folder_stack[0] if self.folder_stack else "",
@@ -3799,6 +3864,8 @@ class BrowserBookmarkParser(HTMLParser):
                 self.folder_stack.append(self.pending_folder)
                 self.pending_folder = None
                 self.position_stack.append(0)
+                self._reading_list_folder_depths.append(self._pending_reading_list)
+                self._pending_reading_list = False
             elif not self.root_depth_seen:
                 self.root_depth_seen = True
 
@@ -3820,7 +3887,215 @@ class BrowserBookmarkParser(HTMLParser):
             self.folder_stack.pop()
             if len(self.position_stack) > 1:
                 self.position_stack.pop()
+            if len(self._reading_list_folder_depths) > 1:
+                self._reading_list_folder_depths.pop()
 
     def handle_data(self, data: str) -> None:
         if self.current_tag in {"a", "h3"}:
             self.text_parts.append(data)
+
+
+# ---------------------------------------------------------------------------
+# MozLZ4 decompression (Firefox .jsonlz4 backup files)
+# ---------------------------------------------------------------------------
+
+MOZLZ4_MAGIC = b"mozLz40\0"
+_MOZLZ4_HEADER_LEN = len(MOZLZ4_MAGIC)  # 8 bytes
+
+
+def _lz4_block_decompress(src: bytes, max_output: int = 64 * 1024 * 1024) -> bytes:
+    """Pure-Python LZ4 block decompressor (no frame header expected)."""
+    out = bytearray()
+    pos = 0
+    n = len(src)
+    while pos < n:
+        token = src[pos]
+        pos += 1
+        lit_len = (token >> 4) & 0xF
+        if lit_len == 15:
+            while pos < n:
+                extra = src[pos]
+                pos += 1
+                lit_len += extra
+                if extra != 255:
+                    break
+        out.extend(src[pos : pos + lit_len])
+        pos += lit_len
+        if pos >= n:
+            break  # last sequence has no match
+        if pos + 2 > n:
+            raise ValueError("Truncated LZ4 match offset.")
+        offset = struct.unpack_from("<H", src, pos)[0]
+        pos += 2
+        if offset == 0:
+            raise ValueError("Invalid LZ4 match offset 0.")
+        match_len = (token & 0xF) + 4
+        if match_len == 4 + 15:
+            while pos < n:
+                extra = src[pos]
+                pos += 1
+                match_len += extra
+                if extra != 255:
+                    break
+        match_start = len(out) - offset
+        if match_start < 0:
+            raise ValueError("LZ4 match offset out of bounds.")
+        for i in range(match_len):
+            out.append(out[match_start + i])
+        if len(out) > max_output:
+            raise ValueError("LZ4 decompressed output exceeds safety limit.")
+    return bytes(out)
+
+
+def decompress_mozlz4(raw: bytes) -> bytes:
+    """Strip MozLZ4 magic header and decompress LZ4 block data."""
+    if not raw.startswith(MOZLZ4_MAGIC):
+        raise ValueError("Not a MozLZ4 file (magic header missing).")
+    return _lz4_block_decompress(raw[_MOZLZ4_HEADER_LEN:])
+
+
+def parse_firefox_jsonlz4(data: str) -> list[dict[str, Any]]:
+    """Parse a Firefox .jsonlz4 backup supplied as base64."""
+    try:
+        raw = base64.b64decode(data, validate=True)
+    except Exception as exc:
+        raise ValueError("Firefox JSONLZ4 import expects base64-encoded binary data.") from exc
+    try:
+        decompressed = decompress_mozlz4(raw)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(f"Failed to decompress MozLZ4 data: {exc}") from exc
+    return parse_firefox_json(decompressed.decode("utf-8", errors="replace"))
+
+
+# ---------------------------------------------------------------------------
+# Generic CSV / JSON import
+# ---------------------------------------------------------------------------
+
+_GENERIC_FIELD_CANDIDATES: dict[str, list[str]] = {
+    "url": ["url", "uri", "href", "link", "address"],
+    "title": ["title", "name", "label", "description", "text"],
+    "tags": ["tags", "tag", "keywords", "labels", "categories"],
+    "collections": ["collections", "collection", "folder", "folders", "group", "groups"],
+    "description": ["description", "desc", "summary", "note", "excerpt", "abstract"],
+    "notes": ["notes", "note", "comment", "memo"],
+}
+
+
+def _best_field_match(headers: list[str], candidates: list[str]) -> str | None:
+    lc_headers = [h.lower().strip() for h in headers]
+    for c in candidates:
+        if c in lc_headers:
+            return headers[lc_headers.index(c)]
+    return None
+
+
+def infer_generic_columns(headers: list[str]) -> dict[str, str | None]:
+    """Return best-guess field mapping for a list of column headers."""
+    return {
+        field: _best_field_match(headers, candidates)
+        for field, candidates in _GENERIC_FIELD_CANDIDATES.items()
+    }
+
+
+def parse_generic_csv(data: str, mapping: dict[str, str]) -> list[dict[str, Any]]:
+    """Parse generic CSV bookmark export using a caller-supplied field mapping."""
+    url_field = mapping.get("url") or ""
+    if not url_field:
+        raise ValueError("url_field is required for generic CSV import.")
+    reader = csv.DictReader(io.StringIO(data))
+    items: list[dict[str, Any]] = []
+    for row in reader:
+        url = str(row.get(url_field, "")).strip()
+        if not url:
+            continue
+        title_field = mapping.get("title") or ""
+        tags_field = mapping.get("tags") or ""
+        col_field = mapping.get("collections") or ""
+        desc_field = mapping.get("description") or ""
+        notes_field = mapping.get("notes") or ""
+        raw_tags = str(row.get(tags_field, "")) if tags_field else ""
+        tags = [t.strip() for t in raw_tags.replace(";", ",").split(",") if t.strip()]
+        raw_cols = str(row.get(col_field, "")) if col_field else ""
+        collections = [c.strip() for c in raw_cols.replace(";", ",").split(",") if c.strip()]
+        items.append(
+            {
+                "url": url,
+                "title": str(row.get(title_field, "")).strip() if title_field else "",
+                "tags": tags,
+                "collections": collections,
+                "description": str(row.get(desc_field, "")).strip() if desc_field else "",
+                "notes": str(row.get(notes_field, "")).strip() if notes_field else "",
+                "source_browser": "generic-csv",
+                "source_root": "",
+                "source_folder_path": " / ".join(collections),
+                "source_position": len(items),
+                "source_bookmark_id": "",
+            }
+        )
+    return items
+
+
+def parse_generic_json(data: str, mapping: dict[str, str]) -> list[dict[str, Any]]:
+    """Parse generic JSON bookmark export using a caller-supplied field mapping."""
+    url_field = mapping.get("url") or ""
+    if not url_field:
+        raise ValueError("url_field is required for generic JSON import.")
+    try:
+        payload = json.loads(data)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JSON for generic import.") from exc
+    # Accept top-level list or dict with a list value
+    rows: list[Any] = []
+    if isinstance(payload, list):
+        rows = payload
+    elif isinstance(payload, dict):
+        for v in payload.values():
+            if isinstance(v, list) and v and isinstance(v[0], dict):
+                rows = v
+                break
+        if not rows:
+            rows = [payload]
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        url = str(row.get(url_field, "")).strip()
+        if not url:
+            continue
+        title_field = mapping.get("title") or ""
+        tags_field = mapping.get("tags") or ""
+        col_field = mapping.get("collections") or ""
+        desc_field = mapping.get("description") or ""
+        notes_field = mapping.get("notes") or ""
+        raw_tags = row.get(tags_field, []) if tags_field else []
+        if isinstance(raw_tags, str):
+            tags = [t.strip() for t in raw_tags.replace(";", ",").split(",") if t.strip()]
+        elif isinstance(raw_tags, list):
+            tags = [str(t).strip() for t in raw_tags if str(t).strip()]
+        else:
+            tags = []
+        raw_cols = row.get(col_field, []) if col_field else []
+        if isinstance(raw_cols, str):
+            collections = [c.strip() for c in raw_cols.replace(";", ",").split(",") if c.strip()]
+        elif isinstance(raw_cols, list):
+            collections = [str(c).strip() for c in raw_cols if str(c).strip()]
+        else:
+            collections = []
+        items.append(
+            {
+                "url": url,
+                "title": str(row.get(title_field, "")).strip() if title_field else "",
+                "tags": tags,
+                "collections": collections,
+                "description": str(row.get(desc_field, "")).strip() if desc_field else "",
+                "notes": str(row.get(notes_field, "")).strip() if notes_field else "",
+                "source_browser": "generic-json",
+                "source_root": "",
+                "source_folder_path": " / ".join(collections),
+                "source_position": len(items),
+                "source_bookmark_id": str(row.get("id", row.get("guid", ""))),
+            }
+        )
+    return items

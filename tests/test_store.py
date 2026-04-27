@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 from linkvault.metadata import PageMetadata
-from linkvault.store import BookmarkFilters, BookmarkStore
+from linkvault.store import BookmarkFilters, BookmarkStore, parse_browser_html
 
 
 class StoreTest(unittest.TestCase):
@@ -1519,6 +1519,213 @@ class StoreTest(unittest.TestCase):
             # Worst first
             score_values = [s["score"] for s in scores]
             self.assertEqual(score_values, sorted(score_values))
+
+
+from linkvault.store import (
+    _lz4_block_decompress,
+    decompress_mozlz4,
+    parse_firefox_jsonlz4,
+    infer_generic_columns,
+    parse_generic_csv,
+    parse_generic_json,
+    parse_browser_html,
+    MOZLZ4_MAGIC,
+)
+
+
+class MozLz4Test(unittest.TestCase):
+    def _compress_lz4_block(self, data: bytes) -> bytes:
+        """Minimal LZ4 block: emit all bytes as a single literal sequence (no matches)."""
+        out = bytearray()
+        n = len(data)
+        # Token: high nibble = min(n, 15), low nibble = 0 (no match)
+        if n < 15:
+            out.append(n << 4)
+        else:
+            out.append(0xF0)  # 15 in high nibble
+            remainder = n - 15
+            while remainder >= 255:
+                out.append(255)
+                remainder -= 255
+            out.append(remainder)
+        out.extend(data)
+        # No match offset — this is the last (and only) sequence
+        return bytes(out)
+
+    def test_lz4_block_decompress_roundtrip(self):
+        original = b"Hello, LinkVault! " * 10
+        compressed = self._compress_lz4_block(original)
+        result = _lz4_block_decompress(compressed)
+        self.assertEqual(result, original)
+
+    def test_decompress_mozlz4_rejects_bad_magic(self):
+        with self.assertRaises(ValueError):
+            decompress_mozlz4(b"badmagic" + b"\x00" * 8)
+
+    def test_decompress_mozlz4_roundtrip(self):
+        payload = b"Firefox bookmark data"
+        compressed = self._compress_lz4_block(payload)
+        mozlz4 = MOZLZ4_MAGIC + compressed
+        result = decompress_mozlz4(mozlz4)
+        self.assertEqual(result, payload)
+
+    def test_parse_firefox_jsonlz4_roundtrip(self):
+        """Full parse: compress a minimal Firefox bookmarks JSON as MozLZ4."""
+        import json, struct
+
+        firefox_json = json.dumps({
+            "guid": "root",
+            "title": "Root",
+            "type": "text/x-moz-place-container",
+            "children": [
+                {
+                    "guid": "abc123",
+                    "title": "Bookmarks Toolbar",
+                    "type": "text/x-moz-place-container",
+                    "children": [
+                        {
+                            "guid": "bm1",
+                            "title": "LinkVault",
+                            "type": "text/x-moz-place",
+                            "uri": "https://linkvault.example.com",
+                        }
+                    ],
+                }
+            ],
+        }).encode()
+        compressed = self._compress_lz4_block(firefox_json)
+        mozlz4 = MOZLZ4_MAGIC + compressed
+        b64 = base64.b64encode(mozlz4).decode()
+
+        items = parse_firefox_jsonlz4(b64)
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["url"], "https://linkvault.example.com")
+        self.assertEqual(items[0]["title"], "LinkVault")
+
+    def test_parse_firefox_jsonlz4_rejects_invalid_base64(self):
+        with self.assertRaises(ValueError):
+            parse_firefox_jsonlz4("not-base64!!!")
+
+    def test_parse_firefox_jsonlz4_rejects_bad_magic(self):
+        bad = base64.b64encode(b"not-a-mozlz4-file").decode()
+        with self.assertRaises(ValueError):
+            parse_firefox_jsonlz4(bad)
+
+
+class GenericImportTest(unittest.TestCase):
+    def test_infer_generic_columns_url(self):
+        headers = ["url", "title", "tags", "notes"]
+        inferred = infer_generic_columns(headers)
+        self.assertEqual(inferred["url"], "url")
+        self.assertEqual(inferred["title"], "title")
+        self.assertEqual(inferred["notes"], "notes")
+
+    def test_infer_generic_columns_aliases(self):
+        headers = ["href", "name", "keywords", "folder"]
+        inferred = infer_generic_columns(headers)
+        self.assertEqual(inferred["url"], "href")
+        self.assertEqual(inferred["title"], "name")
+        self.assertEqual(inferred["tags"], "keywords")
+        self.assertEqual(inferred["collections"], "folder")
+
+    def test_infer_generic_columns_missing_returns_none(self):
+        headers = ["url"]
+        inferred = infer_generic_columns(headers)
+        self.assertIsNone(inferred["title"])
+        self.assertIsNone(inferred["tags"])
+
+    def test_parse_generic_csv_basic(self):
+        csv_data = "url,title,tags\nhttps://a.com,Alpha,news;tech\nhttps://b.com,Beta,\n"
+        mapping = {"url": "url", "title": "title", "tags": "tags"}
+        items = parse_generic_csv(csv_data, mapping)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["url"], "https://a.com")
+        self.assertEqual(items[0]["title"], "Alpha")
+        self.assertIn("news", items[0]["tags"])
+        self.assertIn("tech", items[0]["tags"])
+
+    def test_parse_generic_csv_requires_url_field(self):
+        with self.assertRaises(ValueError):
+            parse_generic_csv("url,title\nhttps://a.com,A\n", {})
+
+    def test_parse_generic_csv_skips_empty_urls(self):
+        csv_data = "url,title\nhttps://a.com,A\n,No URL\n"
+        items = parse_generic_csv(csv_data, {"url": "url"})
+        self.assertEqual(len(items), 1)
+
+    def test_parse_generic_json_list(self):
+        import json
+        data = json.dumps([
+            {"url": "https://a.com", "title": "A", "tags": ["news", "tech"]},
+            {"url": "https://b.com", "title": "B"},
+        ])
+        mapping = {"url": "url", "title": "title", "tags": "tags"}
+        items = parse_generic_json(data, mapping)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["url"], "https://a.com")
+        self.assertIn("news", items[0]["tags"])
+
+    def test_parse_generic_json_dict_with_list_value(self):
+        import json
+        data = json.dumps({"bookmarks": [{"url": "https://a.com", "title": "A"}]})
+        mapping = {"url": "url", "title": "title"}
+        items = parse_generic_json(data, mapping)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["url"], "https://a.com")
+
+    def test_parse_generic_json_requires_url_field(self):
+        with self.assertRaises(ValueError):
+            parse_generic_json("[]", {})
+
+    def test_parse_generic_json_string_tags(self):
+        import json
+        data = json.dumps([{"url": "https://a.com", "tags": "news,tech"}])
+        mapping = {"url": "url", "tags": "tags"}
+        items = parse_generic_json(data, mapping)
+        self.assertIn("news", items[0]["tags"])
+        self.assertIn("tech", items[0]["tags"])
+
+
+class SafariReadingListTest(unittest.TestCase):
+    def test_reading_list_folder_tagged(self):
+        html = """<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+  <DT><H3 READING_LIST="true">Reading List</H3>
+  <DL><p>
+    <DT><A HREF="https://a.com" TOREADLIST="true">Article A</A>
+    <DT><A HREF="https://b.com">Article B</A>
+  </DL>
+</DL>"""
+        items = parse_browser_html(html)
+        urls = {item["url"]: item for item in items}
+        self.assertIn("reading-list", urls["https://a.com"]["tags"])
+        self.assertIn("reading-list", urls["https://b.com"]["tags"])
+
+    def test_non_reading_list_not_tagged(self):
+        html = """<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+  <DT><H3>Bookmarks Bar</H3>
+  <DL><p>
+    <DT><A HREF="https://a.com">Normal</A>
+  </DL>
+</DL>"""
+        items = parse_browser_html(html)
+        self.assertNotIn("reading-list", items[0]["tags"])
+
+    def test_toreadlist_attr_on_a_tag(self):
+        html = """<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<DL><p>
+  <DT><H3>Misc</H3>
+  <DL><p>
+    <DT><A HREF="https://c.com" TOREADLIST="true">Want to read</A>
+    <DT><A HREF="https://d.com">Normal</A>
+  </DL>
+</DL>"""
+        items = parse_browser_html(html)
+        urls = {item["url"]: item for item in items}
+        self.assertIn("reading-list", urls["https://c.com"]["tags"])
+        self.assertNotIn("reading-list", urls["https://d.com"]["tags"])
 
 
 if __name__ == "__main__":

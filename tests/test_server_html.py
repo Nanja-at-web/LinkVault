@@ -197,5 +197,24 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("data-focus-token-test", html)
 
 
+    def test_index_html_has_phase6_import_formats(self):
+        html = index_html()
+
+        self.assertIn("firefox-jsonlz4", html)
+        self.assertIn("Firefox-JSONLZ4", html)
+        self.assertIn("generic-csv", html)
+        self.assertIn("generic-json", html)
+        self.assertIn("Generisch CSV", html)
+        self.assertIn("Generisch JSON", html)
+        self.assertIn("generic-mapping-ui", html)
+        self.assertIn("generic-mapping-fields", html)
+        self.assertIn("detectGenericColumns", html)
+        self.assertIn("/api/import/firefox-jsonlz4", html)
+        self.assertIn("/api/import/generic", html)
+        self.assertIn("/api/import/generic/columns", html)
+        self.assertIn("BINARY_IMPORT_FORMATS", html)
+        self.assertIn("GENERIC_IMPORT_FORMATS", html)
+
+
 if __name__ == "__main__":
     unittest.main()

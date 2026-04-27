@@ -705,6 +705,64 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 data = str(payload.get("data", ""))
                 self.send_json(store.preview_safari_zip_import(data))
+            elif path == "/api/import/firefox-jsonlz4":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(
+                    store.import_firefox_jsonlz4(
+                        data,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name="Firefox JSONLZ4",
+                            source_format="firefox-jsonlz4",
+                            source_file_name=str(payload.get("file_name", "")),
+                            checksum_source=data,
+                            sync_origin="manual_file_import",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
+            elif path == "/api/import/firefox-jsonlz4/preview":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.preview_firefox_jsonlz4_import(data))
+            elif path == "/api/import/generic/columns":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                fmt = str(payload.get("fmt", "json"))
+                self.send_json(store.infer_generic_import_columns(data, fmt))
+            elif path == "/api/import/generic":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                fmt = str(payload.get("fmt", "json"))
+                mapping = {k: str(v) for k, v in (payload.get("mapping") or {}).items()}
+                self.send_json(
+                    store.import_generic(
+                        data,
+                        fmt,
+                        mapping,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name=f"Generic {'CSV' if fmt == 'csv' else 'JSON'}",
+                            source_format=f"generic-{fmt}",
+                            source_file_name=str(payload.get("file_name", "")),
+                            checksum_source=data,
+                            sync_origin="manual_file_import",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
+            elif path == "/api/import/generic/preview":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                fmt = str(payload.get("fmt", "json"))
+                mapping = {k: str(v) for k, v in (payload.get("mapping") or {}).items()}
+                self.send_json(store.preview_generic_import(data, fmt, mapping))
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
         except ValueError as exc:
@@ -1364,12 +1422,19 @@ def index_html() -> str:
         <select name="format">
           <option value="browser-html">Browser-HTML / Netscape</option>
           <option value="chromium-json">Chromium-JSON: Chrome, Edge, Brave, Vivaldi, Opera</option>
-          <option value="firefox-json">Firefox-JSON: bookmarks backup</option>
-          <option value="safari-zip">Safari-ZIP: archive with Bookmarks.html</option>
+          <option value="firefox-json">Firefox-JSON: Bookmarks-Backup (.json)</option>
+          <option value="firefox-jsonlz4">Firefox-JSONLZ4: Bookmarks-Backup (.jsonlz4)</option>
+          <option value="safari-zip">Safari-ZIP: Archiv mit Bookmarks.html</option>
+          <option value="generic-csv">Generisch CSV: beliebiges Bookmark-Tool</option>
+          <option value="generic-json">Generisch JSON: beliebiges Bookmark-Tool</option>
         </select>
       </label>
       <label class="full">Importdatei <input name="file" type="file"></label>
-      <label class="full">Importdaten <textarea name="data" rows="8" placeholder="Bookmark-HTML, Chromium-JSON oder Firefox-JSON hier einfuegen. Safari-ZIP bitte als Datei auswaehlen."></textarea></label>
+      <label class="full">Importdaten <textarea name="data" rows="8" placeholder="Bookmark-HTML, Chromium-JSON oder Firefox-JSON hier einfuegen. Safari-ZIP und Firefox-JSONLZ4 bitte als Datei auswaehlen."></textarea></label>
+      <div id="generic-mapping-ui" hidden>
+        <p class="muted">Spalten werden nach dem Laden erkannt. Bitte zuerst Vorschau pruefen.</p>
+        <div id="generic-mapping-fields" class="inline-actions" style="flex-wrap:wrap;gap:.5rem;"></div>
+      </div>
       <div class="inline-actions">
         <button id="import-preview-button" type="button">Vorschau pruefen</button>
         <button>Importieren</button>
@@ -2711,23 +2776,87 @@ def index_html() -> str:
         'browser-html': '/api/import/browser-html',
         'chromium-json': '/api/import/chromium-json',
         'firefox-json': '/api/import/firefox-json',
-        'safari-zip': '/api/import/safari-zip'
+        'firefox-jsonlz4': '/api/import/firefox-jsonlz4',
+        'safari-zip': '/api/import/safari-zip',
+        'generic-csv': '/api/import/generic',
+        'generic-json': '/api/import/generic',
       };
       const base = endpoints[format] || '/api/import/browser-html';
       return preview ? `${base}/preview` : base;
     }
 
+    const BINARY_IMPORT_FORMATS = new Set(['safari-zip', 'firefox-jsonlz4']);
+    const GENERIC_IMPORT_FORMATS = new Set(['generic-csv', 'generic-json']);
+
+    // Generic import: inferred column mapping from server
+    let genericColumnMapping = {};
+
     async function importPayloadFromForm(form) {
       const data = Object.fromEntries(new FormData(form));
       const file = form.elements.file?.files?.[0];
+      const fmt = data.format || 'browser-html';
       if (file) {
-        data.data = data.format === 'safari-zip'
+        data.data = BINARY_IMPORT_FORMATS.has(fmt)
           ? await readFileAsBase64(file)
           : await file.text();
       }
       delete data.file;
+      if (GENERIC_IMPORT_FORMATS.has(fmt)) {
+        data.fmt = fmt === 'generic-csv' ? 'csv' : 'json';
+        data.mapping = collectGenericMapping();
+      }
       return data;
     }
+
+    function collectGenericMapping() {
+      const mapping = {};
+      document.querySelectorAll('#generic-mapping-fields select[data-field]').forEach(sel => {
+        if (sel.value) mapping[sel.dataset.field] = sel.value;
+      });
+      return mapping;
+    }
+
+    function showGenericMappingUi(headers, inferred) {
+      const container = document.getElementById('generic-mapping-fields');
+      const fields = ['url', 'title', 'tags', 'collections', 'description', 'notes'];
+      const labels = {url: 'URL *', title: 'Titel', tags: 'Tags', collections: 'Collections', description: 'Beschreibung', notes: 'Notizen'};
+      container.innerHTML = fields.map(f => `
+        <label style="flex:1;min-width:10rem;">${escapeHtml(labels[f] || f)}
+          <select data-field="${f}" style="width:100%;">
+            <option value="">(kein)</option>
+            ${headers.map(h => `<option value="${escapeHtml(h)}"${inferred[f] === h ? ' selected' : ''}>${escapeHtml(h)}</option>`).join('')}
+          </select>
+        </label>
+      `).join('');
+      genericColumnMapping = Object.assign({}, inferred);
+      document.getElementById('generic-mapping-ui').hidden = false;
+    }
+
+    async function detectGenericColumns(form) {
+      const file = form.elements.file?.files?.[0];
+      const fmt = (form.elements.format?.value || '').replace('generic-', '');
+      let data = document.querySelector('[name="data"]').value.trim();
+      if (file && !data) data = await file.text();
+      if (!data) return;
+      try {
+        const resp = await fetch('/api/import/generic/columns', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({data, fmt})
+        });
+        if (resp.ok) {
+          const r = await resp.json();
+          showGenericMappingUi(r.headers || [], r.inferred || {});
+        }
+      } catch {}
+    }
+
+    // Toggle generic mapping UI when format changes
+    document.querySelector('[name="format"]').addEventListener('change', function() {
+      const isGeneric = GENERIC_IMPORT_FORMATS.has(this.value);
+      document.getElementById('generic-mapping-ui').hidden = !isGeneric;
+      if (!isGeneric) document.getElementById('generic-mapping-fields').innerHTML = '';
+    });
 
     function readFileAsBase64(file) {
       return new Promise((resolve, reject) => {
@@ -4073,7 +4202,12 @@ def index_html() -> str:
     });
 
     document.querySelector('#import-preview-button').addEventListener('click', async () => {
-      const data = await importPayloadFromForm(document.querySelector('#import-form'));
+      const form = document.querySelector('#import-form');
+      const fmt = form.elements.format?.value || '';
+      if (GENERIC_IMPORT_FORMATS.has(fmt)) {
+        await detectGenericColumns(form);
+      }
+      const data = await importPayloadFromForm(form);
       const response = await fetch(importEndpoint(data.format, true), {
         method: 'POST',
         headers: {'content-type': 'application/json'},
