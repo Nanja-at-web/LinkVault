@@ -1169,6 +1169,20 @@ def index_html() -> str:
     .fav-card .fav-meta { color: var(--muted); font-size: .85rem; margin-top: .2rem; }
     .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
     .shortcut-hint { color: var(--muted); margin: .35rem 0 0; font-size: .9rem; }
+    .quick-add-nav-btn { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .quick-add-nav-btn:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+    dialog { border: none; border-radius: 12px; padding: 1.5rem; max-width: 520px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    dialog::backdrop { background: rgba(0,0,0,.45); }
+    .qa-form { display: flex; flex-direction: column; gap: .25rem; }
+    .qa-form input, .qa-form textarea { margin: .2rem 0 .4rem; }
+    .qa-more { margin: .4rem 0; }
+    .qa-more summary { cursor: pointer; color: var(--accent-strong); font-size: .95rem; font-weight: 600; list-style: none; }
+    .qa-more summary::before { content: '+ '; }
+    .qa-more[open] summary::before { content: '- '; }
+    .qa-more[open] summary { margin-bottom: .5rem; }
+    .qa-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .5rem; }
+    .qa-preflight { background: #fff8f0; border: 1px solid #f0c08a; border-radius: 8px; padding: .75rem; margin: .5rem 0; font-size: .93rem; }
+    .qa-preflight h4 { margin: 0 0 .4rem; font-size: .95rem; }
     @media (max-width: 760px) {
       .shell { padding: .75rem; }
       .toolbar, .panel-header { display: block; }
@@ -1188,7 +1202,7 @@ def index_html() -> str:
     <div>
       <h1>LinkVault MVP</h1>
       <p class="subtitle">Links speichern, importieren, bearbeiten und Dubletten sicher zusammenfuehren.</p>
-      <p class="shortcut-hint">Shortcuts: Ctrl/Cmd+K Suche, N Speichern, I Import, D Dubletten, B Bookmarks.</p>
+      <p class="shortcut-hint">Shortcuts: Ctrl/Cmd+K Suche, N Schnell-Speichern, I Import, D Dubletten, B Bookmarks.</p>
     </div>
     <div id="userbar" hidden>
       <button id="current-user" type="button" data-tab-trigger="profile" class="link-btn"></button>
@@ -1214,6 +1228,7 @@ def index_html() -> str:
   </section>
 
   <nav id="app-nav" class="nav" hidden>
+    <button type="button" id="quick-add-btn" class="quick-add-nav-btn">+ Neu</button>
     <button type="button" data-tab-trigger="save">Speichern</button>
     <button type="button" data-inbox-trigger>Inbox</button>
     <button type="button" data-tab-trigger="import">Import</button>
@@ -1227,6 +1242,29 @@ def index_html() -> str:
     <button type="button" data-tab-trigger="admin" id="admin-nav-btn" hidden>Admin</button>
     <button type="button" data-tab-trigger="profile">Profil</button>
   </nav>
+
+  <dialog id="quick-add-dialog" aria-label="Bookmark schnell speichern">
+    <h3 style="margin:0 0 .85rem;">Bookmark speichern</h3>
+    <form id="qa-form" class="qa-form">
+      <label>URL <input name="url" type="url" required placeholder="https://…" autocomplete="url"></label>
+      <label>Titel <input name="title" placeholder="Optional – wird automatisch geladen"></label>
+      <details class="qa-more">
+        <summary>Mehr Felder</summary>
+        <label>Tags <input name="tags" placeholder="proxmox, homelab"></label>
+        <label>Collections <input name="collections" placeholder="Homelab/Proxmox"></label>
+        <label>Notizen <textarea name="notes" rows="2" placeholder="Optional"></textarea></label>
+        <div style="margin:.2rem 0 .4rem;">
+          <label class="check"><input name="favorite" type="checkbox"> Favorit</label>
+          <label class="check"><input name="pinned" type="checkbox"> Pin</label>
+        </div>
+      </details>
+      <div id="qa-preflight" class="qa-preflight" hidden></div>
+      <div class="qa-actions">
+        <button type="button" id="qa-cancel">Abbrechen</button>
+        <button type="submit" class="primary" id="qa-submit">Speichern</button>
+      </div>
+    </form>
+  </dialog>
 
   <main id="app" class="workspace" hidden>
   <section id="save" class="panel tab-panel" data-tab-panel="save">
@@ -1630,6 +1668,9 @@ def index_html() -> str:
     const favoritesListEl = document.querySelector('#favorites-list');
     const tagsListEl = document.querySelector('#tags-list');
     const collectionsListEl = document.querySelector('#collections-list');
+    const quickAddDialog = document.querySelector('#quick-add-dialog');
+    const qaForm = document.querySelector('#qa-form');
+    const qaPreflight = document.querySelector('#qa-preflight');
     const selectedIds = new Set();
     let activeTab = 'bookmarks';
     let currentUserState = null;
@@ -2101,6 +2142,83 @@ def index_html() -> str:
         });
       });
     }
+
+    function openQuickAdd(prefillUrl = '') {
+      qaForm.reset();
+      qaPreflight.hidden = true;
+      if (prefillUrl) qaForm.elements['url'].value = prefillUrl;
+      quickAddDialog.showModal();
+      qaForm.elements['url'].focus();
+    }
+
+    async function saveAndCloseQuickAdd(data) {
+      await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      quickAddDialog.close();
+      await refreshAll();
+    }
+
+    function renderQaPreflight(preflight, formData) {
+      qaPreflight.hidden = false;
+      qaPreflight.innerHTML = `<h4>Moegliche Dublette gefunden</h4>
+        <p class="muted" style="margin:.2rem 0 .5rem;">${escapeHtml(preflight.normalized_url)}</p>`;
+      for (const match of preflight.matches) {
+        const bm = match.bookmark;
+        const row = document.createElement('div');
+        row.style.cssText = 'margin-top:.5rem;padding-top:.5rem;border-top:1px solid #f0c08a;';
+        row.innerHTML = `
+          <strong>${escapeHtml(bm.title || bm.url)}</strong>
+          <p style="margin:.1rem 0;font-size:.88rem;"><a href="${escapeAttr(bm.url)}" target="_blank" rel="noopener">${escapeHtml(bm.url)}</a></p>
+          <button type="button" data-action="open">Oeffnen</button>
+          <button type="button" data-action="update">Aktualisieren</button>
+        `;
+        row.querySelector('[data-action="open"]').addEventListener('click', () => {
+          quickAddDialog.close();
+          openBookmark(bm.id);
+        });
+        row.querySelector('[data-action="update"]').addEventListener('click', async () => {
+          await patchBookmark(bm.id, formData);
+          quickAddDialog.close();
+          await refreshAll();
+        });
+        qaPreflight.appendChild(row);
+      }
+      const saveAnyway = document.createElement('button');
+      saveAnyway.type = 'button';
+      saveAnyway.style.cssText = 'margin-top:.6rem;display:block;';
+      saveAnyway.textContent = 'Trotzdem neu speichern';
+      saveAnyway.addEventListener('click', async () => {
+        formData.allow_duplicate = true;
+        await saveAndCloseQuickAdd(formData);
+      });
+      qaPreflight.appendChild(saveAnyway);
+    }
+
+    document.querySelector('#quick-add-btn').addEventListener('click', () => openQuickAdd());
+    document.querySelector('#qa-cancel').addEventListener('click', () => quickAddDialog.close());
+
+    qaForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target));
+      data.favorite = data.favorite === 'on';
+      data.pinned = data.pinned === 'on';
+      qaPreflight.hidden = true;
+      const qaSubmit = document.querySelector('#qa-submit');
+      qaSubmit.disabled = true;
+      try {
+        const preflight = await duplicatePreflightFor(data.url);
+        if (preflight.has_matches) {
+          renderQaPreflight(preflight, data);
+          return;
+        }
+        await saveAndCloseQuickAdd(data);
+      } finally {
+        qaSubmit.disabled = false;
+      }
+    });
 
     function renderDedupDryRun(payload) {
       if (!payload.group_count) {
@@ -3576,8 +3694,7 @@ def index_html() -> str:
 
       if (event.key.toLowerCase() === 'n') {
         event.preventDefault();
-        setActiveTab('save');
-        document.querySelector('#bookmark-form input[name="url"]').focus();
+        openQuickAdd();
       } else if (event.key.toLowerCase() === 'i') {
         event.preventDefault();
         setActiveTab('import');

@@ -101,6 +101,21 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn('id="settings"', html)
         self.assertIn("Einstellungen", html)
 
+    def test_index_html_has_quick_add(self):
+        html = index_html()
+
+        self.assertIn('id="quick-add-dialog"', html)
+        self.assertIn('id="quick-add-btn"', html)
+        self.assertIn('id="qa-form"', html)
+        self.assertIn('id="qa-preflight"', html)
+        self.assertIn('id="qa-cancel"', html)
+        self.assertIn('id="qa-submit"', html)
+        self.assertIn("openQuickAdd", html)
+        self.assertIn("saveAndCloseQuickAdd", html)
+        self.assertIn("renderQaPreflight", html)
+        self.assertIn("Schnell-Speichern", html)
+        self.assertIn("quick-add-nav-btn", html)
+
 
 if __name__ == "__main__":
     unittest.main()
