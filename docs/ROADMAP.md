@@ -55,9 +55,9 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Saved Views per Nutzer gespeichert (user_id-Scope).
 - [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
   Erkennung im lokalen Netzwerk.
-- [~] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
-  Bookmarks, Favoriten, Tags, Collections, Einstellungen, Dubletten, Betrieb,
-  Admin (nur Admin-User) und Profil vorhanden; Archiv-Tab noch offen.
+- [x] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
+  Bookmarks, Favoriten, Tags, Collections, Archiv (Platzhalter), Einstellungen,
+  Dubletten, Betrieb, Admin (nur Admin-User) und Profil vorhanden.
 - [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
   Arbeitsleisten auslagern.
 - [x] Inbox/Unsortiert: neue Links ohne Collection landen automatisch in
@@ -72,8 +72,9 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [~] Anzeigeoptionen je Nutzer speichern: Titel, Beschreibung, Notizen, Tags,
   Collections, Domain, Datum, Favorite/Pin und Status jetzt serverseitig pro
   LinkVault-Instanz; spaetere Archiv-/Preview-Ansichten offen.
-- [~] Sortierung und Filter als Standard speichern, angelehnt an linkding:
-  Filter und Suche sind serverseitig gespeichert, Sortierung noch offen.
+- [x] Sortierung und Filter als Standard speichern, angelehnt an linkding:
+  Filter, Suche und Sortierung (sort_by, sort_order) sind serverseitig
+  gespeichert und werden in Saved Views eingeschlossen.
 - [x] Grid/Card-Ansicht fuer visuelles Browsing mit aktuellen Bookmark-Daten.
 
 ## Phase 2: Dubletten und Favoritenpflege
