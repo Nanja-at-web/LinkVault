@@ -100,8 +100,14 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Kategorien (geloescht, neu, geaendert, nur-LinkVault) vorhanden;
   destruktiver Zwei-Wege-Sync und Floccus-Bridge noch offen
   (Floccus-Forschung: siehe FLOCCUS_SYNC_RESEARCH.md).
-- [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
-- [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.
+- [x] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen:
+  Favoriten-Pflege-Drawer im Favoriten-Tab mit Bericht und Link-Check-Button;
+  drei Kategorien: uncategorized (nur Inbox/keine Collection), duplicated
+  (gleiche normalisierte URL), dead (Link-Check fehlgeschlagen); paralleler
+  HEAD/GET-Check via ThreadPoolExecutor, Ergebnisse in link_checks-Tabelle.
+- [x] Pflege-Score je Sammlung: Metadaten (40 %), Dedup (30 %), Tags (15 %),
+  Links (15 %); score 0-100 pro Collection; Farb-Badge (gruen/gelb/rot) im
+  Collections-Tab; Archivstatus als spaeterer Faktor vorbereitet.
 
 ## Phase 3: Archivierung
 

@@ -113,7 +113,7 @@ Collections-, Tags-, Archiv- und Einstellungs-Tabs fehlen noch.
 |---|---:|---|---|
 | Phase 0 - Fundament | ~97 % | Struktur, Lizenz, Research-Auswertung, englischer Einstieg, systemd, Windows-Dev-Doku | Docker Compose; Node.js-Checks sauber in lokale/CI-Routine ziehen |
 | Phase 1 - Bookmark-Kern | ~98 % | Login, Rollenbasis mit Admin/User, Passwortwechsel, Benutzerverwaltung, Profil-Tab, Admin-Tab, FTS5, Inbox, Saved Views per Nutzer (user_id-Scope), Grid/List/Compact, Import-Sessions, API-Token, Import-Vorschau, Sortier-/Kategorie-Vorschlaege, Favoriten-Tab, Tags-Tab, Collections-Tab, Einstellungen-Tab, Quick-Add-Modal, Archiv-Tab (Platzhalter), Sortierung als gespeicherter Standard (sort_by/sort_order in Saved Views) | Einstellungen-Tab ausbauen (bisher nur Platzhalter) |
-| Phase 2 - Dedup | ~85 % | URL-Normalisierung, Preflight, Dry-Run, Merge ohne Loeschen, Merge-Undo, Merge-Historie, Conflict Center mit Session-Fortschritt, Sammelentscheidung pro Gruppe, apply_session_defaults, get_restore_session, Sync-Drift-Erkennung (Snapshot-Baseline, vier Drift-Kategorien, API, UI) | Pflege-Score; tote Favoriten; destruktiver Zwei-Wege-Sync; Floccus-Bridge |
+| Phase 2 - Dedup | ~97 % | URL-Normalisierung, Preflight, Dry-Run, Merge ohne Loeschen, Merge-Undo, Merge-Historie, Conflict Center mit Session-Fortschritt, Sammelentscheidung pro Gruppe, apply_session_defaults, get_restore_session, Sync-Drift-Erkennung (Snapshot-Baseline, vier Drift-Kategorien, API, UI), Favoriten-Pflege-Report (uncategorized/duplicated/dead), Link-Health-Check light (HEAD/GET, ThreadPoolExecutor, link_checks-Tabelle), Pflege-Score je Collection (Metadaten/Dedup/Tags/Links, 0-100, Farb-Badge) | destruktiver Zwei-Wege-Sync; Floccus-Bridge |
 | Phase 3 - Archivierung | ~5 % | Weiter bewusst zurueckgestellt | Reader-Extrakt, Archivstatus, Screenshot/PDF, Single-HTML |
 | Phase 4 - Automatisierung | ~45 % | Activity/Audit-Log teilweise, API-Token, Companion Extension mit Discovery, Filtern, Preview, Rueckimport und Konfliktentscheidungen | Rule Engine; Smart Collections; API-Token-Testbutton; vollstaendiger Sync; History-Enrichment nur optional |
 | Phase 5 - Proxmox | ~80 % | Echter LXC-Betrieb, Installations-, Backup-, Restore-, Update- und Migrationstest, Post-Install-Helper | `build.func`/`install.func`-Konventionen; Default-/Advanced-Mode; ProxmoxVED-/community-scripts-Vorbereitung |
@@ -185,7 +185,11 @@ Conflict Center ausgebaut (Session-Fortschritt, apply_session_defaults,
 get_restore_session, json_extract-Query fuer grosse Sessions,
 Sammelentscheidung pro Gruppe direkt in Restore-Sessions-Panel),
 Archiv-Tab (Platzhalter, Phase 3 erklaert), Sortierung als gespeicherter
-Standard (sort_by/sort_order in BookmarkFilters, Saved Views, Chips-Anzeige).
+Standard (sort_by/sort_order in BookmarkFilters, Saved Views, Chips-Anzeige),
+Favoriten-Pflege-Report (uncategorized/duplicated/dead, Favoriten-Tab-Drawer),
+Link-Health-Check light (check_url_health HEAD/GET, ThreadPoolExecutor max 8,
+link_checks-Tabelle), Pflege-Score je Collection (Metadaten 40%/Dedup 30%/
+Tags 15%/Links 15%, 0-100-Score, Farb-Badge gruen/gelb/rot im Collections-Tab).
 
 ## Fazit
 
