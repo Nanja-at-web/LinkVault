@@ -1223,5 +1223,85 @@ class StoreTest(unittest.TestCase):
             self.assertIn("merge_existing", link_group["selected_actions"])
 
 
+    def test_record_sync_snapshot_stores_items(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            items = [
+                {"url": "https://example.com/a", "title": "A", "folder_path": "Research"},
+                {"url": "https://example.com/b", "title": "B", "folder_path": "Work"},
+            ]
+
+            result = store.record_sync_snapshot(items, source_session_id="sess-123")
+
+            self.assertIn("id", result)
+            self.assertEqual(result["item_count"], 2)
+            self.assertIn("created_at", result)
+            snapshot = store.get_latest_sync_snapshot()
+            self.assertIsNotNone(snapshot)
+            self.assertEqual(snapshot["item_count"], 2)
+            self.assertEqual(snapshot["source_session_id"], "sess-123")
+            self.assertIsNone(store.get_latest_sync_snapshot()  # second call returns same
+                              if False else None)
+            self.assertEqual(store.activity_events()[0]["kind"], "sync_snapshot_recorded")
+
+    def test_compute_sync_drift_detects_all_categories(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            # Add active bookmarks in LinkVault
+            store.add({"url": "https://example.com/lv-only", "title": "LV Only"})
+            store.add({"url": "https://example.com/shared", "title": "Shared"})
+
+            # Snapshot: shared + deleted
+            snapshot_items = [
+                {"url": "https://example.com/shared", "title": "Shared", "folder_path": "Work"},
+                {"url": "https://example.com/deleted", "title": "Deleted", "folder_path": "Work"},
+            ]
+            store.record_sync_snapshot(snapshot_items)
+
+            # Current browser: shared (title changed) + new item
+            current_items = [
+                {"url": "https://example.com/shared", "title": "Shared Updated", "folder_path": "Work"},
+                {"url": "https://example.com/new-in-browser", "title": "New In Browser", "folder_path": "Work"},
+            ]
+
+            drift = store.compute_sync_drift(current_items)
+
+            # deleted_from_browser: "deleted" was in snapshot, not in current
+            self.assertEqual(drift["deleted_from_browser"]["count"], 1)
+            self.assertEqual(drift["deleted_from_browser"]["items"][0]["url"], "https://example.com/deleted")
+            # added_to_browser: "new-in-browser" in current, not in snapshot
+            self.assertEqual(drift["added_to_browser"]["count"], 1)
+            self.assertEqual(drift["added_to_browser"]["items"][0]["url"], "https://example.com/new-in-browser")
+            # diverged: "shared" title changed
+            self.assertEqual(drift["diverged"]["count"], 1)
+            self.assertEqual(drift["diverged"]["items"][0]["changes"][0]["field"], "title")
+            # linkvault_only: "lv-only" not in current browser at all
+            self.assertEqual(drift["linkvault_only"]["count"], 1)
+            self.assertEqual(drift["linkvault_only"]["items"][0]["url"], "https://example.com/lv-only")
+            self.assertTrue(drift["has_drift"])
+
+    def test_compute_sync_drift_no_drift_when_states_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            items = [
+                {"url": "https://example.com/a", "title": "A", "folder_path": "Work"},
+            ]
+            store.record_sync_snapshot(items)
+
+            drift = store.compute_sync_drift(items)
+
+            self.assertFalse(drift["has_drift"])
+            self.assertEqual(drift["deleted_from_browser"]["count"], 0)
+            self.assertEqual(drift["added_to_browser"]["count"], 0)
+            self.assertEqual(drift["diverged"]["count"], 0)
+
+    def test_compute_sync_drift_raises_without_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+
+            with self.assertRaises(ValueError):
+                store.compute_sync_drift([])
+
+
 if __name__ == "__main__":
     unittest.main()

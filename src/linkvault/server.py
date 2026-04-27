@@ -256,6 +256,11 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 self.send_error_json(HTTPStatus.NOT_FOUND, "session not found")
                 return
             self.send_json({"session": session})
+        elif path == "/api/sync/snapshot":
+            if not self.require_auth(auth_store):
+                return
+            snapshot = store.get_latest_sync_snapshot()
+            self.send_json({"snapshot": snapshot})
         elif path == "/api/activity":
             if not self.require_auth(auth_store):
                 return
@@ -392,6 +397,17 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 conflict_id = path.removeprefix("/api/conflicts/").removesuffix("/decision").strip("/")
                 self.send_json(store.update_conflict_decision(conflict_id, payload.get("decision", "skip_existing")))
+            elif path == "/api/sync/snapshot":
+                if not self.require_auth(auth_store):
+                    return
+                items = payload.get("items") if isinstance(payload.get("items"), list) else []
+                source_session_id = str(payload.get("source_session_id", ""))
+                self.send_json(store.record_sync_snapshot(items, source_session_id=source_session_id))
+            elif path == "/api/sync/drift":
+                if not self.require_auth(auth_store):
+                    return
+                items = payload.get("items") if isinstance(payload.get("items"), list) else []
+                self.send_json(store.compute_sync_drift(items))
             elif path.startswith("/api/restore/sessions/") and path.endswith("/apply-defaults"):
                 if not self.require_auth(auth_store):
                     return
@@ -1563,6 +1579,12 @@ def index_html() -> str:
         <div id="restore-sessions" class="history-list"></div>
       </section>
       <section class="mini-card">
+        <h3>Browser-Sync-Status</h3>
+        <p class="muted">Drift-Erkennung: vergleicht aktuellen Browser-Stand mit dem letzten Snapshot.</p>
+        <div id="sync-snapshot-status"></div>
+        <div id="sync-drift-result" hidden></div>
+      </section>
+      <section class="mini-card">
         <h3>Aktivitaet</h3>
         <div id="activity-log" class="history-list"></div>
       </section>
@@ -1685,6 +1707,8 @@ def index_html() -> str:
     const quickAddDialog = document.querySelector('#quick-add-dialog');
     const qaForm = document.querySelector('#qa-form');
     const qaPreflight = document.querySelector('#qa-preflight');
+    const syncSnapshotStatusEl = document.querySelector('#sync-snapshot-status');
+    const syncDriftResultEl = document.querySelector('#sync-drift-result');
     const selectedIds = new Set();
     let activeTab = 'bookmarks';
     let currentUserState = null;
@@ -2022,7 +2046,7 @@ def index_html() -> str:
 
     async function refreshOperations() {
       const conflictState = conflictStateFilterEl.value || 'open';
-      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, restoreResponse, activityResponse, conflictResponse] = await Promise.all([
+      const [healthResponse, setupResponse, mergeResponse, tokenResponse, importResponse, restoreResponse, activityResponse, conflictResponse, snapshotResponse] = await Promise.all([
         fetch('/healthz'),
         fetch('/api/setup/status'),
         fetch('/api/dedup/merges'),
@@ -2030,7 +2054,8 @@ def index_html() -> str:
         fetch('/api/import/sessions'),
         fetch('/api/restore/sessions'),
         fetch('/api/activity'),
-        fetch(`/api/conflicts?state=${encodeURIComponent(conflictState)}`)
+        fetch(`/api/conflicts?state=${encodeURIComponent(conflictState)}`),
+        fetch('/api/sync/snapshot')
       ]);
       if (mergeResponse.status === 401 || tokenResponse.status === 401 || importResponse.status === 401 || restoreResponse.status === 401 || activityResponse.status === 401 || conflictResponse.status === 401) {
         await loadAuth();
@@ -2044,6 +2069,8 @@ def index_html() -> str:
       const restoreSessions = await restoreResponse.json();
       const activity = await activityResponse.json();
       const conflicts = await conflictResponse.json();
+      const snapshotPayload = snapshotResponse.ok ? await snapshotResponse.json() : {};
+      renderSyncSnapshotStatus(snapshotPayload.snapshot || null);
       renderOperations(
         health,
         setup,
@@ -2913,6 +2940,72 @@ def index_html() -> str:
             `;
           }).join('')}
         </div>
+      `;
+    }
+
+    function renderSyncSnapshotStatus(snapshot) {
+      if (!snapshot) {
+        syncSnapshotStatusEl.innerHTML = `
+          <p class="muted">Noch kein Browser-Snapshot vorhanden.</p>
+          <p class="muted">Die Companion-Extension nimmt beim Abschluss eines Restores automatisch einen Snapshot auf (POST /api/sync/snapshot).</p>
+        `;
+        return;
+      }
+      syncSnapshotStatusEl.innerHTML = `
+        <p>Letzter Snapshot: <strong>${escapeHtml(snapshot.created_at)}</strong></p>
+        <p class="muted">${snapshot.item_count} Links aufgezeichnet${snapshot.source_session_id ? ` · Session ${escapeHtml(snapshot.source_session_id.slice(0, 8))}` : ''}</p>
+        <p class="muted">Drift-Pruefung wird von der Companion-Extension gestartet (POST /api/sync/drift mit aktuellem Browser-Stand).</p>
+      `;
+    }
+
+    function renderSyncDrift(drift) {
+      syncDriftResultEl.hidden = false;
+      if (!drift.has_drift) {
+        syncDriftResultEl.innerHTML = '<p><strong>Kein Drift erkannt</strong> — Browser-Stand entspricht dem Snapshot.</p>';
+        return;
+      }
+      const sections = [];
+      if (drift.deleted_from_browser?.count) {
+        const items = (drift.deleted_from_browser.items || []).slice(0, 5)
+          .map((i) => `<li>${escapeHtml(i.title || i.url)}${i.in_linkvault ? ' <span class="muted">(in LinkVault vorhanden)</span>' : ''}</li>`)
+          .join('');
+        sections.push(`
+          <div>
+            <p><strong>${drift.deleted_from_browser.count} aus Browser entfernt</strong> seit letztem Snapshot</p>
+            <ul style="margin:.25rem 0;">${items}${drift.deleted_from_browser.count > 5 ? `<li class="muted">… und ${drift.deleted_from_browser.count - 5} weitere</li>` : ''}</ul>
+          </div>
+        `);
+      }
+      if (drift.added_to_browser?.count) {
+        const items = (drift.added_to_browser.items || []).slice(0, 5)
+          .map((i) => `<li>${escapeHtml(i.title || i.url)}${i.in_linkvault ? '' : ' <span class="muted">(noch nicht in LinkVault)</span>'}</li>`)
+          .join('');
+        sections.push(`
+          <div>
+            <p><strong>${drift.added_to_browser.count} neu im Browser</strong> seit letztem Snapshot</p>
+            <ul style="margin:.25rem 0;">${items}${drift.added_to_browser.count > 5 ? `<li class="muted">… und ${drift.added_to_browser.count - 5} weitere</li>` : ''}</ul>
+          </div>
+        `);
+      }
+      if (drift.diverged?.count) {
+        const items = (drift.diverged.items || []).slice(0, 5)
+          .map((i) => {
+            const changes = (i.changes || []).map((c) => `${escapeHtml(c.field)}: ${escapeHtml(String(c.snapshot_value))} → ${escapeHtml(String(c.current_value))}`).join(', ');
+            return `<li>${escapeHtml(i.title || i.url)} <span class="muted">${changes}</span></li>`;
+          }).join('');
+        sections.push(`
+          <div>
+            <p><strong>${drift.diverged.count} geaendert</strong> seit letztem Snapshot (Titel oder Pfad)</p>
+            <ul style="margin:.25rem 0;">${items}${drift.diverged.count > 5 ? `<li class="muted">… und ${drift.diverged.count - 5} weitere</li>` : ''}</ul>
+          </div>
+        `);
+      }
+      if (drift.linkvault_only?.count) {
+        sections.push(`<p class="muted">${drift.linkvault_only.count} Links nur in LinkVault vorhanden (nie in Browser exportiert oder dort geloescht).</p>`);
+      }
+      syncDriftResultEl.innerHTML = `
+        <p><strong>Drift-Bericht</strong> · Snapshot: ${escapeHtml(drift.snapshot_at)} (${drift.snapshot_item_count} Links) · Aktuell: ${drift.current_item_count} Links</p>
+        ${sections.join('')}
       `;
     }
 

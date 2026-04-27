@@ -101,6 +101,17 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn('id="settings"', html)
         self.assertIn("Einstellungen", html)
 
+    def test_index_html_has_sync_drift_ui(self):
+        html = index_html()
+
+        self.assertIn('id="sync-snapshot-status"', html)
+        self.assertIn('id="sync-drift-result"', html)
+        self.assertIn("renderSyncSnapshotStatus", html)
+        self.assertIn("renderSyncDrift", html)
+        self.assertIn("/api/sync/snapshot", html)
+        self.assertIn("/api/sync/drift", html)
+        self.assertIn("Browser-Sync-Status", html)
+
     def test_index_html_has_conflict_center_session_controls(self):
         html = index_html()
 

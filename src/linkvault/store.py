@@ -419,6 +419,20 @@ class BookmarkStore:
             )
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS sync_snapshots (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    source_session_id TEXT NOT NULL DEFAULT '',
+                    item_count INTEGER NOT NULL DEFAULT 0,
+                    items_json TEXT NOT NULL DEFAULT '[]'
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_sync_snapshots_created_at ON sync_snapshots(created_at DESC)"
+            )
+            connection.execute(
+                """
                 CREATE VIRTUAL TABLE IF NOT EXISTS bookmarks_fts USING fts5(
                     bookmark_id UNINDEXED,
                     title,
@@ -1033,6 +1047,151 @@ class BookmarkStore:
             "resolved_count": resolved_count,
             "skipped_count": skipped_count,
             "session": session,
+        }
+
+    # ------------------------------------------------------------------
+    # Sync baseline and drift detection
+    # ------------------------------------------------------------------
+
+    def record_sync_snapshot(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        source_session_id: str = "",
+    ) -> dict[str, Any]:
+        """Save the current browser bookmark state as a sync baseline."""
+        now = datetime.now(UTC).isoformat()
+        snapshot_id = uuid4().hex
+        clean_items = [
+            {
+                "url": str(item.get("url", "")),
+                "title": str(item.get("title", "")),
+                "folder_path": str(item.get("folder_path", "")),
+                "id": str(item.get("id", "")),
+            }
+            for item in items
+            if str(item.get("url", "")).strip()
+        ]
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO sync_snapshots (id, created_at, source_session_id, item_count, items_json)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (snapshot_id, now, source_session_id, len(clean_items), json.dumps(clean_items, sort_keys=True)),
+            )
+            self.record_activity(
+                connection,
+                kind="sync_snapshot_recorded",
+                object_type="sync_snapshot",
+                object_id=snapshot_id,
+                summary=f"Browser-Snapshot mit {len(clean_items)} Links gespeichert",
+                details={"snapshot_id": snapshot_id, "item_count": len(clean_items), "source_session_id": source_session_id},
+            )
+        return {"id": snapshot_id, "created_at": now, "item_count": len(clean_items)}
+
+    def get_latest_sync_snapshot(self) -> dict[str, Any] | None:
+        """Return metadata for the most recent sync snapshot (no items_json to keep it light)."""
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT id, created_at, source_session_id, item_count FROM sync_snapshots ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row["id"],
+            "created_at": row["created_at"],
+            "source_session_id": row["source_session_id"],
+            "item_count": row["item_count"],
+        }
+
+    def compute_sync_drift(self, current_items: list[dict[str, Any]]) -> dict[str, Any]:
+        """Compare current browser state against last snapshot and active LinkVault bookmarks.
+
+        Returns a structured report with four drift categories:
+        - deleted_from_browser: in snapshot, not in current browser items
+        - added_to_browser:     in current browser, not in snapshot
+        - diverged:             URL in both but title or folder_path changed
+        - linkvault_only:       active in LinkVault, not in current browser at all
+        """
+        snapshot_meta = self.get_latest_sync_snapshot()
+        if not snapshot_meta:
+            raise ValueError("no sync snapshot found — record a snapshot first via POST /api/sync/snapshot")
+
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT items_json FROM sync_snapshots WHERE id = ?",
+                (snapshot_meta["id"],),
+            ).fetchone()
+        snapshot_items: list[dict[str, Any]] = json.loads(row["items_json"] or "[]")
+
+        def url_key(item: dict[str, Any]) -> str:
+            return comparable_url(normalize_url(str(item.get("url", ""))))
+
+        snapshot_index = {url_key(i): i for i in snapshot_items if i.get("url")}
+        current_index = {url_key(i): i for i in current_items if i.get("url")}
+
+        lv_bookmarks = self.list(filters=BookmarkFilters(status="active"))
+        lv_index = {comparable_url(normalize_url(bm.url)): bm for bm in lv_bookmarks}
+
+        deleted: list[dict[str, Any]] = []
+        added: list[dict[str, Any]] = []
+        diverged: list[dict[str, Any]] = []
+        linkvault_only: list[dict[str, Any]] = []
+
+        for key, snap in snapshot_index.items():
+            if key not in current_index:
+                deleted.append({
+                    "url": snap["url"],
+                    "title": snap["title"],
+                    "folder_path": snap["folder_path"],
+                    "in_linkvault": key in lv_index,
+                    "linkvault_id": lv_index[key].id if key in lv_index else "",
+                })
+            else:
+                curr = current_index[key]
+                changes = []
+                if str(curr.get("title", "")) != str(snap.get("title", "")):
+                    changes.append({"field": "title", "snapshot_value": snap.get("title"), "current_value": curr.get("title")})
+                if str(curr.get("folder_path", "")) != str(snap.get("folder_path", "")):
+                    changes.append({"field": "folder_path", "snapshot_value": snap.get("folder_path"), "current_value": curr.get("folder_path")})
+                if changes:
+                    diverged.append({
+                        "url": snap["url"],
+                        "title": curr.get("title") or snap["title"],
+                        "changes": changes,
+                        "in_linkvault": key in lv_index,
+                        "linkvault_id": lv_index[key].id if key in lv_index else "",
+                    })
+
+        for key, curr in current_index.items():
+            if key not in snapshot_index:
+                added.append({
+                    "url": curr["url"],
+                    "title": curr["title"],
+                    "folder_path": curr["folder_path"],
+                    "in_linkvault": key in lv_index,
+                })
+
+        for key, bm in lv_index.items():
+            if key not in current_index:
+                linkvault_only.append({
+                    "id": bm.id,
+                    "url": bm.url,
+                    "title": bm.title,
+                })
+
+        max_items = 100
+        return {
+            "snapshot_id": snapshot_meta["id"],
+            "snapshot_at": snapshot_meta["created_at"],
+            "snapshot_item_count": snapshot_meta["item_count"],
+            "current_item_count": len(current_items),
+            "has_drift": bool(deleted or added or diverged),
+            "deleted_from_browser": {"count": len(deleted), "items": deleted[:max_items]},
+            "added_to_browser": {"count": len(added), "items": added[:max_items]},
+            "diverged": {"count": len(diverged), "items": diverged[:max_items]},
+            "linkvault_only": {"count": len(linkvault_only), "items": linkvault_only[:max_items]},
         }
 
     def activity_events(self, limit: int = 50) -> list[dict[str, Any]]:
