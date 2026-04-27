@@ -97,7 +97,8 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   mit Fortschritt und Sammelentscheidung; Drift-Erkennung mit Snapshot-
   Baseline (record_sync_snapshot, compute_sync_drift) und vier
   Kategorien (geloescht, neu, geaendert, nur-LinkVault) vorhanden;
-  destruktiver Zwei-Wege-Sync und Floccus-Bridge noch offen.
+  destruktiver Zwei-Wege-Sync und Floccus-Bridge noch offen
+  (Floccus-Forschung: siehe FLOCCUS_SYNC_RESEARCH.md).
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 - [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.
 

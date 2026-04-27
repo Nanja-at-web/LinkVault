@@ -30,6 +30,7 @@ aktuelleren, konsolidierten Stand zusammen.
 - `PROXMOX_COMMUNITY_SCRIPT.md`
 - `COMPANION_EXTENSION.md`
 - `DEVELOPMENT_WINDOWS.md`
+- `FLOCCUS_SYNC_RESEARCH.md`
 
 ## Kernaussagen
 
