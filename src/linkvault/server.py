@@ -1724,6 +1724,15 @@ def index_html() -> str:
         <div id="api-token-list" class="history-list"></div>
       </section>
       <section class="mini-card">
+        <h3>Token testen</h3>
+        <p class="muted">Pruefen, ob ein API-Token gueltig ist und zu welchem Nutzer er gehoert.</p>
+        <div class="inline-actions">
+          <input id="token-test-input" type="text" placeholder="lv_..." style="flex:1;font-family:monospace;font-size:.9rem;" autocomplete="off" spellcheck="false">
+          <button type="button" id="token-test-btn">Testen</button>
+        </div>
+        <div id="token-test-result" hidden></div>
+      </section>
+      <section class="mini-card">
         <h3>Passwort aendern</h3>
         <p class="muted">Jeder Benutzer kann hier das eigene Passwort aendern.</p>
         <form id="password-change-form" class="stack">
@@ -3238,8 +3247,11 @@ def index_html() -> str:
       apiTokenList.innerHTML = tokens.map((token) => `
         <div class="mini-card">
           <p><strong>${escapeHtml(token.name)}</strong></p>
-          <p class="muted">Prefix ${escapeHtml(token.token_prefix)}... · erstellt ${escapeHtml(token.created_at)} · zuletzt genutzt ${escapeHtml(token.last_used_at || 'nie')}</p>
-          <button type="button" data-delete-token="${escapeAttr(token.id)}">Token loeschen</button>
+          <p class="muted">Prefix ${escapeHtml(token.token_prefix)}… · erstellt ${escapeHtml(token.created_at)} · zuletzt genutzt ${escapeHtml(token.last_used_at || 'nie')}</p>
+          <div class="inline-actions" style="margin-top:.4rem;">
+            <button type="button" data-delete-token="${escapeAttr(token.id)}">Token loeschen</button>
+            <button type="button" class="link-btn" data-focus-token-test>Token testen …</button>
+          </div>
         </div>
       `).join('');
       apiTokenList.querySelectorAll('[data-delete-token]').forEach((button) => {
@@ -3248,6 +3260,40 @@ def index_html() -> str:
           await refreshProfile();
         });
       });
+      apiTokenList.querySelectorAll('[data-focus-token-test]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const inputEl = document.querySelector('#token-test-input');
+          inputEl.scrollIntoView({behavior: 'smooth', block: 'center'});
+          inputEl.focus();
+          inputEl.placeholder = 'Token hier einfuegen …';
+        });
+      });
+    }
+
+    async function testApiToken(prefillValue) {
+      const inputEl = document.querySelector('#token-test-input');
+      if (prefillValue !== undefined) inputEl.value = prefillValue;
+      const val = inputEl.value.trim();
+      const resultEl = document.querySelector('#token-test-result');
+      resultEl.hidden = false;
+      if (!val) {
+        resultEl.innerHTML = '<p class="muted">Bitte Token-Wert eingeben.</p>';
+        inputEl.focus();
+        return;
+      }
+      resultEl.innerHTML = '<span class="muted">Wird geprueft …</span>';
+      try {
+        const resp = await fetch('/api/me', {headers: {'Authorization': `Bearer ${val}`}});
+        const data = await resp.json();
+        if (resp.ok && data.authenticated && data.user) {
+          const u = data.user;
+          resultEl.innerHTML = `<p style="color:#1a5c2a;">✓ Gueltig &mdash; Nutzer: <strong>${escapeHtml(u.username)}</strong> &middot; Rolle: ${escapeHtml(u.role)}</p>`;
+        } else {
+          resultEl.innerHTML = `<p style="color:#c53030;">✗ Ungueltig (HTTP ${resp.status})</p>`;
+        }
+      } catch {
+        resultEl.innerHTML = '<p style="color:#c53030;">✗ Verbindungsfehler beim Testen.</p>';
+      }
     }
 
     function showNotice(host, message, isError = false) {
@@ -3966,11 +4012,17 @@ def index_html() -> str:
         apiTokenCreated.innerHTML = `<strong>Token konnte nicht erstellt werden.</strong><p>${escapeHtml(payload.error || 'Unbekannter Fehler')}</p>`;
         return;
       }
+      const createdToken = payload.token;
       apiTokenCreated.innerHTML = `
         <strong>Token erstellt. Jetzt kopieren.</strong>
         <p class="muted">LinkVault zeigt diesen Token nur einmal an.</p>
-        <code>${escapeHtml(payload.token)}</code>
+        <code id="new-token-value">${escapeHtml(createdToken)}</code>
+        <button type="button" id="test-new-token-btn" style="margin-top:.4rem;">Sofort testen</button>
       `;
+      document.querySelector('#test-new-token-btn').addEventListener('click', () => {
+        testApiToken(createdToken);
+        document.querySelector('#token-test-input').scrollIntoView({behavior: 'smooth', block: 'center'});
+      });
       event.target.reset();
       await refreshProfile();
     });
@@ -4099,6 +4151,10 @@ def index_html() -> str:
       } finally {
         btn.disabled = false;
       }
+    });
+    document.querySelector('#token-test-btn').addEventListener('click', () => testApiToken());
+    document.querySelector('#token-test-input').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') testApiToken();
     });
     document.querySelector('#show-favorites-in-bookmarks').addEventListener('click', () => {
       clearBookmarkFilters();

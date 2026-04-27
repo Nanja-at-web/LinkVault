@@ -185,6 +185,17 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("/api/collections/scores", html)
         self.assertIn("refreshCollectionScores", html)
 
+    def test_index_html_has_api_token_test(self):
+        html = index_html()
+
+        self.assertIn('id="token-test-input"', html)
+        self.assertIn('id="token-test-btn"', html)
+        self.assertIn('id="token-test-result"', html)
+        self.assertIn("testApiToken", html)
+        self.assertIn("Token testen", html)
+        self.assertIn("Sofort testen", html)
+        self.assertIn("data-focus-token-test", html)
+
 
 if __name__ == "__main__":
     unittest.main()
