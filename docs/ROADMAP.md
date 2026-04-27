@@ -138,7 +138,9 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [ ] Shortcut-Hilfe und A11y-Pruefung fuer Fokusreihenfolge und
   Screenreader-Statusmeldungen.
 - [ ] Public REST-API ausbauen.
-- [~] API-Token-Verwaltung mit sichtbarem Status vorhanden; Test-Button offen.
+- [x] API-Token-Verwaltung mit Test-Button: Token-Wert gegen /api/me testen,
+  Ergebnis (Nutzer/Rolle oder Fehler) inline anzeigen; Sofort-testen-Button
+  nach Token-Erstellung; Testen-Link pro Token-Karte.
 - [ ] Webhooks.
 - [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium mit
   Ordnerauswahl, Popup-Vorschau, gefiltertem LinkVault-Export, sicherem
