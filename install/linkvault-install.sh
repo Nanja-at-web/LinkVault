@@ -18,11 +18,13 @@ if [[ -t 1 ]]; then
   CL="\033[m"
   GN="\033[1;92m"
   BL="\033[36m"
+  YW="\033[33m"
   RD="\033[01;31m"
 else
   CL=""
   GN=""
   BL=""
+  YW=""
   RD=""
 fi
 
@@ -89,7 +91,30 @@ main() {
   run_quiet "Installing LinkVault Service" "${WORKDIR}/scripts/install-debian.sh"
   wait_for_linkvault
 
+  local ip token
+  ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  token="$(sed -n 's/^LINKVAULT_SETUP_TOKEN=//p' /etc/linkvault/linkvault.env 2>/dev/null | tail -n 1 || true)"
+  local port="${LINKVAULT_PORT:-3080}"
+
   msg_ok "Completed Successfully"
+  printf "\n%b\n" "${GN}==================================================${CL}"
+  printf "%b\n"   "${GN} ${APP} is ready!${CL}"
+  printf "%b\n"   "${GN}==================================================${CL}"
+  if [[ -n "${ip}" ]]; then
+    printf "  %-18s %b\n" "URL:" "${GN}http://${ip}:${port}${CL}"
+  else
+    printf "  %-18s %b\n" "URL:" "${GN}http://<container-ip>:${port}${CL}"
+  fi
+  if [[ -n "${token}" ]]; then
+    printf "  %-18s %b\n" "Setup token:" "${YW}${token}${CL}"
+  fi
+  printf "  %-18s %s\n" "Healthcheck:" "curl http://127.0.0.1:${port}/healthz"
+  printf "  %-18s %s\n" "Logs:" "journalctl -u linkvault -f"
+  printf "  %-18s %s\n" "Helper:" "linkvault-helper"
+  printf "  %-18s %s\n" "Backup:" "linkvault-helper backup"
+  printf "  %-18s %s\n" "Restore:" "linkvault-helper restore"
+  printf "  %-18s %s\n" "Update:" "linkvault-helper update"
+  printf "%b\n"   "${GN}==================================================${CL}"
 }
 
 main "$@"

@@ -177,10 +177,17 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [~] `ct/linkvault.sh`: community-scripts-aehnlicher Proxmox-Host-Einzeiler erfolgreich getestet, offizielle Einreichung offen.
 - [~] `install/linkvault-install.sh`: experimenteller Container-Installer vorhanden, finale community-scripts.org-Konventionen offen.
 - [~] Community-Scripts-Prozess klaeren: neue Skripte zuerst ueber ProxmoxVED, nicht direkt ueber ProxmoxVE.
-- [ ] Default-/Advanced-Mode nach community-scripts.org-Konventionen.
+- [x] Default-/Advanced-Mode nach community-scripts.org-Konventionen:
+  interaktive Abfrage im ct-Script mit Anzeige der Default-Werte;
+  Advanced-Modus fragt CTID, Hostname, CPU, RAM, Disk, Storage und Branch;
+  nicht-interaktiver Modus (Pipe) verwendet stets Defaults.
 - [x] Post-Install Helper fuer Update, Einstellungen, Logs und Basisdiagnose: CT 112 Test am 19.04.2026 erfolgreich.
-- [ ] Post-Install UX nach community-scripts.org-Vorbild: URL, Setup-Token,
-  Healthcheck, Logs, Backup, Restore und Update klar ausgeben.
+- [x] Post-Install UX nach community-scripts.org-Vorbild: URL, Setup-Token,
+  Healthcheck, Logs, Backup, Restore und Update klar ausgeben; sowohl
+  install/linkvault-install.sh (Container-Seite) als auch
+  scripts/install-debian.sh geben nach erfolgreicher Installation eine
+  formatierte Summary-Box aus; ct/linkvault.sh gibt CTID-bezogene
+  pct-exec-Befehle aus.
 - [x] Update-Funktion fuer installierte LinkVault-LXC: CT 112 Smoke-Test am 19.04.2026 erfolgreich.
 - [x] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden.
 - [x] Backup/Restore im echten Proxmox-LXC testen: CT 112 Smoke-Test am 19.04.2026 erfolgreich.

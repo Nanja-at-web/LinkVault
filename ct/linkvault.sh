@@ -201,6 +201,98 @@ setup_token() {
   pct exec "${ctid}" -- bash -lc "sed -n 's/^LINKVAULT_SETUP_TOKEN=//p' /etc/linkvault/linkvault.env | tail -n 1" 2>/dev/null || true
 }
 
+ask_default_or_advanced() {
+  if [[ "${LINKVAULT_MODE:-}" == "advanced" ]]; then
+    return 1
+  fi
+  if [[ "${LINKVAULT_MODE:-}" == "default" ]]; then
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    # Non-interactive: use defaults
+    return 0
+  fi
+  printf "\n%b\n" "${BL}=================================================${CL}"
+  printf "  Default settings:\n"
+  printf "    CTID:     next free ID\n"
+  printf "    Hostname: %s\n" "${HOSTNAME}"
+  printf "    CPU:      %s cores\n" "${CORES}"
+  printf "    RAM:      %s MB\n" "${MEMORY}"
+  printf "    Disk:     %s GB\n" "${DISK}"
+  printf "    Storage:  %s (rootfs) / %s (templates)\n" "${ROOTFS_STORAGE}" "${TEMPLATE_STORAGE}"
+  printf "    Bridge:   %s\n" "${BRIDGE}"
+  printf "    Branch:   %s\n" "${BRANCH}"
+  printf "%b\n" "${BL}=================================================${CL}"
+  while true; do
+    read -r -p "  Use default settings? [Y/n]: " yn
+    case "${yn:-y}" in
+      [Yy]*|"") return 0 ;;
+      [Nn]*) return 1 ;;
+      *) printf "  Please answer y or n.\n" ;;
+    esac
+  done
+}
+
+advanced_settings() {
+  local next_id
+  next_id="$(pvesh get /cluster/nextid 2>/dev/null || echo '')"
+
+  read -r -p "  CTID [${next_id:-auto}]: " input
+  [[ -n "${input}" ]] && CTID="${input}"
+
+  read -r -p "  Hostname [${HOSTNAME}]: " input
+  [[ -n "${input}" ]] && HOSTNAME="${input}"
+
+  read -r -p "  CPU cores [${CORES}]: " input
+  [[ -n "${input}" ]] && CORES="${input}"
+
+  read -r -p "  RAM MB [${MEMORY}]: " input
+  [[ -n "${input}" ]] && MEMORY="${input}"
+
+  read -r -p "  Disk GB [${DISK}]: " input
+  [[ -n "${input}" ]] && DISK="${input}"
+
+  read -r -p "  Rootfs storage [${ROOTFS_STORAGE}]: " input
+  [[ -n "${input}" ]] && ROOTFS_STORAGE="${input}"
+
+  read -r -p "  Template storage [${TEMPLATE_STORAGE}]: " input
+  [[ -n "${input}" ]] && TEMPLATE_STORAGE="${input}"
+
+  read -r -p "  Network bridge [${BRIDGE}]: " input
+  [[ -n "${input}" ]] && BRIDGE="${input}"
+
+  read -r -p "  Git branch [${BRANCH}]: " input
+  [[ -n "${input}" ]] && BRANCH="${input}"
+
+  INSTALL_URL="https://raw.githubusercontent.com/Nanja-at-web/LinkVault/${BRANCH}/install/linkvault-install.sh"
+}
+
+print_post_install() {
+  local ctid="$1" ip="$2" token="$3"
+  local port=3080
+
+  echo
+  printf "%b\n" "${GN}==================================================${CL}"
+  printf "%b\n" "${GN} ${APP} is ready!${CL}"
+  printf "%b\n" "${GN}==================================================${CL}"
+  if [[ -n "${ip}" ]]; then
+    printf "  %-20s %b\n" "URL:" "${GN}http://${ip}:${port}${CL}"
+  else
+    printf "  %-20s %b\n" "URL:" "${GN}http://<container-ip>:${port}${CL}"
+  fi
+  if [[ -n "${token}" ]]; then
+    printf "  %-20s %b\n" "Setup token:" "${YW}${token}${CL}"
+  fi
+  printf "  %-20s %s\n" "Healthcheck:" "curl http://${ip:-<ip>}:${port}/healthz"
+  printf "  %-20s %s\n" "Logs:" "pct exec ${ctid} -- journalctl -u linkvault -f"
+  printf "  %-20s %s\n" "Helper:" "pct exec ${ctid} -- linkvault-helper"
+  printf "  %-20s %s\n" "Backup:" "pct exec ${ctid} -- linkvault-helper backup"
+  printf "  %-20s %s\n" "Restore:" "pct exec ${ctid} -- linkvault-helper restore"
+  printf "  %-20s %s\n" "Update:" "pct exec ${ctid} -- linkvault-helper update"
+  printf "  %-20s %s\n" "Install log:" "${LOG_FILE}"
+  printf "%b\n" "${GN}==================================================${CL}"
+}
+
 main() {
   : >"${LOG_FILE}"
   header_info
@@ -209,6 +301,12 @@ main() {
   require_command pveam
   require_command pvesh
 
+  if ask_default_or_advanced; then
+    msg_info "Using default settings"
+  else
+    advanced_settings
+  fi
+
   local ctid template ip token
   ctid="$(next_ctid)"
   require_free_ctid "${ctid}"
@@ -216,7 +314,7 @@ main() {
 
   msg_info "Using CTID ${ctid}"
   msg_info "Using ${template}"
-  msg_info "Using ${ROOTFS_STORAGE}:${DISK}G, ${CORES} CPU, ${MEMORY} MB RAM"
+  msg_info "Using ${ROOTFS_STORAGE}:${DISK}G, ${CORES} CPU, ${MEMORY} MB RAM, bridge ${BRIDGE}"
 
   download_template_if_needed "${template}"
 
@@ -240,19 +338,8 @@ main() {
   ip="$(container_ip "${ctid}")"
   token="$(setup_token "${ctid}")"
 
-  echo
   msg_ok "Completed Successfully"
-  printf "%b\n" "  ${YW}Access it using:${CL}"
-  if [[ -n "${ip}" ]]; then
-    printf "%b\n" "  ${GN}http://${ip}:3080${CL}"
-  else
-    printf "%b\n" "  ${GN}Open the container IP on port 3080.${CL}"
-  fi
-  if [[ -n "${token}" ]]; then
-    printf "%b\n" "  Setup token: ${GN}${token}${CL}"
-  fi
-  printf "%b\n" "  Healthcheck: pct exec ${ctid} -- curl -fsS http://127.0.0.1:3080/healthz"
-  printf "%b\n" "  Log: ${LOG_FILE}"
+  print_post_install "${ctid}" "${ip}" "${token}"
 }
 
 main "$@"

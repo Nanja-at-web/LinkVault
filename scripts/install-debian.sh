@@ -76,8 +76,23 @@ ln -sf /usr/local/bin/linkvault-requirements /usr/bin/linkvault-requirements
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
 
-echo "LinkVault installed."
-echo "Healthcheck: curl http://127.0.0.1:3080/healthz"
-echo "Setup token: ${SETUP_TOKEN}"
-echo "Helper: linkvault-helper"
-echo "Requirements: linkvault-requirements"
+local_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+local_port="${LINKVAULT_PORT:-3080}"
+
+echo
+echo "=================================================="
+echo " LinkVault installed successfully!"
+echo "=================================================="
+if [[ -n "${local_ip}" ]]; then
+  echo "  URL:          http://${local_ip}:${local_port}"
+else
+  echo "  URL:          http://<container-ip>:${local_port}"
+fi
+echo "  Setup token:  ${SETUP_TOKEN}"
+echo "  Healthcheck:  curl http://127.0.0.1:${local_port}/healthz"
+echo "  Logs:         journalctl -u ${SERVICE_NAME} -f"
+echo "  Helper:       linkvault-helper"
+echo "  Backup:       linkvault-helper backup"
+echo "  Restore:      linkvault-helper restore"
+echo "  Update:       linkvault-helper update"
+echo "=================================================="
