@@ -1117,6 +1117,111 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(store.list(), [])
             self.assertEqual(store.activity_events()[0]["kind"], "bulk_delete")
 
+    def test_get_restore_session_returns_session_with_conflict_groups(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add(
+                {
+                    "url": "https://example.com/a",
+                    "title": "A",
+                    "source_root": "Bookmarks Toolbar",
+                    "source_folder_path": "Bookmarks Toolbar / Research",
+                    "source_position": 0,
+                }
+            )
+            preview = store.preview_browser_restore(
+                [{"id": "ext-a", "title": "A", "url": "https://example.com/a", "folder_path": "Research"}],
+                duplicate_action="skip",
+                target_mode="new",
+                target_title="Restore",
+            )
+            session_id = preview["session_id"]
+
+            session = store.get_restore_session(session_id)
+
+            self.assertIsNotNone(session)
+            self.assertEqual(session["id"], session_id)
+            self.assertIn("conflict_groups", session)
+            self.assertTrue(len(session["conflict_groups"]) > 0)
+            self.assertIsNone(store.get_restore_session("nonexistent"))
+
+    def test_apply_session_defaults_resolves_open_conflicts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add(
+                {
+                    "url": "https://example.com/a",
+                    "title": "A",
+                    "source_root": "Bookmarks Toolbar",
+                    "source_folder_path": "Bookmarks Toolbar / Research",
+                    "source_position": 0,
+                }
+            )
+            store.add(
+                {
+                    "url": "https://example.com/b",
+                    "title": "B",
+                    "source_root": "Bookmarks Toolbar",
+                    "source_folder_path": "Bookmarks Toolbar / Research",
+                    "source_position": 1,
+                }
+            )
+            preview = store.preview_browser_restore(
+                [
+                    {"id": "ext-a", "title": "A", "url": "https://example.com/a", "folder_path": "Research"},
+                    {"id": "ext-b", "title": "B", "url": "https://example.com/b", "folder_path": "Research"},
+                ],
+                duplicate_action="skip",
+                target_mode="new",
+                target_title="Restore",
+            )
+            session_id = preview["session_id"]
+            # Before: 2 open conflicts
+            groups_before = store.restore_session_conflict_groups(session_id)
+            open_before = sum(g["open_count"] for g in groups_before)
+            self.assertEqual(open_before, 2)
+
+            result = store.apply_session_defaults(session_id)
+
+            self.assertEqual(result["session_id"], session_id)
+            self.assertEqual(result["resolved_count"], 2)
+            self.assertEqual(result["skipped_count"], 0)
+            # After: all resolved
+            groups_after = store.restore_session_conflict_groups(session_id)
+            open_after = sum(g["open_count"] for g in groups_after)
+            self.assertEqual(open_after, 0)
+            resolved_after = sum(g["resolved_count"] for g in groups_after)
+            self.assertEqual(resolved_after, 2)
+            self.assertEqual(store.activity_events()[0]["kind"], "session_defaults_applied")
+
+    def test_apply_session_defaults_uses_suggested_action(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add(
+                {
+                    "url": "https://example.com/a",
+                    "title": "A",
+                    "source_root": "Bookmarks Toolbar",
+                    "source_folder_path": "Bookmarks Toolbar / Research",
+                    "source_position": 0,
+                }
+            )
+            preview = store.preview_browser_restore(
+                [{"id": "ext-a", "title": "A", "url": "https://example.com/a", "folder_path": "Research"}],
+                duplicate_action="merge",  # suggested = merge_existing
+                target_mode="new",
+                target_title="Restore",
+            )
+            session_id = preview["session_id"]
+
+            result = store.apply_session_defaults(session_id)
+
+            self.assertEqual(result["resolved_count"], 1)
+            # The resolved conflict should use the suggested action (merge_existing)
+            groups = store.restore_session_conflict_groups(session_id)
+            link_group = next(g for g in groups if g["group_key"] == "existing_links")
+            self.assertIn("merge_existing", link_group["selected_actions"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -247,6 +247,15 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json({"sessions": store.restore_sessions()})
+        elif path.startswith("/api/restore/sessions/") and not ("/" in path.removeprefix("/api/restore/sessions/").strip("/")):
+            if not self.require_auth(auth_store):
+                return
+            session_id = path.removeprefix("/api/restore/sessions/").strip("/")
+            session = store.get_restore_session(session_id)
+            if not session:
+                self.send_error_json(HTTPStatus.NOT_FOUND, "session not found")
+                return
+            self.send_json({"session": session})
         elif path == "/api/activity":
             if not self.require_auth(auth_store):
                 return
@@ -383,6 +392,11 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 conflict_id = path.removeprefix("/api/conflicts/").removesuffix("/decision").strip("/")
                 self.send_json(store.update_conflict_decision(conflict_id, payload.get("decision", "skip_existing")))
+            elif path.startswith("/api/restore/sessions/") and path.endswith("/apply-defaults"):
+                if not self.require_auth(auth_store):
+                    return
+                session_id = path.removeprefix("/api/restore/sessions/").removesuffix("/apply-defaults").strip("/")
+                self.send_json(store.apply_session_defaults(session_id))
             elif path.startswith("/api/restore/sessions/") and "/conflict-groups/" in path and path.endswith("/decision"):
                 if not self.require_auth(auth_store):
                     return
@@ -2801,32 +2815,100 @@ def index_html() -> str:
         restoreSessionsEl.innerHTML = '<div class="empty">Noch keine Restore-Sessions vorhanden.</div>';
         return;
       }
-      restoreSessionsEl.innerHTML = sessions.map((session) => `
-        <div class="mini-card">
+      restoreSessionsEl.innerHTML = sessions.map((session) => {
+        const totalConflicts = (session.conflict_count || 0) + (session.structure_conflict_count || 0);
+        const openConflicts = (session.conflict_groups || []).reduce((sum, g) => sum + (g.open_count || 0), 0);
+        const progressText = totalConflicts > 0
+          ? `${totalConflicts - openConflicts}/${totalConflicts} Konflikte erledigt`
+          : 'Keine Konflikte';
+        const hasOpen = openConflicts > 0;
+        return `
+        <div class="mini-card" data-restore-session-id="${escapeAttr(session.id)}">
           <p><strong>${escapeHtml(session.target_title || session.source_name || 'Browser Restore')}</strong></p>
           <p class="muted">${escapeHtml(session.target_mode)} · ${escapeHtml(session.created_at)}${session.completed_at ? ` · abgeschlossen ${escapeHtml(session.completed_at)}` : ''}</p>
-          <p>Status: <strong>${escapeHtml(session.state)}</strong> · Gesamt: ${session.total_count} · Konflikte: ${session.conflict_count} · Ordnerkonflikte: ${session.structure_conflict_count}</p>
-          <p>Geplant: ${session.create_count} neu · ${session.skip_existing_count} ueberspringen · ${session.merge_existing_count} zusammenfuehren · ${session.update_existing_count} aktualisieren</p>
-          <p>Entscheidungen: ${session.decision_count}${session.result && Object.keys(session.result).length ? ` · Ergebnis: ${escapeHtml(JSON.stringify(session.result))}` : ''}</p>
-          ${renderRestoreSessionGroups(session.conflict_groups || [])}
+          <p>Status: <strong>${escapeHtml(session.state)}</strong> · ${escapeHtml(progressText)} · Gesamt: ${session.total_count}</p>
+          <p class="muted">Geplant: ${session.create_count} neu · ${session.skip_existing_count} ueberspringen · ${session.merge_existing_count} zusammenfuehren · ${session.update_existing_count} aktualisieren</p>
+          ${session.result && Object.keys(session.result).length ? `<p class="muted">Ergebnis: ${escapeHtml(JSON.stringify(session.result))}</p>` : ''}
+          ${hasOpen ? `<button type="button" class="apply-session-defaults" data-session-id="${escapeAttr(session.id)}">Offene Konflikte mit Standard auflösen (${openConflicts})</button>` : ''}
+          ${renderRestoreSessionGroups(session.conflict_groups || [], session.id)}
         </div>
-      `).join('');
+      `;
+      }).join('');
+      restoreSessionsEl.querySelectorAll('.apply-session-defaults').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await fetch(`/api/restore/sessions/${encodeURIComponent(btn.dataset.sessionId)}/apply-defaults`, {
+              method: 'POST',
+              headers: {'content-type': 'application/json'},
+              body: '{}'
+            });
+            await refreshOperations();
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+      restoreSessionsEl.querySelectorAll('.apply-session-group').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const sessionId = btn.dataset.sessionId;
+          const groupKey = btn.dataset.groupKey;
+          const select = restoreSessionsEl.querySelector(
+            `.session-group-select[data-session-id="${cssEscape(sessionId)}"][data-group-key="${cssEscape(groupKey)}"]`
+          );
+          const decision = select?.value || '';
+          if (!decision) return;
+          btn.disabled = true;
+          try {
+            await fetch(`/api/restore/sessions/${encodeURIComponent(sessionId)}/conflict-groups/${encodeURIComponent(groupKey)}/decision`, {
+              method: 'POST',
+              headers: {'content-type': 'application/json'},
+              body: JSON.stringify({decision})
+            });
+            await refreshOperations();
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
     }
 
-    function renderRestoreSessionGroups(groups) {
-      if (!groups.length) return '<p class="muted">Noch keine Konfliktgruppen fuer diese Session.</p>';
+    function renderRestoreSessionGroups(groups, sessionId) {
+      if (!groups.length) return '';
+      const options = (groupKey) => {
+        if (groupKey === 'existing_links') return ['skip_existing', 'merge_existing', 'update_existing'];
+        if (groupKey === 'target_root' || groupKey === 'structure') return ['reuse_existing_folder', 'folder_create_parallel'];
+        return ['skip_existing'];
+      };
       return `
-        <div class="stack">
+        <div class="stack" style="margin-top:.5rem;">
           ${groups.map((group) => {
             const actions = Object.entries(group.selected_actions || {})
               .map(([name, count]) => `${escapeHtml(name)}: ${count}`)
               .join(' · ');
+            const groupOptions = options(group.group_key)
+              .map((a) => `<option value="${escapeAttr(a)}">${escapeHtml(a)}</option>`)
+              .join('');
+            const openLabel = group.open_count > 0 ? ` · <strong>${group.open_count} offen</strong>` : '';
             return `
               <div class="mini-card">
                 <p><strong>${escapeHtml(group.group_title)}</strong></p>
                 <p class="muted">${escapeHtml(group.group_description || '')}</p>
-                <p>Gesamt: ${group.total_count} · Offen: ${group.open_count} · Erledigt: ${group.resolved_count} · Ignoriert: ${group.ignored_count}</p>
+                <p>Gesamt: ${group.total_count}${openLabel} · Erledigt: ${group.resolved_count} · Ignoriert: ${group.ignored_count}</p>
                 ${actions ? `<p class="muted">Entscheidungen: ${actions}</p>` : ''}
+                ${group.open_count > 0 ? `
+                <div class="inline-actions">
+                  <label>Sammelentscheidung
+                    <select class="session-group-select"
+                            data-session-id="${escapeAttr(sessionId)}"
+                            data-group-key="${escapeAttr(group.group_key)}">
+                      ${groupOptions}
+                    </select>
+                  </label>
+                  <button type="button" class="apply-session-group"
+                          data-session-id="${escapeAttr(sessionId)}"
+                          data-group-key="${escapeAttr(group.group_key)}">Anwenden</button>
+                </div>` : ''}
               </div>
             `;
           }).join('')}

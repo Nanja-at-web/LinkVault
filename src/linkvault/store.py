@@ -954,13 +954,86 @@ class BookmarkStore:
         return sessions
 
     def restore_session_conflict_groups(self, session_id: str) -> list[dict[str, Any]]:
-        restore_conflicts = [
-            conflict
-            for conflict in self.conflicts(limit=500, state="all")
-            if conflict["source_type"] == "restore_session"
-            and str(conflict.get("details", {}).get("restore_session_id", "")) == session_id
-        ]
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM conflicts
+                WHERE source_type = 'restore_session'
+                AND json_extract(details_json, '$.restore_session_id') = ?
+                ORDER BY created_at ASC
+                """,
+                (session_id,),
+            ).fetchall()
+        restore_conflicts = [conflict_from_row(row) for row in rows]
         return summarize_restore_conflict_groups(restore_conflicts)
+
+    def get_restore_session(self, session_id: str) -> dict[str, Any] | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM restore_sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+        if not row:
+            return None
+        session = restore_session_from_row(row)
+        session["conflict_groups"] = self.restore_session_conflict_groups(session_id)
+        return session
+
+    def apply_session_defaults(self, session_id: str) -> dict[str, Any]:
+        """Resolve all open conflicts in a session by applying each conflict's suggested_action."""
+        session = self.get_restore_session(session_id)
+        if not session:
+            raise ValueError("restore session not found")
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM conflicts
+                WHERE source_type = 'restore_session'
+                AND json_extract(details_json, '$.restore_session_id') = ?
+                AND state = 'open'
+                ORDER BY created_at ASC
+                """,
+                (session_id,),
+            ).fetchall()
+            resolved_count = 0
+            skipped_count = 0
+            for row in rows:
+                details = json.loads(row["details_json"] or "{}")
+                suggested = str(details.get("suggested_action", "")).strip()
+                if not suggested:
+                    skipped_count += 1
+                    continue
+                details["selected_action"] = suggested
+                details["decision_explicit"] = False
+                connection.execute(
+                    """
+                    UPDATE conflicts
+                    SET state = 'resolved', details_json = ?, updated_at = ?, resolved_at = ?
+                    WHERE id = ?
+                    """,
+                    (json.dumps(details, sort_keys=True), now, now, row["id"]),
+                )
+                resolved_count += 1
+            self.record_activity(
+                connection,
+                kind="session_defaults_applied",
+                object_type="restore_session",
+                object_id=session_id,
+                summary=f"Standardentscheidungen auf {resolved_count} offene Konflikte angewendet",
+                details={
+                    "restore_session_id": session_id,
+                    "resolved_count": resolved_count,
+                    "skipped_count": skipped_count,
+                },
+            )
+        session = self.get_restore_session(session_id)
+        return {
+            "session_id": session_id,
+            "resolved_count": resolved_count,
+            "skipped_count": skipped_count,
+            "session": session,
+        }
 
     def activity_events(self, limit: int = 50) -> list[dict[str, Any]]:
         with self.connect() as connection:

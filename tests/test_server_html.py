@@ -101,6 +101,16 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn('id="settings"', html)
         self.assertIn("Einstellungen", html)
 
+    def test_index_html_has_conflict_center_session_controls(self):
+        html = index_html()
+
+        self.assertIn("apply-session-defaults", html)
+        self.assertIn("apply-defaults", html)
+        self.assertIn("Offene Konflikte mit Standard", html)
+        self.assertIn("apply-session-group", html)
+        self.assertIn("session-group-select", html)
+        self.assertIn("Konflikte erledigt", html)
+
     def test_index_html_has_quick_add(self):
         html = index_html()
 
