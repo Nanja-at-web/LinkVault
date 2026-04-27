@@ -1302,6 +1302,68 @@ class StoreTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 store.compute_sync_drift([])
 
+    def test_list_sorts_by_title_ascending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://z-last.com", "title": "Zeppelin"})
+            store.add({"url": "https://a-first.com", "title": "Alpha"})
+            store.add({"url": "https://m-middle.com", "title": "Middle"})
+
+            filters = BookmarkFilters(sort_by="title", sort_order="asc")
+            results = store.list(filters=filters)
+
+            titles = [b.title for b in results]
+            self.assertEqual(titles, ["Alpha", "Middle", "Zeppelin"])
+
+    def test_list_sorts_by_title_descending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://z-last.com", "title": "Zeppelin"})
+            store.add({"url": "https://a-first.com", "title": "Alpha"})
+            store.add({"url": "https://m-middle.com", "title": "Middle"})
+
+            filters = BookmarkFilters(sort_by="title", sort_order="desc")
+            results = store.list(filters=filters)
+
+            titles = [b.title for b in results]
+            self.assertEqual(titles, ["Zeppelin", "Middle", "Alpha"])
+
+    def test_list_sorts_by_domain_ascending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://z-example.com/page", "title": "Z"})
+            store.add({"url": "https://a-example.com/page", "title": "A"})
+
+            filters = BookmarkFilters(sort_by="domain", sort_order="asc")
+            results = store.list(filters=filters)
+
+            domains = [b.domain for b in results]
+            self.assertEqual(domains[0], "a-example.com")
+            self.assertEqual(domains[-1], "z-example.com")
+
+    def test_list_default_sort_is_created_at_desc(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            first = store.add({"url": "https://first.com", "title": "First"})
+            second = store.add({"url": "https://second.com", "title": "Second"})
+
+            results = store.list()
+
+            # newest first by default
+            self.assertEqual(results[0].id, second.id)
+            self.assertEqual(results[1].id, first.id)
+
+    def test_invalid_sort_field_falls_back_to_created_at(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://example.com", "title": "Test"})
+
+            # Should not raise; falls back to created_at
+            filters = BookmarkFilters(sort_by="invalid_column", sort_order="asc")
+            results = store.list(filters=filters)
+
+            self.assertEqual(len(results), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,9 @@ BOOKMARK_VIEW_SETTING_KEY = "bookmark_default_view"
 BOOKMARK_VIEW_DEFAULT_NAME_KEY = "bookmark_default_view_name"
 BOOKMARK_VIEW_NAMED_PREFIX = "bookmark_view.named."
 BOOKMARK_VIEW_NAMES = {"compact", "detailed", "grid"}
+BOOKMARK_SORT_BY_VALUES = {"created_at", "updated_at", "title", "domain"}
+BOOKMARK_SORT_ORDER_VALUES = {"asc", "desc"}
+
 DEFAULT_BOOKMARK_VIEW_PREFERENCES: dict[str, Any] = {
     "view": "compact",
     "fields": {
@@ -37,6 +40,10 @@ DEFAULT_BOOKMARK_VIEW_PREFERENCES: dict[str, Any] = {
         "tag": "",
         "collection": "",
         "status": "active",
+    },
+    "sort": {
+        "by": "created_at",
+        "order": "desc",
     },
 }
 
@@ -61,8 +68,12 @@ def merge_bookmark_view_preferences(payload: dict[str, Any] | None) -> dict[str,
     payload = payload or {}
     fields_payload = payload.get("fields")
     filters_payload = payload.get("filters")
+    sort_payload = payload.get("sort")
     fields = fields_payload if isinstance(fields_payload, dict) else {}
     filters = filters_payload if isinstance(filters_payload, dict) else {}
+    sort = sort_payload if isinstance(sort_payload, dict) else {}
+    raw_sort_by = str(sort.get("by", DEFAULT_BOOKMARK_VIEW_PREFERENCES["sort"]["by"]))
+    raw_sort_order = str(sort.get("order", DEFAULT_BOOKMARK_VIEW_PREFERENCES["sort"]["order"]))
     return {
         "view": str(payload.get("view", DEFAULT_BOOKMARK_VIEW_PREFERENCES["view"]))
         if str(payload.get("view", DEFAULT_BOOKMARK_VIEW_PREFERENCES["view"])) in BOOKMARK_VIEW_NAMES
@@ -79,6 +90,10 @@ def merge_bookmark_view_preferences(payload: dict[str, Any] | None) -> dict[str,
             "tag": str(filters.get("tag", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["tag"])).strip(),
             "collection": str(filters.get("collection", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["collection"])).strip(),
             "status": normalize_status_filter(filters.get("status", DEFAULT_BOOKMARK_VIEW_PREFERENCES["filters"]["status"])),
+        },
+        "sort": {
+            "by": raw_sort_by if raw_sort_by in BOOKMARK_SORT_BY_VALUES else DEFAULT_BOOKMARK_VIEW_PREFERENCES["sort"]["by"],
+            "order": raw_sort_order if raw_sort_order in BOOKMARK_SORT_ORDER_VALUES else DEFAULT_BOOKMARK_VIEW_PREFERENCES["sort"]["order"],
         },
     }
 
@@ -1266,6 +1281,7 @@ def index_html() -> str:
     <button type="button" data-tab-trigger="favorites">Favoriten</button>
     <button type="button" data-tab-trigger="tags">Tags</button>
     <button type="button" data-tab-trigger="collections">Collections</button>
+    <button type="button" data-tab-trigger="archive">Archiv</button>
     <button type="button" data-tab-trigger="dedup">Dubletten</button>
     <button type="button" data-tab-trigger="operations">Betrieb</button>
     <button type="button" data-tab-trigger="settings">Einstellungen</button>
@@ -1381,6 +1397,23 @@ def index_html() -> str:
             <option value="grid">Grid/Card</option>
           </select>
         </label>
+        <div style="display:flex;gap:.5rem;align-items:flex-end;">
+          <label style="flex:1;">Sortierung
+            <select id="sort-by">
+              <option value="created_at">Hinzugefuegt</option>
+              <option value="updated_at">Zuletzt geaendert</option>
+              <option value="title">Titel</option>
+              <option value="domain">Domain</option>
+            </select>
+          </label>
+          <label style="flex:0 0 auto;">
+            Richtung
+            <select id="sort-order">
+              <option value="desc">Absteigend</option>
+              <option value="asc">Aufsteigend</option>
+            </select>
+          </label>
+        </div>
         <div>
           <strong>Anzeigen</strong>
           <div class="field-options">
@@ -1526,6 +1559,30 @@ def index_html() -> str:
       <section class="mini-card">
         <h3>Konto</h3>
         <p class="muted">Passwort und API-Token findest du unter <button type="button" class="link-btn" data-tab-trigger="profile">Profil</button>.</p>
+      </section>
+    </div>
+  </section>
+
+  <section id="archive" class="panel tab-panel" data-tab-panel="archive" hidden>
+    <div class="panel-header">
+      <div>
+        <h2>Archiv</h2>
+        <p class="subtitle">Archivierte Volltext-Snapshots, Screenshots und Reader-Ansichten.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <section class="mini-card">
+        <h3>Archivierung noch nicht aktiviert</h3>
+        <p>Die Archivierung (Phase 3) ist bewusst zurueckgestellt und noch nicht implementiert.</p>
+        <p>Geplant sind:</p>
+        <ul>
+          <li>Reader-Extrakt: lesbarer Volltext nach Readeck-Vorbild</li>
+          <li>Screenshot und PDF je Bookmark</li>
+          <li>Single-HTML-Snapshot</li>
+          <li>Archivstatus in Bookmark-Liste und Detailansicht</li>
+          <li>Link-Health-Checks (tote Links erkennen)</li>
+        </ul>
+        <p class="muted">Bookmarks werden bereits vollstaendig gespeichert. Archivdaten kommen in einem eigenen Schritt.</p>
       </section>
     </div>
   </section>
@@ -1733,6 +1790,10 @@ def index_html() -> str:
         tag: '',
         collection: '',
         status: 'active'
+      },
+      sort: {
+        by: 'created_at',
+        order: 'desc'
       }
     };
     const viewFieldPresets = {
@@ -1950,6 +2011,10 @@ def index_html() -> str:
         const value = document.querySelector(selector).value.trim();
         if (value) params.set(param, value);
       }
+      const sortBy = document.querySelector('#sort-by')?.value || viewPreferences.sort?.by || 'created_at';
+      const sortOrder = document.querySelector('#sort-order')?.value || viewPreferences.sort?.order || 'desc';
+      params.set('sort_by', sortBy);
+      params.set('sort_order', sortOrder);
       const response = await fetch(`/api/bookmarks?${params.toString()}`);
       if (response.status === 401) {
         await loadAuth();
@@ -3182,6 +3247,12 @@ def index_html() -> str:
         chips.push(`<span class="badge">${escapeHtml(badge)}</span>`);
       }
       chips.push(`<span class="badge">${escapeHtml(viewPreferences.view === 'grid' ? 'Grid/Card' : viewPreferences.view === 'detailed' ? 'Detailed List' : 'Compact List')}</span>`);
+      const sortByLabels = {created_at: 'Hinzugefuegt', updated_at: 'Geaendert', title: 'Titel', domain: 'Domain'};
+      const sortBy = document.querySelector('#sort-by')?.value || viewPreferences.sort?.by || 'created_at';
+      const sortOrder = document.querySelector('#sort-order')?.value || viewPreferences.sort?.order || 'desc';
+      const sortLabel = sortByLabels[sortBy] || sortBy;
+      const sortDirLabel = sortOrder === 'asc' ? '↑' : '↓';
+      chips.push(`<span class="badge">${escapeHtml(sortLabel)} ${sortDirLabel}</span>`);
       const status = document.querySelector('#filter-status').value || 'active';
       if (status === 'merged_duplicate') {
         chips.push('<span class="badge">Gemergte Dubletten</span>');
@@ -3294,6 +3365,10 @@ def index_html() -> str:
     }
 
     function mergeViewPreferences(saved) {
+      const sortByValues = ['created_at', 'updated_at', 'title', 'domain'];
+      const sortOrderValues = ['asc', 'desc'];
+      const savedSortBy = saved?.sort?.by || saved?.sort_by || '';
+      const savedSortOrder = saved?.sort?.order || saved?.sort_order || '';
       return {
         view: ['compact', 'detailed', 'grid'].includes(saved?.view) ? saved.view : defaultViewPreferences.view,
         fields: {...defaultViewPreferences.fields, ...(saved?.fields || {})},
@@ -3303,6 +3378,10 @@ def index_html() -> str:
           favorite: Boolean(saved?.filters?.favorite),
           pinned: Boolean(saved?.filters?.pinned),
           status: saved?.filters?.status || defaultViewPreferences.filters.status
+        },
+        sort: {
+          by: sortByValues.includes(savedSortBy) ? savedSortBy : defaultViewPreferences.sort.by,
+          order: sortOrderValues.includes(savedSortOrder) ? savedSortOrder : defaultViewPreferences.sort.order
         }
       };
     }
@@ -3315,7 +3394,11 @@ def index_html() -> str:
       return {
         view: document.querySelector('#bookmark-view').value,
         fields,
-        filters: collectFilterPreferences()
+        filters: collectFilterPreferences(),
+        sort: {
+          by: document.querySelector('#sort-by').value || 'created_at',
+          order: document.querySelector('#sort-order').value || 'desc'
+        }
       };
     }
 
@@ -3343,6 +3426,10 @@ def index_html() -> str:
       document.querySelector('#filter-tag').value = viewPreferences.filters.tag || '';
       document.querySelector('#filter-collection').value = viewPreferences.filters.collection || '';
       document.querySelector('#filter-status').value = viewPreferences.filters.status || 'active';
+      const sortBy = viewPreferences.sort?.by || 'created_at';
+      const sortOrder = viewPreferences.sort?.order || 'desc';
+      document.querySelector('#sort-by').value = sortBy;
+      document.querySelector('#sort-order').value = sortOrder;
       if (bookmarksEl) bookmarksEl.className = `bookmark-list view-${viewPreferences.view}`;
       renderActiveViewChips();
     }
@@ -3824,6 +3911,8 @@ def index_html() -> str:
     document.querySelector('#filter-tag').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-collection').addEventListener('input', refreshBookmarks);
     document.querySelector('#filter-status').addEventListener('change', refreshBookmarks);
+    document.querySelector('#sort-by').addEventListener('change', refreshBookmarks);
+    document.querySelector('#sort-order').addEventListener('change', refreshBookmarks);
     document.querySelector('#bookmark-view').addEventListener('change', updateViewPreview);
     document.querySelectorAll('[data-display-field]').forEach((checkbox) => {
       checkbox.addEventListener('change', updateViewPreview);
@@ -3907,6 +3996,14 @@ def optional_bool_query_param(params: dict[str, list[str]], key: str) -> bool | 
     return None
 
 
+def _normalize_sort_by(value: str) -> str:
+    return value if value in BOOKMARK_SORT_BY_VALUES else "created_at"
+
+
+def _normalize_sort_order(value: str) -> str:
+    return value if value in BOOKMARK_SORT_ORDER_VALUES else "desc"
+
+
 def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
     return BookmarkFilters(
         favorite=optional_bool_query_param(params, "favorite"),
@@ -3915,6 +4012,8 @@ def filters_from_query(params: dict[str, list[str]]) -> BookmarkFilters:
         tag=get_query_param(params, "tag"),
         collection=get_query_param(params, "collection"),
         status=get_query_param(params, "status") or "active",
+        sort_by=_normalize_sort_by(get_query_param(params, "sort_by")),
+        sort_order=_normalize_sort_order(get_query_param(params, "sort_order")),
     )
 
 
@@ -3927,6 +4026,8 @@ def filters_from_payload(payload: Any) -> BookmarkFilters:
         tag=str(values.get("tag", "")).strip(),
         collection=str(values.get("collection", "")).strip(),
         status=str(values.get("status", "")).strip() or "active",
+        sort_by=_normalize_sort_by(str(values.get("sort_by", ""))),
+        sort_order=_normalize_sort_order(str(values.get("sort_order", ""))),
     )
 
 

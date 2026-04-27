@@ -56,6 +56,10 @@ class Bookmark:
         return asdict(self)
 
 
+BOOKMARK_SORT_FIELDS = {"created_at", "updated_at", "title", "domain"}
+BOOKMARK_SORT_ORDERS = {"asc", "desc"}
+
+
 @dataclass
 class BookmarkFilters:
     favorite: bool | None = None
@@ -64,6 +68,8 @@ class BookmarkFilters:
     tag: str = ""
     collection: str = ""
     status: str = "active"
+    sort_by: str = "created_at"
+    sort_order: str = "desc"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -457,12 +463,13 @@ class BookmarkStore:
         filter_sql.insert(0, status_clause)
         values = [*status_values, *values]
         where = f"WHERE {' AND '.join(filter_sql)}"
+        order = bookmark_order_sql(filters)
         with self.connect() as connection:
             rows = connection.execute(
                 f"""
                 SELECT * FROM bookmarks b
                 {where}
-                ORDER BY favorite DESC, pinned DESC, created_at DESC, title ASC
+                ORDER BY {order}
                 """,
                 values,
             ).fetchall()
@@ -481,6 +488,7 @@ class BookmarkStore:
         status_clause, status_values = bookmark_status_sql(filters.status)
         clauses = ["bookmarks_fts MATCH ?", status_clause, *filter_sql]
         values: list[Any] = [fts_query, *status_values, *filter_values]
+        order = bookmark_order_sql(filters, prefix="b.")
         with self.connect() as connection:
             rows = connection.execute(
                 f"""
@@ -488,7 +496,7 @@ class BookmarkStore:
                 FROM bookmarks_fts
                 JOIN bookmarks b ON b.id = bookmarks_fts.bookmark_id
                 WHERE {' AND '.join(clauses)}
-                ORDER BY search_rank ASC, b.favorite DESC, b.pinned DESC, b.updated_at DESC, b.title ASC
+                ORDER BY search_rank ASC, {order}
                 """,
                 values,
             ).fetchall()
@@ -516,12 +524,13 @@ class BookmarkStore:
             )
             values.extend([f"%{term}%"] * 7)
 
+        order = bookmark_order_sql(filters)
         with self.connect() as connection:
             rows = connection.execute(
                 f"""
                 SELECT * FROM bookmarks b
                 WHERE {' AND '.join(clauses)}
-                ORDER BY favorite DESC, pinned DESC, created_at DESC, title ASC
+                ORDER BY {order}
                 """,
                 values,
             ).fetchall()
@@ -2712,6 +2721,34 @@ def build_fts_query(query: str) -> str:
 def quote_fts_term(term: str) -> str:
     escaped = term.replace('"', '""')
     return f'"{escaped}"*'
+
+
+def bookmark_order_sql(filters: BookmarkFilters, prefix: str = "") -> str:
+    """Build ORDER BY clause from sort_by / sort_order in filters.
+
+    The primary sort column comes first, followed by fixed tie-breakers so
+    the result is always deterministic.  ``prefix`` is prepended to each
+    column name (e.g. ``"b."`` for JOIN queries).
+    """
+    sort_by = filters.sort_by if filters.sort_by in BOOKMARK_SORT_FIELDS else "created_at"
+    direction = "ASC" if filters.sort_order == "asc" else "DESC"
+    p = prefix
+
+    # Primary column with chosen direction
+    primary = f"{p}{sort_by} {direction}"
+
+    # Tie-breakers: always stable regardless of primary sort
+    if sort_by == "title":
+        # Secondary: domain, then newest first
+        tiebreakers = f"{p}domain ASC, {p}created_at DESC"
+    elif sort_by == "domain":
+        # Secondary: title alphabetical, then newest first
+        tiebreakers = f"{p}title ASC, {p}created_at DESC"
+    else:
+        # created_at or updated_at: title alphabetical as tie-breaker
+        tiebreakers = f"{p}title ASC"
+
+    return f"{primary}, {tiebreakers}"
 
 
 def bookmark_filter_sql(filters: BookmarkFilters) -> tuple[list[str], list[Any]]:

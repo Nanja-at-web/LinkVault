@@ -137,6 +137,27 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("Schnell-Speichern", html)
         self.assertIn("quick-add-nav-btn", html)
 
+    def test_index_html_has_archive_tab(self):
+        html = index_html()
+
+        self.assertIn('data-tab-trigger="archive"', html)
+        self.assertIn('data-tab-panel="archive"', html)
+        self.assertIn('id="archive"', html)
+        self.assertIn("Archiv", html)
+        self.assertIn("Phase 3", html)
+
+    def test_index_html_has_sort_controls(self):
+        html = index_html()
+
+        self.assertIn('id="sort-by"', html)
+        self.assertIn('id="sort-order"', html)
+        self.assertIn("sort_by", html)
+        self.assertIn("sort_order", html)
+        self.assertIn("Hinzugefuegt", html)
+        self.assertIn("Zuletzt geaendert", html)
+        self.assertIn("Absteigend", html)
+        self.assertIn("Aufsteigend", html)
+
 
 if __name__ == "__main__":
     unittest.main()
