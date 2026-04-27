@@ -2053,6 +2053,12 @@ class BookmarkStore:
     def import_safari_zip(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.import_items(parse_safari_zip(data), session_meta=session_meta)
 
+    def import_linkding_json(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.import_items(parse_linkding_json(data), session_meta=session_meta)
+
+    def preview_linkding_json_import(self, data: str) -> dict[str, Any]:
+        return self.preview_import_items(parse_linkding_json(data))
+
     def import_firefox_jsonlz4(self, data: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.import_items(parse_firefox_jsonlz4(data), session_meta=session_meta)
 
@@ -3922,6 +3928,76 @@ class BrowserBookmarkParser(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self.current_tag in {"a", "h3"}:
             self.text_parts.append(data)
+
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# linkding import (JSON export format)
+# ---------------------------------------------------------------------------
+
+def parse_linkding_json(data: str) -> list[dict[str, Any]]:
+    """Parse a linkding JSON export.
+
+    linkding's export format (``/api/bookmarks/?format=json`` or the UI export)
+    is a paginated DRF response: ``{"count": N, "results": [...]}`` where each
+    result has at minimum ``url``, ``title``, ``description``, ``tag_names``
+    (list of strings) and ``website_title`` / ``website_description``.
+    The UI HTML export is also supported via ``parse_browser_html``; this
+    function handles the JSON path only.
+    """
+    try:
+        payload = json.loads(data)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JSON for linkding import.") from exc
+
+    # Accept paginated DRF response or bare list
+    if isinstance(payload, dict):
+        results = payload.get("results") or payload.get("bookmarks") or []
+        if not isinstance(results, list):
+            results = []
+    elif isinstance(payload, list):
+        results = payload
+    else:
+        raise ValueError("linkding JSON must contain an object with 'results' or a list.")
+
+    items: list[dict[str, Any]] = []
+    for entry in results:
+        if not isinstance(entry, dict):
+            continue
+        url = str(entry.get("url", "")).strip()
+        if not url:
+            continue
+        # Prefer explicit title, fall back to website_title
+        title = (
+            str(entry.get("title", "")).strip()
+            or str(entry.get("website_title", "")).strip()
+        )
+        description = (
+            str(entry.get("description", "")).strip()
+            or str(entry.get("website_description", "")).strip()
+        )
+        raw_tags = entry.get("tag_names", [])
+        tags: list[str] = [str(t).strip() for t in raw_tags if str(t).strip()] if isinstance(raw_tags, list) else []
+        notes = str(entry.get("notes", "")).strip()
+        is_archived = bool(entry.get("is_archived", False))
+        archive_status = "archived" if is_archived else ""
+        items.append(
+            {
+                "url": url,
+                "title": title or url,
+                "description": description,
+                "tags": tags,
+                "collections": [],  # linkding has no folders; tags carry structure
+                "notes": notes,
+                "archive_status": archive_status,
+                "source_browser": "linkding",
+                "source_root": "",
+                "source_folder_path": "",
+                "source_position": len(items),
+                "source_bookmark_id": str(entry.get("id", "")),
+            }
+        )
+    return items
 
 
 # ---------------------------------------------------------------------------

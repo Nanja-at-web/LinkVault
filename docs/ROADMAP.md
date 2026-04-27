@@ -141,8 +141,10 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Bookmark-, Import- und Dedup-Workflows stabil sind.
 - [x] Erste Tastaturkuerzel fuer Suche, Speichern, Import, Bookmarks und
   Dubletten.
-- [ ] Shortcut-Hilfe und A11y-Pruefung fuer Fokusreihenfolge und
-  Screenreader-Statusmeldungen.
+- [x] Shortcut-Hilfe: `?`-Taste und "? Hilfe"-Button oeffnen nativen
+  `<dialog>` mit Shortcut-Tabelle (Ctrl/Cmd+K, N, B, I, D, ?, Esc);
+  Klick auf Backdrop und Esc schliessen den Dialog; A11y-Pruefung offen.
+- [ ] A11y-Pruefung fuer Fokusreihenfolge und Screenreader-Statusmeldungen.
 - [ ] Public REST-API ausbauen.
 - [x] API-Token-Verwaltung mit Test-Button: Token-Wert gegen /api/me testen,
   Ergebnis (Nutzer/Rolle oder Fehler) inline anzeigen; Sofort-testen-Button
@@ -226,7 +228,11 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Migrationsprofile: Spalten-Inferenz, konfigurierbares Field-Mapping,
   Vorschau-Endpunkt und Import-Endpunkt vorhanden.
 - [ ] Rohdaten-Erhaltung fuer Browser-/Vendor-Felder via `raw_vendor_payload`.
-- [ ] linkding Import via API/Export.
+- [x] linkding Import via API/Export: `parse_linkding_json` versteht
+  sowohl paginierte DRF-Responses (`results`-Feld) als auch bare Listen;
+  Titel-Fallback auf `website_title`, Beschreibungs-Fallback auf
+  `website_description`; `is_archived`-Flag wird als `archive_status`
+  uebernommen; Format-Option in der Import-UI vorhanden.
 - [ ] Karakeep Import.
 - [ ] Linkwarden Import.
 - [ ] LinkAce Import.

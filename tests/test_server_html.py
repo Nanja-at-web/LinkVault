@@ -197,6 +197,21 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("data-focus-token-test", html)
 
 
+    def test_index_html_has_shortcut_help(self):
+        html = index_html()
+
+        self.assertIn('id="shortcut-help-dialog"', html)
+        self.assertIn('id="shortcut-help-close"', html)
+        self.assertIn('id="shortcut-help-btn"', html)
+        self.assertIn("openShortcutHelp", html)
+        self.assertIn("closeShortcutHelp", html)
+        self.assertIn("Tastaturkuerzel", html)
+        self.assertIn("Ctrl/Cmd+K", html)
+        self.assertIn("Ctrl</kbd>/<kbd>Cmd", html)
+        self.assertIn("Schnell-Speichern", html)
+        self.assertIn("shortcut-table", html)
+        self.assertIn("kbd-cell", html)
+
     def test_index_html_has_phase6_import_formats(self):
         html = index_html()
 

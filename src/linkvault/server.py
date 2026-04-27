@@ -705,6 +705,29 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 data = str(payload.get("data", ""))
                 self.send_json(store.preview_safari_zip_import(data))
+            elif path == "/api/import/linkding-json":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(
+                    store.import_linkding_json(
+                        data,
+                        session_meta=build_import_session_meta(
+                            payload,
+                            source_name="linkding JSON",
+                            source_format="linkding-json",
+                            source_file_name=str(payload.get("file_name", "")),
+                            checksum_source=data,
+                            sync_origin="manual_file_import",
+                        ),
+                    ),
+                    HTTPStatus.CREATED,
+                )
+            elif path == "/api/import/linkding-json/preview":
+                if not self.require_auth(auth_store):
+                    return
+                data = str(payload.get("data", ""))
+                self.send_json(store.preview_linkding_json_import(data))
             elif path == "/api/import/firefox-jsonlz4":
                 if not self.require_auth(auth_store):
                     return
@@ -1329,6 +1352,10 @@ def index_html() -> str:
     .qa-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .5rem; }
     .qa-preflight { background: #fff8f0; border: 1px solid #f0c08a; border-radius: 8px; padding: .75rem; margin: .5rem 0; font-size: .93rem; }
     .qa-preflight h4 { margin: 0 0 .4rem; font-size: .95rem; }
+    kbd { display: inline-block; background: #f0f0f0; border: 1px solid #ccc; border-bottom-width: 2px; border-radius: 4px; padding: .1rem .4rem; font-family: monospace; font-size: .85rem; line-height: 1.4; white-space: nowrap; }
+    .kbd-cell { padding: .3rem .5rem; white-space: nowrap; }
+    .shortcut-table tbody tr:hover td { background: var(--bg-alt); }
+    .shortcut-table td { padding: .3rem .5rem; border-bottom: 1px solid var(--line); font-size: .93rem; }
     @media (max-width: 760px) {
       .shell { padding: .75rem; }
       .toolbar, .panel-header { display: block; }
@@ -1348,7 +1375,7 @@ def index_html() -> str:
     <div>
       <h1>LinkVault MVP</h1>
       <p class="subtitle">Links speichern, importieren, bearbeiten und Dubletten sicher zusammenfuehren.</p>
-      <p class="shortcut-hint">Shortcuts: Ctrl/Cmd+K Suche, N Schnell-Speichern, I Import, D Dubletten, B Bookmarks.</p>
+      <p class="shortcut-hint">Shortcuts: Ctrl/Cmd+K Suche, N Schnell-Speichern, I Import, D Dubletten, B Bookmarks. <button type="button" class="link-btn" id="shortcut-help-btn" aria-label="Shortcut-Hilfe oeffnen">? Hilfe</button></p>
     </div>
     <div id="userbar" hidden>
       <button id="current-user" type="button" data-tab-trigger="profile" class="link-btn"></button>
@@ -1413,6 +1440,29 @@ def index_html() -> str:
     </form>
   </dialog>
 
+  <dialog id="shortcut-help-dialog" aria-label="Tastaturkuerzel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;">
+      <h3 style="margin:0;">Tastaturkuerzel</h3>
+      <button type="button" id="shortcut-help-close" aria-label="Schliessen" style="background:none;border:none;font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>
+    </div>
+    <table class="shortcut-table" style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr><th style="text-align:left;padding:.25rem .5rem;border-bottom:1px solid var(--line);">Kuerzel</th><th style="text-align:left;padding:.25rem .5rem;border-bottom:1px solid var(--line);">Aktion</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="kbd-cell"><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>K</kbd></td><td>Suche fokussieren</td></tr>
+        <tr><td class="kbd-cell"><kbd>N</kbd></td><td>Bookmark schnell speichern (Quick-Add)</td></tr>
+        <tr><td class="kbd-cell"><kbd>B</kbd></td><td>Bookmark-Liste anzeigen</td></tr>
+        <tr><td class="kbd-cell"><kbd>I</kbd></td><td>Import-Tab oeffnen</td></tr>
+        <tr><td class="kbd-cell"><kbd>D</kbd></td><td>Dubletten-Tab oeffnen</td></tr>
+        <tr><td class="kbd-cell"><kbd>?</kbd></td><td>Diese Hilfe oeffnen / schliessen</td></tr>
+        <tr><td class="kbd-cell"><kbd>Esc</kbd></td><td>Hilfe / Dialog schliessen</td></tr>
+      </tbody>
+    </table>
+    <p class="muted" style="margin:.75rem 0 0;font-size:.88rem;">Kuerzel (ausser Ctrl/Cmd+K) sind inaktiv wenn ein Eingabefeld fokussiert ist.</p>
+  </dialog>
+
+
   <main id="app" class="workspace" hidden>
   <section id="save" class="panel tab-panel" data-tab-panel="save">
     <div class="panel-header">
@@ -1447,6 +1497,7 @@ def index_html() -> str:
           <option value="chromium-json">Chromium-JSON: Chrome, Edge, Brave, Vivaldi, Opera</option>
           <option value="firefox-json">Firefox-JSON: Bookmarks-Backup (.json)</option>
           <option value="firefox-jsonlz4">Firefox-JSONLZ4: Bookmarks-Backup (.jsonlz4)</option>
+          <option value="linkding-json">linkding-JSON: API-Export oder UI-Export</option>
           <option value="safari-zip">Safari-ZIP: Archiv mit Bookmarks.html</option>
           <option value="generic-csv">Generisch CSV: beliebiges Bookmark-Tool</option>
           <option value="generic-json">Generisch JSON: beliebiges Bookmark-Tool</option>
@@ -2498,6 +2549,20 @@ def index_html() -> str:
       }
     }
 
+    const shortcutHelpDialog = document.getElementById('shortcut-help-dialog');
+
+    function openShortcutHelp() {
+      if (shortcutHelpDialog && !shortcutHelpDialog.open) {
+        shortcutHelpDialog.showModal();
+      }
+    }
+
+    function closeShortcutHelp() {
+      if (shortcutHelpDialog && shortcutHelpDialog.open) {
+        shortcutHelpDialog.close();
+      }
+    }
+
     function openQuickAdd(prefillUrl = '') {
       qaForm.reset();
       qaPreflight.hidden = true;
@@ -2554,6 +2619,12 @@ def index_html() -> str:
 
     document.querySelector('#quick-add-btn').addEventListener('click', () => openQuickAdd());
     document.querySelector('#qa-cancel').addEventListener('click', () => quickAddDialog.close());
+    document.getElementById('shortcut-help-btn').addEventListener('click', openShortcutHelp);
+    document.getElementById('shortcut-help-close').addEventListener('click', closeShortcutHelp);
+    shortcutHelpDialog.addEventListener('click', (event) => {
+      // close on backdrop click
+      if (event.target === shortcutHelpDialog) closeShortcutHelp();
+    });
 
     qaForm.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -2820,6 +2891,7 @@ def index_html() -> str:
         'chromium-json': '/api/import/chromium-json',
         'firefox-json': '/api/import/firefox-json',
         'firefox-jsonlz4': '/api/import/firefox-jsonlz4',
+        'linkding-json': '/api/import/linkding-json',
         'safari-zip': '/api/import/safari-zip',
         'generic-csv': '/api/import/generic',
         'generic-json': '/api/import/generic',
@@ -4364,6 +4436,11 @@ def index_html() -> str:
         event.preventDefault();
         setActiveTab('bookmarks');
         await refreshBookmarks();
+      } else if (event.key === '?') {
+        event.preventDefault();
+        openShortcutHelp();
+      } else if (event.key === 'Escape') {
+        closeShortcutHelp();
       }
     });
 

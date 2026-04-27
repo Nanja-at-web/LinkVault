@@ -1522,6 +1522,7 @@ class StoreTest(unittest.TestCase):
 
 
 from linkvault.store import (
+    parse_linkding_json,
     _lz4_block_decompress,
     decompress_mozlz4,
     parse_firefox_jsonlz4,
@@ -1531,6 +1532,67 @@ from linkvault.store import (
     parse_browser_html,
     MOZLZ4_MAGIC,
 )
+
+
+class LinkdingImportTest(unittest.TestCase):
+    def test_parse_linkding_json_paginated(self):
+        import json
+        data = json.dumps({
+            "count": 2,
+            "results": [
+                {"id": 1, "url": "https://a.com", "title": "A", "tag_names": ["news"], "description": "Desc A", "notes": "", "is_archived": False},
+                {"id": 2, "url": "https://b.com", "title": "", "website_title": "B Fallback", "tag_names": [], "description": "", "notes": "mynote", "is_archived": True},
+            ]
+        })
+        items = parse_linkding_json(data)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["url"], "https://a.com")
+        self.assertEqual(items[0]["title"], "A")
+        self.assertIn("news", items[0]["tags"])
+        self.assertEqual(items[0]["archive_status"], "")
+        self.assertEqual(items[1]["title"], "B Fallback")
+        self.assertEqual(items[1]["archive_status"], "archived")
+        self.assertEqual(items[1]["notes"], "mynote")
+
+    def test_parse_linkding_json_bare_list(self):
+        import json
+        data = json.dumps([
+            {"url": "https://c.com", "title": "C", "tag_names": ["tech", "dev"]},
+        ])
+        items = parse_linkding_json(data)
+        self.assertEqual(len(items), 1)
+        self.assertIn("tech", items[0]["tags"])
+        self.assertIn("dev", items[0]["tags"])
+
+    def test_parse_linkding_json_skips_empty_url(self):
+        import json
+        data = json.dumps({"results": [
+            {"url": "", "title": "No URL"},
+            {"url": "https://d.com", "title": "Has URL"},
+        ]})
+        items = parse_linkding_json(data)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["url"], "https://d.com")
+
+    def test_parse_linkding_json_invalid_raises(self):
+        with self.assertRaises(ValueError):
+            parse_linkding_json("not json")
+
+    def test_parse_linkding_json_source_browser(self):
+        import json
+        data = json.dumps([{"url": "https://e.com", "title": "E", "id": 42}])
+        items = parse_linkding_json(data)
+        self.assertEqual(items[0]["source_browser"], "linkding")
+        self.assertEqual(items[0]["source_bookmark_id"], "42")
+
+    def test_parse_linkding_json_website_description_fallback(self):
+        import json
+        data = json.dumps([{
+            "url": "https://f.com", "title": "F",
+            "description": "", "website_description": "Fallback desc"
+        }])
+        items = parse_linkding_json(data)
+        self.assertEqual(items[0]["description"], "Fallback desc")
 
 
 class MozLz4Test(unittest.TestCase):
