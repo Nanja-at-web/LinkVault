@@ -1364,6 +1364,162 @@ class StoreTest(unittest.TestCase):
 
             self.assertEqual(len(results), 1)
 
+    # ------------------------------------------------------------------
+    # favorites_report tests
+    # ------------------------------------------------------------------
+
+    def test_favorites_report_empty_when_no_favorites(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://example.com", "title": "Not a favorite"})
+
+            report = store.favorites_report()
+
+            self.assertEqual(report["uncategorized"], [])
+            self.assertEqual(report["duplicated"], [])
+            self.assertEqual(report["dead"], [])
+            self.assertEqual(report["check_summary"]["total_favorites"], 0)
+
+    def test_favorites_report_uncategorized_inbox_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            # Favorite with only Inbox (default for new bookmarks)
+            store.add({"url": "https://example.com", "title": "In Inbox", "favorite": True})
+            # Favorite with a real collection — should NOT be uncategorized
+            store.add({"url": "https://other.com", "title": "Categorized", "favorite": True,
+                        "collections": ["Homelab"]})
+
+            report = store.favorites_report()
+
+            uncategorized_urls = [b["url"] for b in report["uncategorized"]]
+            self.assertIn("https://example.com", uncategorized_urls)
+            self.assertNotIn("https://other.com", uncategorized_urls)
+
+    def test_favorites_report_duplicated_same_normalized_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://example.com/a?utm_source=x", "title": "A1", "favorite": True})
+            store.add({"url": "https://example.com/a", "title": "A2", "favorite": True})
+            # Non-favorite — should not appear in duplicated
+            store.add({"url": "https://example.com/a?ref=y", "title": "A3", "favorite": False})
+
+            report = store.favorites_report()
+
+            self.assertEqual(len(report["duplicated"]), 1)
+            group = report["duplicated"][0]
+            self.assertEqual(len(group["bookmarks"]), 2)
+
+    def test_favorites_report_not_duplicated_when_unique(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://alpha.com", "title": "Alpha", "favorite": True})
+            store.add({"url": "https://beta.com", "title": "Beta", "favorite": True})
+
+            report = store.favorites_report()
+
+            self.assertEqual(report["duplicated"], [])
+
+    def test_favorites_report_dead_requires_link_check(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://example.com", "title": "Example", "favorite": True})
+
+            # No link check run yet — dead list must be empty
+            report = store.favorites_report()
+
+            self.assertEqual(report["dead"], [])
+            self.assertEqual(report["check_summary"]["total_checked"], 0)
+
+    def test_favorites_report_check_summary_counts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.com", "title": "A", "favorite": True})
+            store.add({"url": "https://b.com", "title": "B", "favorite": True})
+
+            report = store.favorites_report()
+
+            self.assertEqual(report["check_summary"]["total_favorites"], 2)
+
+    # ------------------------------------------------------------------
+    # collection_care_scores tests
+    # ------------------------------------------------------------------
+
+    def test_collection_care_scores_empty_when_no_collections(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            # All in Inbox — should produce no scores
+            store.add({"url": "https://example.com", "title": "X"})
+
+            scores = store.collection_care_scores()
+
+            self.assertEqual(scores, [])
+
+    def test_collection_care_scores_returns_score_per_collection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.com", "title": "A", "description": "desc",
+                        "tags": ["x"], "collections": ["Homelab"]})
+            store.add({"url": "https://b.com", "title": "B", "description": "desc",
+                        "tags": ["y"], "collections": ["Research"]})
+
+            scores = store.collection_care_scores()
+
+            collections = [s["collection"] for s in scores]
+            self.assertIn("Homelab", collections)
+            self.assertIn("Research", collections)
+            for s in scores:
+                self.assertIn("score", s)
+                self.assertIn("factors", s)
+                self.assertGreaterEqual(s["score"], 0)
+                self.assertLessEqual(s["score"], 100)
+
+    def test_collection_care_scores_penalizes_missing_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            # Full metadata
+            store.add({"url": "https://full.com", "title": "Full", "description": "Has description",
+                        "tags": ["x"], "collections": ["Good"]})
+            # No description
+            store.add({"url": "https://empty.com", "title": "No desc",
+                        "tags": ["x"], "collections": ["Poor"]})
+
+            scores = store.collection_care_scores()
+            score_map = {s["collection"]: s for s in scores}
+
+            self.assertGreater(score_map["Good"]["score"], score_map["Poor"]["score"])
+
+    def test_collection_care_scores_penalizes_dedup_groups(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            # Two bookmarks with same normalized URL in same collection = dedup penalty
+            # utm_source is stripped by normalize_url, so both become the same normalized URL
+            store.add({"url": "https://dup.com/page?utm_source=newsletter", "title": "Dup1", "description": "d",
+                        "tags": ["t"], "collections": ["Duped"]})
+            store.add({"url": "https://dup.com/page", "title": "Dup2", "description": "d",
+                        "tags": ["t"], "collections": ["Duped"]})
+            # Clean collection
+            store.add({"url": "https://clean.com", "title": "Clean", "description": "d",
+                        "tags": ["t"], "collections": ["Clean"]})
+
+            scores = store.collection_care_scores()
+            score_map = {s["collection"]: s for s in scores}
+
+            self.assertLess(score_map["Duped"]["factors"]["dedup"], 100)
+            self.assertEqual(score_map["Clean"]["factors"]["dedup"], 100)
+
+    def test_collection_care_scores_sorted_ascending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.com", "title": "A", "description": "d",
+                        "tags": ["t"], "collections": ["Good"]})
+            store.add({"url": "https://b.com", "title": "", "collections": ["Poor"]})
+
+            scores = store.collection_care_scores()
+
+            # Worst first
+            score_values = [s["score"] for s in scores]
+            self.assertEqual(score_values, sorted(score_values))
+
 
 if __name__ == "__main__":
     unittest.main()

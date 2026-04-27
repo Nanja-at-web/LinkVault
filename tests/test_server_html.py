@@ -158,6 +158,33 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("Absteigend", html)
         self.assertIn("Aufsteigend", html)
 
+    def test_index_html_has_favorites_care_section(self):
+        html = index_html()
+
+        self.assertIn("favorites-care-drawer", html)
+        self.assertIn("refresh-favorites-report", html)
+        self.assertIn("check-favorite-links", html)
+        self.assertIn("link-check-status", html)
+        self.assertIn("favorites-report-uncategorized", html)
+        self.assertIn("favorites-report-duplicated", html)
+        self.assertIn("favorites-report-dead", html)
+        self.assertIn("uncategorized-list", html)
+        self.assertIn("duplicated-list", html)
+        self.assertIn("dead-list", html)
+        self.assertIn("renderFavoritesReport", html)
+        self.assertIn("refreshFavoritesReport", html)
+        self.assertIn("/api/favorites/report", html)
+        self.assertIn("/api/favorites/check", html)
+
+    def test_index_html_has_collection_scores(self):
+        html = index_html()
+
+        self.assertIn("refresh-collection-scores", html)
+        self.assertIn("care-score", html)
+        self.assertIn("collectionScores", html)
+        self.assertIn("/api/collections/scores", html)
+        self.assertIn("refreshCollectionScores", html)
+
 
 if __name__ == "__main__":
     unittest.main()

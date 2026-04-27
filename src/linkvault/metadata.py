@@ -4,7 +4,8 @@ import ssl
 import sys
 from dataclasses import dataclass
 from html.parser import HTMLParser
-from urllib.error import URLError
+from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
@@ -103,3 +104,48 @@ class MetadataParser(HTMLParser):
             favicon_url=self.favicon_url or urljoin(self.base_url, "/favicon.ico"),
             final_url=self.base_url,
         )
+
+
+def check_url_health(url: str, timeout: float = 5.0) -> dict[str, Any]:
+    """Light health check for a single URL.
+
+    Tries HEAD first (cheap), falls back to GET if HEAD is not supported.
+    On SSL errors retries without certificate verification.
+    Returns dict with keys: ok (bool), status_code (int), error (str).
+    """
+    result: dict[str, Any] = {"ok": False, "status_code": 0, "error": ""}
+
+    def _attempt(method: str, ctx: ssl.SSLContext | None = None) -> bool:
+        req = Request(
+            url,
+            method=method,
+            headers={"User-Agent": "LinkVault/0.1 link-checker"},
+        )
+        try:
+            with urlopen(req, timeout=timeout, context=ctx) as resp:
+                result["status_code"] = resp.status
+                result["ok"] = resp.status < 400
+                result["error"] = ""
+                return True
+        except HTTPError as exc:
+            result["status_code"] = exc.code
+            result["ok"] = exc.code < 400
+            result["error"] = f"HTTP {exc.code}" if exc.code >= 400 else ""
+            return True
+        except URLError as exc:
+            result["error"] = str(exc.reason)
+            return False
+
+    reached = _attempt("HEAD")
+    if not reached or result["status_code"] == 405:
+        # HEAD not supported or unreachable — try GET
+        result.update({"ok": False, "status_code": 0, "error": ""})
+        reached = _attempt("GET")
+
+    if not reached and "CERTIFICATE_VERIFY_FAILED" in result.get("error", ""):
+        insecure = ssl._create_unverified_context()
+        result.update({"ok": False, "status_code": 0, "error": ""})
+        if not _attempt("HEAD", insecure):
+            _attempt("GET", insecure)
+
+    return result

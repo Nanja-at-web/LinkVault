@@ -317,6 +317,14 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
             if not self.require_auth(auth_store):
                 return
             self.send_json({"collections": store.list_collections()})
+        elif path == "/api/collections/scores":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json({"scores": store.collection_care_scores()})
+        elif path == "/api/favorites/report":
+            if not self.require_auth(auth_store):
+                return
+            self.send_json(store.favorites_report())
         elif path == "/":
             self.send_html(index_html())
         else:
@@ -423,6 +431,11 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     return
                 items = payload.get("items") if isinstance(payload.get("items"), list) else []
                 self.send_json(store.compute_sync_drift(items))
+            elif path == "/api/favorites/check":
+                if not self.require_auth(auth_store):
+                    return
+                results = store.check_favorite_links()
+                self.send_json({"checked": len(results), "results": results})
             elif path.startswith("/api/restore/sessions/") and path.endswith("/apply-defaults"):
                 if not self.require_auth(auth_store):
                     return
@@ -1208,6 +1221,13 @@ def index_html() -> str:
     .collection-row:hover { background: #e8f0e1; border-color: #c6d4ba; }
     .collection-row .coll-name { font-weight: 500; }
     .collection-row .coll-count { color: var(--muted); font-size: .9rem; }
+    .care-score { display: inline-flex; align-items: center; gap: .25rem; border-radius: 999px; padding: .15rem .55rem; font-size: .82rem; font-weight: 600; }
+    .care-score-good { background: #d4edda; color: #1a5c2a; }
+    .care-score-mid  { background: #fff3cd; color: #7a5800; }
+    .care-score-bad  { background: #f8d7da; color: #7a1a20; }
+    .dead-item { background: #fff5f5; border: 1px solid #f5c6cb; border-radius: 8px; padding: .5rem .85rem; }
+    .dead-item .dead-url { color: var(--muted); font-size: .85rem; word-break: break-all; }
+    .dead-item .dead-error { color: #c53030; font-size: .82rem; }
     .fav-card { background: #f5f7f2; border: 1px solid #dde5d5; border-radius: 8px; padding: .6rem .85rem; }
     .fav-card a.fav-title { font-weight: 500; color: var(--ink); text-decoration: none; }
     .fav-card a.fav-title:hover { text-decoration: underline; }
@@ -1520,6 +1540,32 @@ def index_html() -> str:
       </div>
     </div>
     <div id="favorites-list" class="history-list"></div>
+    <details class="drawer" style="margin-top:1rem;" id="favorites-care-drawer">
+      <summary>Favoriten-Pflege</summary>
+      <div class="drawer-body stack">
+        <div class="inline-actions">
+          <button type="button" id="refresh-favorites-report">Bericht laden</button>
+          <button type="button" id="check-favorite-links">Link-Check starten</button>
+          <span id="link-check-status" class="muted"></span>
+        </div>
+        <div id="favorites-report-uncategorized" hidden>
+          <h4>Ohne echte Collection <span id="uncategorized-count" class="badge"></span></h4>
+          <p class="muted">Favoriten, die nur in Inbox oder in keiner Collection liegen.</p>
+          <div id="uncategorized-list" class="history-list"></div>
+        </div>
+        <div id="favorites-report-duplicated" hidden>
+          <h4>Doppelte Favoriten <span id="duplicated-count" class="badge"></span></h4>
+          <p class="muted">Mehrere Favoriten mit derselben normalisierten URL.</p>
+          <div id="duplicated-list" class="history-list"></div>
+        </div>
+        <div id="favorites-report-dead" hidden>
+          <h4>Tote Favoriten <span id="dead-count" class="badge"></span></h4>
+          <p class="muted">Favoriten, deren Link-Check fehlgeschlagen ist. Zuerst Link-Check starten.</p>
+          <div id="dead-list" class="history-list"></div>
+        </div>
+        <p id="favorites-report-empty" class="muted" hidden>Keine Auffaelligkeiten gefunden.</p>
+      </div>
+    </details>
   </section>
 
   <section id="tags" class="panel tab-panel" data-tab-panel="tags" hidden>
@@ -1537,9 +1583,12 @@ def index_html() -> str:
     <div class="panel-header">
       <div>
         <h2>Collections</h2>
-        <p class="subtitle">Alle Sammlungen mit Anzahl. Klick filtert die Bookmark-Liste.</p>
+        <p class="subtitle">Alle Sammlungen mit Anzahl und Pflege-Score. Klick filtert die Bookmark-Liste.</p>
       </div>
-      <button type="button" id="refresh-collections">Aktualisieren</button>
+      <div class="inline-actions">
+        <button type="button" id="refresh-collection-scores">Scores neu berechnen</button>
+        <button type="button" id="refresh-collections">Aktualisieren</button>
+      </div>
     </div>
     <div id="collections-list" class="history-list"></div>
   </section>
@@ -2224,21 +2273,61 @@ def index_html() -> str:
       });
     }
 
+    let collectionScores = {};
+
+    async function refreshCollectionScores() {
+      const resp = await fetch('/api/collections/scores');
+      if (!resp.ok) return;
+      const payload = await resp.json();
+      collectionScores = {};
+      for (const s of (payload.scores || [])) {
+        collectionScores[s.collection] = s;
+      }
+      // Re-render collection rows if already loaded
+      collectionsListEl.querySelectorAll('[data-filter-collection]').forEach((row) => {
+        const coll = row.dataset.filterCollection;
+        const scoreEl = row.querySelector('.care-score');
+        if (scoreEl && collectionScores[coll] !== undefined) {
+          const s = collectionScores[coll];
+          scoreEl.textContent = `${s.score}`;
+          scoreEl.className = `care-score ${s.score >= 80 ? 'care-score-good' : s.score >= 50 ? 'care-score-mid' : 'care-score-bad'}`;
+          scoreEl.title = `Metadaten ${s.factors.metadata}% · Dedup ${s.factors.dedup}% · Tags ${s.factors.tags}% · Links ${s.factors.links}%`;
+        }
+      });
+    }
+
     async function refreshCollections() {
-      const response = await fetch('/api/collections');
-      if (response.status === 401) { await loadAuth(); return; }
-      const payload = await response.json();
+      const [colResp, scoreResp] = await Promise.all([
+        fetch('/api/collections'),
+        fetch('/api/collections/scores')
+      ]);
+      if (colResp.status === 401) { await loadAuth(); return; }
+      const payload = await colResp.json();
       const collections = payload.collections || [];
+      if (scoreResp.ok) {
+        const sp = await scoreResp.json();
+        collectionScores = {};
+        for (const s of (sp.scores || [])) collectionScores[s.collection] = s;
+      }
       if (!collections.length) {
         collectionsListEl.innerHTML = '<div class="empty">Noch keine Collections vorhanden.</div>';
         return;
       }
-      collectionsListEl.innerHTML = collections.map((c) => `
+      collectionsListEl.innerHTML = collections.map((c) => {
+        const s = collectionScores[c.collection];
+        const scoreHtml = s !== undefined
+          ? `<span class="care-score ${s.score >= 80 ? 'care-score-good' : s.score >= 50 ? 'care-score-mid' : 'care-score-bad'}"
+                title="Metadaten ${s.factors.metadata}% &middot; Dedup ${s.factors.dedup}% &middot; Tags ${s.factors.tags}% &middot; Links ${s.factors.links}%">${s.score}</span>`
+          : '';
+        return `
         <div class="collection-row" data-filter-collection="${escapeAttr(c.collection)}">
           <span class="coll-name">${escapeHtml(c.collection)}</span>
-          <span class="coll-count">${c.count} Bookmark${c.count !== 1 ? 's' : ''}</span>
-        </div>
-      `).join('');
+          <span style="display:flex;align-items:center;gap:.5rem;">
+            ${scoreHtml}
+            <span class="coll-count">${c.count} Bookmark${c.count !== 1 ? 's' : ''}</span>
+          </span>
+        </div>`;
+      }).join('');
       collectionsListEl.querySelectorAll('[data-filter-collection]').forEach((row) => {
         row.addEventListener('click', () => {
           clearBookmarkFilters();
@@ -2247,6 +2336,60 @@ def index_html() -> str:
           refreshBookmarks();
         });
       });
+    }
+
+    async function refreshFavoritesReport() {
+      const resp = await fetch('/api/favorites/report');
+      if (resp.status === 401) { await loadAuth(); return; }
+      const report = await resp.json();
+      renderFavoritesReport(report);
+    }
+
+    function renderFavoritesReport(report) {
+      const uncategorized = report.uncategorized || [];
+      const duplicated = report.duplicated || [];
+      const dead = report.dead || [];
+      const hasIssues = uncategorized.length || duplicated.length || dead.length;
+
+      document.querySelector('#favorites-report-empty').hidden = hasIssues;
+
+      const uncatEl = document.querySelector('#favorites-report-uncategorized');
+      uncatEl.hidden = !uncategorized.length;
+      if (uncategorized.length) {
+        document.querySelector('#uncategorized-count').textContent = uncategorized.length;
+        document.querySelector('#uncategorized-list').innerHTML = uncategorized.map((b) => `
+          <div class="fav-card">
+            <a class="fav-title" href="${escapeAttr(b.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(b.title || b.url)}</a>
+            <div class="fav-meta">${escapeHtml(b.domain || '')} &middot; Keine Collection</div>
+          </div>`).join('');
+      }
+
+      const dupEl = document.querySelector('#favorites-report-duplicated');
+      dupEl.hidden = !duplicated.length;
+      if (duplicated.length) {
+        document.querySelector('#duplicated-count').textContent = duplicated.length;
+        document.querySelector('#duplicated-list').innerHTML = duplicated.map((group) => `
+          <div class="mini-card">
+            <p class="muted" style="font-size:.85rem;margin:0 0 .4rem;">${escapeHtml(group.normalized_url)}</p>
+            ${group.bookmarks.map((b) => `
+              <div class="fav-card" style="margin:.25rem 0;">
+                <a class="fav-title" href="${escapeAttr(b.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(b.title || b.url)}</a>
+                <div class="fav-meta">${escapeHtml(b.domain || '')} &middot; ${(b.collections || []).map((c) => escapeHtml(c)).join(', ') || 'Keine Collection'}</div>
+              </div>`).join('')}
+          </div>`).join('');
+      }
+
+      const deadEl = document.querySelector('#favorites-report-dead');
+      deadEl.hidden = !dead.length;
+      if (dead.length) {
+        document.querySelector('#dead-count').textContent = dead.length;
+        document.querySelector('#dead-list').innerHTML = dead.map((entry) => `
+          <div class="dead-item">
+            <a class="fav-title" href="${escapeAttr(entry.bookmark.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.bookmark.title || entry.bookmark.url)}</a>
+            <div class="dead-url">${escapeHtml(entry.bookmark.url)}</div>
+            <div class="dead-error">${entry.check.status_code ? 'HTTP ' + entry.check.status_code : ''} ${escapeHtml(entry.check.error || 'Verbindungsfehler')}</div>
+          </div>`).join('');
+      }
     }
 
     function openQuickAdd(prefillUrl = '') {
@@ -3939,6 +4082,24 @@ def index_html() -> str:
     document.querySelector('#refresh-favorites').addEventListener('click', refreshFavorites);
     document.querySelector('#refresh-tags').addEventListener('click', refreshTags);
     document.querySelector('#refresh-collections').addEventListener('click', refreshCollections);
+    document.querySelector('#refresh-collection-scores').addEventListener('click', refreshCollectionScores);
+    document.querySelector('#refresh-favorites-report').addEventListener('click', refreshFavoritesReport);
+    document.querySelector('#check-favorite-links').addEventListener('click', async () => {
+      const btn = document.querySelector('#check-favorite-links');
+      const status = document.querySelector('#link-check-status');
+      btn.disabled = true;
+      status.textContent = 'Pruefe Links...';
+      try {
+        const resp = await fetch('/api/favorites/check', {method: 'POST', headers: {'content-type': 'application/json'}, body: '{}'});
+        const data = await resp.json();
+        status.textContent = `${data.checked || 0} Links geprueft.`;
+        await refreshFavoritesReport();
+      } catch {
+        status.textContent = 'Fehler beim Link-Check.';
+      } finally {
+        btn.disabled = false;
+      }
+    });
     document.querySelector('#show-favorites-in-bookmarks').addEventListener('click', () => {
       clearBookmarkFilters();
       document.querySelector('#filter-favorite').checked = true;

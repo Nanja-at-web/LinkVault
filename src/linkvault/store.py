@@ -16,7 +16,7 @@ from typing import Any, Callable, Iterator
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from .metadata import PageMetadata, fetch_url_metadata
+from .metadata import PageMetadata, check_url_health, fetch_url_metadata
 from .url_tools import normalize_url
 
 
@@ -436,6 +436,18 @@ class BookmarkStore:
             )
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_sync_snapshots_created_at ON sync_snapshots(created_at DESC)"
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS link_checks (
+                    bookmark_id TEXT PRIMARY KEY,
+                    url TEXT NOT NULL DEFAULT '',
+                    ok INTEGER NOT NULL DEFAULT 0,
+                    status_code INTEGER NOT NULL DEFAULT 0,
+                    error TEXT NOT NULL DEFAULT '',
+                    checked_at TEXT NOT NULL DEFAULT ''
+                )
+                """
             )
             connection.execute(
                 """
@@ -1202,6 +1214,219 @@ class BookmarkStore:
             "diverged": {"count": len(diverged), "items": diverged[:max_items]},
             "linkvault_only": {"count": len(linkvault_only), "items": linkvault_only[:max_items]},
         }
+
+    # ------------------------------------------------------------------
+    # Link health checks (light — favorites only)
+    # ------------------------------------------------------------------
+
+    def check_favorite_links(self) -> list[dict[str, Any]]:
+        """Check HTTP reachability for all active favorites.
+
+        Uses a thread pool (max 8) to parallelise HEAD/GET checks.
+        Stores results in link_checks and returns the full list.
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT id, url FROM bookmarks WHERE status = 'active' AND favorite = 1 ORDER BY created_at DESC"
+            ).fetchall()
+
+        items = [(row["id"], row["url"]) for row in rows]
+        if not items:
+            return []
+
+        now = datetime.now(UTC).isoformat()
+        raw_results: list[tuple[str, str, dict[str, Any]]] = []
+
+        def _check(bookmark_id: str, url: str) -> tuple[str, str, dict[str, Any]]:
+            return bookmark_id, url, check_url_health(url)
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {executor.submit(_check, bid, url): bid for bid, url in items}
+            for future in as_completed(futures):
+                try:
+                    raw_results.append(future.result())
+                except Exception as exc:  # noqa: BLE001
+                    bid = futures[future]
+                    url = next(u for i, u in items if i == bid)
+                    raw_results.append((bid, url, {"ok": False, "status_code": 0, "error": str(exc)}))
+
+        with self.connect() as connection:
+            for bookmark_id, url, result in raw_results:
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO link_checks
+                        (bookmark_id, url, ok, status_code, error, checked_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        bookmark_id,
+                        url,
+                        int(bool(result.get("ok"))),
+                        int(result.get("status_code", 0)),
+                        str(result.get("error", "")),
+                        now,
+                    ),
+                )
+
+        self.record_activity("link_check_completed", {"favorite_count": len(raw_results), "checked_at": now})
+
+        return [
+            {
+                "bookmark_id": bid,
+                "url": url,
+                "ok": bool(r.get("ok")),
+                "status_code": int(r.get("status_code", 0)),
+                "error": str(r.get("error", "")),
+                "checked_at": now,
+            }
+            for bid, url, r in raw_results
+        ]
+
+    def favorites_report(self) -> dict[str, Any]:
+        """Return a structured report of favorites needing attention.
+
+        Categories:
+        - uncategorized: favorites with no real collection (only Inbox or empty)
+        - duplicated:    groups of favorites sharing the same normalized URL
+        - dead:          favorites whose last link check returned not-ok
+        """
+        with self.connect() as connection:
+            bm_rows = connection.execute(
+                "SELECT * FROM bookmarks WHERE status = 'active' AND favorite = 1 ORDER BY created_at DESC"
+            ).fetchall()
+            check_rows = connection.execute(
+                "SELECT bookmark_id, ok, status_code, error, checked_at FROM link_checks"
+            ).fetchall()
+
+        favorites = [bookmark_from_row(row) for row in bm_rows]
+        checks = {row["bookmark_id"]: dict(row) for row in check_rows}
+
+        # Uncategorized: only Inbox or no real collection
+        uncategorized = []
+        for bm in favorites:
+            real = [c for c in bm.collections if c.strip() and c.strip().lower() != "inbox"]
+            if not real:
+                uncategorized.append(bm.to_dict())
+
+        # Duplicated: same normalized_url among favorites
+        url_groups: dict[str, list[dict[str, Any]]] = {}
+        for bm in favorites:
+            url_groups.setdefault(bm.normalized_url, []).append(bm.to_dict())
+        duplicated = [
+            {"normalized_url": url, "bookmarks": blist}
+            for url, blist in url_groups.items()
+            if len(blist) > 1
+        ]
+
+        # Dead: favorites with a not-ok check result
+        fav_ids = {bm.id for bm in favorites}
+        dead = []
+        for bm in favorites:
+            chk = checks.get(bm.id)
+            if chk and not chk["ok"]:
+                dead.append(
+                    {
+                        "bookmark": bm.to_dict(),
+                        "check": {
+                            "ok": bool(chk["ok"]),
+                            "status_code": chk["status_code"],
+                            "error": chk["error"],
+                            "checked_at": chk["checked_at"],
+                        },
+                    }
+                )
+
+        checked_favs = {bid: c for bid, c in checks.items() if bid in fav_ids}
+        ok_count = sum(1 for c in checked_favs.values() if c["ok"])
+        last_checked_at = max((c["checked_at"] for c in checked_favs.values()), default="")
+
+        return {
+            "uncategorized": uncategorized,
+            "duplicated": duplicated,
+            "dead": dead,
+            "check_summary": {
+                "total_favorites": len(favorites),
+                "total_checked": len(checked_favs),
+                "ok": ok_count,
+                "dead": len(checked_favs) - ok_count,
+                "last_checked_at": last_checked_at,
+            },
+        }
+
+    def collection_care_scores(self) -> list[dict[str, Any]]:
+        """Return a care score (0-100) for each non-Inbox collection.
+
+        Score factors (weights):
+        - metadata  40 %: fraction of bookmarks with non-empty title AND description
+        - dedup     30 %: fraction NOT sharing normalized_url with another bookmark
+        - tags      15 %: fraction with at least one tag
+        - links     15 %: fraction with ok link check (unchecked = neutral = 1.0)
+
+        Lower scores surface collections that need the most attention.
+        Sorted by score ascending (worst first).
+        """
+        with self.connect() as connection:
+            bm_rows = connection.execute(
+                "SELECT id, title, description, tags, collections, normalized_url FROM bookmarks WHERE status = 'active'"
+            ).fetchall()
+            dup_rows = connection.execute(
+                """
+                SELECT normalized_url FROM bookmarks
+                WHERE status = 'active'
+                GROUP BY normalized_url HAVING COUNT(*) > 1
+                """
+            ).fetchall()
+            chk_rows = connection.execute(
+                "SELECT bookmark_id, ok FROM link_checks"
+            ).fetchall()
+
+        dup_urls = {row["normalized_url"] for row in dup_rows}
+        link_ok: dict[str, bool] = {row["bookmark_id"]: bool(row["ok"]) for row in chk_rows}
+
+        # Group rows by collection (skip Inbox)
+        coll_bmarks: dict[str, list[Any]] = {}
+        for row in bm_rows:
+            for coll in decode_list(str(row["collections"])):
+                if not coll.strip() or coll.strip().lower() == "inbox":
+                    continue
+                coll_bmarks.setdefault(coll, []).append(row)
+
+        result = []
+        for coll, bmarks in coll_bmarks.items():
+            n = len(bmarks)
+            if n == 0:
+                continue
+
+            meta = sum(
+                1 for b in bmarks if str(b["title"]).strip() and str(b["description"]).strip()
+            ) / n
+
+            dedup = sum(1 for b in bmarks if b["normalized_url"] not in dup_urls) / n
+
+            tags = sum(1 for b in bmarks if decode_list(str(b["tags"]))) / n
+
+            checked = [b for b in bmarks if b["id"] in link_ok]
+            links = (sum(1 for b in checked if link_ok[b["id"]]) / len(checked)) if checked else 1.0
+
+            score = int(round(meta * 40 + dedup * 30 + tags * 15 + links * 15))
+
+            result.append(
+                {
+                    "collection": coll,
+                    "count": n,
+                    "score": score,
+                    "factors": {
+                        "metadata": int(round(meta * 100)),
+                        "dedup": int(round(dedup * 100)),
+                        "tags": int(round(tags * 100)),
+                        "links": int(round(links * 100)),
+                    },
+                }
+            )
+
+        return sorted(result, key=lambda x: (x["score"], x["collection"]))
 
     def activity_events(self, limit: int = 50) -> list[dict[str, Any]]:
         with self.connect() as connection:
