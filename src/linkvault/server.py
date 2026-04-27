@@ -791,6 +791,26 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 return
             self.send_json({"user": user.to_dict()})
             return
+        # PATCH /api/bookmarks/<id>/archive-status
+        if path.startswith("/api/bookmarks/") and path.endswith("/archive-status"):
+            if not self.require_auth(auth_store):
+                return
+            bookmark_id = path.removeprefix("/api/bookmarks/").removesuffix("/archive-status")
+            try:
+                payload = self.read_json()
+                status = str(payload.get("archive_status", ""))
+                bookmark = make_store().set_archive_status(bookmark_id, status)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                return
+            except json.JSONDecodeError:
+                self.send_json({"error": "invalid json"}, HTTPStatus.BAD_REQUEST)
+                return
+            if not bookmark:
+                self.send_json({"error": "bookmark not found"}, HTTPStatus.NOT_FOUND)
+                return
+            self.send_json(bookmark.to_dict())
+            return
         self.update_bookmark()
 
     def do_PUT(self) -> None:
@@ -1283,6 +1303,9 @@ def index_html() -> str:
     .care-score-good { background: #d4edda; color: #1a5c2a; }
     .care-score-mid  { background: #fff3cd; color: #7a5800; }
     .care-score-bad  { background: #f8d7da; color: #7a1a20; }
+    .archive-ok      { background: #d4edda; color: #1a5c2a; font-size: .8rem; padding: .1rem .45rem; }
+    .archive-pending { background: #fff3cd; color: #7a5800; font-size: .8rem; padding: .1rem .45rem; }
+    .archive-fail    { background: #f8d7da; color: #7a1a20; font-size: .8rem; padding: .1rem .45rem; }
     .dead-item { background: #fff5f5; border: 1px solid #f5c6cb; border-radius: 8px; padding: .5rem .85rem; }
     .dead-item .dead-url { color: var(--muted); font-size: .85rem; word-break: break-all; }
     .dead-item .dead-error { color: #c53030; font-size: .82rem; }
@@ -2177,6 +2200,7 @@ def index_html() -> str:
                 ${showDate ? `<div class="meta-line">Hinzugefuegt: ${escapeHtml(shortDate(bookmark.created_at))} · Geaendert: ${escapeHtml(shortDate(bookmark.updated_at))}</div>` : ''}
                 ${showFavoritePin ? `<div class="meta-line">${bookmark.favorite ? 'Favorit' : 'kein Favorit'} · ${bookmark.pinned ? 'Pin' : 'kein Pin'}</div>` : ''}
                 ${showStatus && bookmark.status !== 'active' ? `<div class="meta-line">Status: ${escapeHtml(bookmark.status)}${bookmark.merged_into ? ` · zusammengefuehrt in ${escapeHtml(bookmark.merged_into.slice(0, 8))}` : ''}</div>` : ''}
+                ${bookmark.archive_status ? `<div class="meta-line">${renderArchiveBadge(bookmark.archive_status)}</div>` : ''}
               </div>
               <div>${showTags ? renderBadges('tag', bookmark.tags) : ''}${showCollections ? renderBadges('collection', bookmark.collections) : ''}</div>
               ${showDescription && bookmark.description ? `<p class="description">${escapeHtml(bookmark.description)}</p>` : ''}
@@ -2200,6 +2224,14 @@ def index_html() -> str:
               <label>Tags <input name="tags" value="${escapeAttr(bookmark.tags.join(', '))}"></label>
               <label>Collections <input name="collections" value="${escapeAttr(bookmark.collections.join(', '))}"></label>
               <label>Notizen <textarea name="notes">${escapeHtml(bookmark.notes || '')}</textarea></label>
+              <label>Archivstatus
+                <select name="archive_status">
+                  <option value=""${!bookmark.archive_status ? ' selected' : ''}>Kein Archiv</option>
+                  <option value="pending"${bookmark.archive_status === 'pending' ? ' selected' : ''}>Ausstehend</option>
+                  <option value="archived"${bookmark.archive_status === 'archived' ? ' selected' : ''}>Archiviert</option>
+                  <option value="failed"${bookmark.archive_status === 'failed' ? ' selected' : ''}>Fehlgeschlagen</option>
+                </select>
+              </label>
               <button>Speichern</button>
             </form>
           </details>
@@ -2646,6 +2678,17 @@ def index_html() -> str:
 
     function formatValue(value) {
       return Array.isArray(value) ? value.join(', ') : String(value || '-');
+    }
+
+    function renderArchiveBadge(status) {
+      const map = {
+        pending:  {label: 'Archiv: ausstehend', cls: 'archive-pending'},
+        archived: {label: 'Archiviert',          cls: 'archive-ok'},
+        failed:   {label: 'Archiv: Fehler',      cls: 'archive-fail'},
+      };
+      const entry = map[status];
+      if (!entry) return '';
+      return `<span class="badge ${entry.cls}">${entry.label}</span>`;
     }
 
     function renderBadges(kind, values) {

@@ -111,7 +111,13 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 
 ## Phase 3: Archivierung
 
-- [ ] Archivstatus in Bookmark-Liste und Detailansicht sichtbar machen.
+- [x] Archivstatus in Bookmark-Liste und Detailansicht sichtbar machen:
+  `archive_status`-Feld (none/pending/archived/failed) in DB-Schema,
+  Bookmark-Dataclass und allen SQL-Pfaden (INSERT, UPDATE, from_row,
+  from_payload, from_snapshot, to_record, save_bookmark); Badge-Anzeige
+  in der Bookmark-Liste; Archivstatus-Select im Bearbeiten-Formular;
+  `set_archive_status()`-Store-Methode mit Wertevalidierung;
+  `PATCH /api/bookmarks/<id>/archive-status`-Endpunkt.
 - [ ] Reader-Extrakt und gespeicherter Textinhalt nach Readeck-Vorbild.
 - [ ] Optionales Archive-Worker-Profil: Seite abrufen und lesbaren Text
   speichern, spaeter Screenshot/PDF.

@@ -1728,5 +1728,69 @@ class SafariReadingListTest(unittest.TestCase):
         self.assertNotIn("reading-list", urls["https://d.com"]["tags"])
 
 
+class ArchiveStatusTest(unittest.TestCase):
+    def test_archive_status_default_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bm = store.add({"url": "https://example.com", "title": "Example"})
+            self.assertEqual(bm.archive_status, "")
+
+    def test_set_archive_status_archived(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bm = store.add({"url": "https://example.com", "title": "Example"})
+            updated = store.set_archive_status(bm.id, "archived")
+            self.assertIsNotNone(updated)
+            self.assertEqual(updated.archive_status, "archived")
+
+    def test_set_archive_status_persists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bm = store.add({"url": "https://example.com", "title": "Example"})
+            store.set_archive_status(bm.id, "pending")
+            reloaded = store.get(bm.id)
+            self.assertEqual(reloaded.archive_status, "pending")
+
+    def test_set_archive_status_invalid_raises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bm = store.add({"url": "https://example.com", "title": "Example"})
+            with self.assertRaises(ValueError):
+                store.set_archive_status(bm.id, "invalid_value")
+
+    def test_set_archive_status_missing_bookmark_returns_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            result = store.set_archive_status("nonexistent-id", "archived")
+            self.assertIsNone(result)
+
+    def test_archive_status_survives_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bm = store.add({"url": "https://example.com", "title": "Original"})
+            store.set_archive_status(bm.id, "archived")
+            store.update(bm.id, {"title": "Updated Title"}, enrich_metadata=False)
+            reloaded = store.get(bm.id)
+            self.assertEqual(reloaded.archive_status, "archived")
+
+    def test_set_archive_status_clear(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bm = store.add({"url": "https://example.com", "title": "Example"})
+            store.set_archive_status(bm.id, "archived")
+            store.set_archive_status(bm.id, "")
+            reloaded = store.get(bm.id)
+            self.assertEqual(reloaded.archive_status, "")
+
+    def test_archive_status_in_to_dict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            bm = store.add({"url": "https://example.com", "title": "Example"})
+            store.set_archive_status(bm.id, "failed")
+            reloaded = store.get(bm.id)
+            d = reloaded.to_dict()
+            self.assertEqual(d["archive_status"], "failed")
+
+
 if __name__ == "__main__":
     unittest.main()

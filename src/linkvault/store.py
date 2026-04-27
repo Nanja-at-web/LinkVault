@@ -51,6 +51,7 @@ class Bookmark:
     source_folder_path: str = ""
     source_position: int = -1
     source_bookmark_id: str = ""
+    archive_status: str = ""
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
@@ -231,6 +232,7 @@ class BookmarkStore:
                     source_folder_path TEXT NOT NULL DEFAULT '',
                     source_position INTEGER NOT NULL DEFAULT -1,
                     source_bookmark_id TEXT NOT NULL DEFAULT '',
+                    archive_status TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
@@ -247,6 +249,7 @@ class BookmarkStore:
             ensure_column(connection, "bookmarks", "source_folder_path", "TEXT NOT NULL DEFAULT ''")
             ensure_column(connection, "bookmarks", "source_position", "INTEGER NOT NULL DEFAULT -1")
             ensure_column(connection, "bookmarks", "source_bookmark_id", "TEXT NOT NULL DEFAULT ''")
+            ensure_column(connection, "bookmarks", "archive_status", "TEXT NOT NULL DEFAULT ''")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_normalized_url ON bookmarks(normalized_url)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_domain ON bookmarks(domain)")
             connection.execute("CREATE INDEX IF NOT EXISTS idx_bookmarks_status ON bookmarks(status)")
@@ -597,9 +600,9 @@ class BookmarkStore:
                 INSERT INTO bookmarks (
                     id, url, normalized_url, title, description, domain, favicon_url, tags, collections,
                     favorite, pinned, notes, status, merged_into, merged_at, source_browser, source_root,
-                    source_folder_path, source_position, source_bookmark_id, created_at, updated_at
+                    source_folder_path, source_position, source_bookmark_id, archive_status, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 bookmark_to_record(bookmark),
             )
@@ -686,7 +689,8 @@ class BookmarkStore:
                 SET url = ?, normalized_url = ?, title = ?, description = ?, domain = ?, favicon_url = ?,
                     tags = ?, collections = ?, favorite = ?, pinned = ?, notes = ?,
                     status = ?, merged_into = ?, merged_at = ?, source_browser = ?, source_root = ?,
-                    source_folder_path = ?, source_position = ?, source_bookmark_id = ?, updated_at = ?
+                    source_folder_path = ?, source_position = ?, source_bookmark_id = ?,
+                    archive_status = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -709,6 +713,7 @@ class BookmarkStore:
                     bookmark.source_folder_path,
                     bookmark.source_position,
                     bookmark.source_bookmark_id,
+                    bookmark.archive_status,
                     bookmark.updated_at,
                     bookmark.id,
                 ),
@@ -2014,6 +2019,25 @@ class BookmarkStore:
                 )
         return cursor.rowcount > 0
 
+    ARCHIVE_STATUS_VALUES = {"", "pending", "archived", "failed"}
+
+    def set_archive_status(self, bookmark_id: str, status: str) -> Bookmark | None:
+        """Update only the archive_status field of a bookmark."""
+        if status not in self.ARCHIVE_STATUS_VALUES:
+            raise ValueError(f"Invalid archive_status: {status!r}. Must be one of: {sorted(self.ARCHIVE_STATUS_VALUES)}")
+        bookmark = self.get(bookmark_id)
+        if not bookmark:
+            return None
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            connection.execute(
+                "UPDATE bookmarks SET archive_status = ?, updated_at = ? WHERE id = ?",
+                (status, now, bookmark_id),
+            )
+        bookmark.archive_status = status
+        bookmark.updated_at = now
+        return bookmark
+
     def import_browser_html(self, html: str, *, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.import_items(parse_browser_html(html), session_meta=session_meta)
 
@@ -2612,6 +2636,7 @@ def bookmark_from_payload(
         source_folder_path=str(payload.get("source_folder_path", "")),
         source_position=to_int(payload.get("source_position", -1), -1),
         source_bookmark_id=str(payload.get("source_bookmark_id", "")),
+        archive_status=str(payload.get("archive_status", "")),
         created_at=created_at,
         updated_at=updated_at,
     )
@@ -2639,6 +2664,7 @@ def bookmark_from_row(row: sqlite3.Row) -> Bookmark:
         source_folder_path=row["source_folder_path"],
         source_position=row["source_position"],
         source_bookmark_id=row["source_bookmark_id"],
+        archive_status=row["archive_status"] if "archive_status" in row.keys() else "",
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -2666,6 +2692,7 @@ def bookmark_from_snapshot(payload: dict[str, Any]) -> Bookmark:
         source_folder_path=str(payload.get("source_folder_path", "")),
         source_position=to_int(payload.get("source_position", -1), -1),
         source_bookmark_id=str(payload.get("source_bookmark_id", "")),
+        archive_status=str(payload.get("archive_status", "")),
         created_at=str(payload.get("created_at", datetime.now(UTC).isoformat())),
         updated_at=str(payload.get("updated_at", datetime.now(UTC).isoformat())),
     )
@@ -2693,6 +2720,7 @@ def bookmark_to_record(bookmark: Bookmark) -> tuple[Any, ...]:
         bookmark.source_folder_path,
         bookmark.source_position,
         bookmark.source_bookmark_id,
+        bookmark.archive_status,
         bookmark.created_at,
         bookmark.updated_at,
     )
@@ -2704,9 +2732,9 @@ def save_bookmark(connection: sqlite3.Connection, bookmark: Bookmark) -> None:
         INSERT INTO bookmarks (
             id, url, normalized_url, title, description, domain, favicon_url, tags, collections,
             favorite, pinned, notes, status, merged_into, merged_at, source_browser, source_root,
-            source_folder_path, source_position, source_bookmark_id, created_at, updated_at
+            source_folder_path, source_position, source_bookmark_id, archive_status, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             url = excluded.url,
             normalized_url = excluded.normalized_url,
@@ -2727,6 +2755,7 @@ def save_bookmark(connection: sqlite3.Connection, bookmark: Bookmark) -> None:
             source_folder_path = excluded.source_folder_path,
             source_position = excluded.source_position,
             source_bookmark_id = excluded.source_bookmark_id,
+            archive_status = excluded.archive_status,
             created_at = excluded.created_at,
             updated_at = excluded.updated_at
         """,
