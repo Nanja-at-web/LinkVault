@@ -93,12 +93,12 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] Merge-Historie mit Snapshots fuer Gewinner-vorher, Verlierer-vorher und
   Gewinner-nachher.
 - [~] Conflict Center fuer Import-, Sync- und Merge-Konflikte: Import-,
-  Merge- und Companion-Restore-Konflikte sind jetzt sichtbar; fuer
-  Browser-Rueckimport gibt es Vorschau, Entscheidungen pro Link und pro
-  Ordner/Struktur sowie Restore-Sessions mit Abschlussstatus und ersten
-  Konfliktgruppen mit Sammelentscheidungen fuer Zielordner, bestehende
-  Struktur und vorhandene Links, waehrend groessere Sync-/Restore-
-  Konflikte noch folgen.
+  Merge- und Companion-Restore-Konflikte sind jetzt sichtbar; Restore-
+  Sessions zeigen Fortschritt (X/Y erledigt) und bieten Sammelentscheidung
+  pro Gruppe und "Offene mit Standard auflösen" per Session;
+  get_restore_session und apply_session_defaults als Backend; groessere
+  Sync-Konflikte (Drift-Erkennung, Loeschungen, Zwei-Wege-Sync)
+  noch offen.
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 - [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.
 
