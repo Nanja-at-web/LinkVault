@@ -111,7 +111,7 @@ Collections-, Tags-, Archiv- und Einstellungs-Tabs fehlen noch.
 | Phase | Status | Vorhanden | Offen |
 |---|---:|---|---|
 | Phase 0 - Fundament | ~97 % | Struktur, Lizenz, Research-Auswertung, englischer Einstieg, systemd, Windows-Dev-Doku | Docker Compose; Node.js-Checks sauber in lokale/CI-Routine ziehen |
-| Phase 1 - Bookmark-Kern | ~90 % | Login, Rollenbasis mit Admin/User, Passwortwechsel, Benutzerverwaltung, Profil-Tab, Admin-Tab, FTS5, Inbox, Saved Views per Nutzer (user_id-Scope), Grid/List/Compact, Import-Sessions, API-Token, Import-Vorschau, Sortier-/Kategorie-Vorschlaege, Favoriten-Tab, Tags-Tab, Collections-Tab, Einstellungen-Tab | Archiv-Tab; Quick-Add; Sortierung als gespeicherter Standard vollenden |
+| Phase 1 - Bookmark-Kern | ~93 % | Login, Rollenbasis mit Admin/User, Passwortwechsel, Benutzerverwaltung, Profil-Tab, Admin-Tab, FTS5, Inbox, Saved Views per Nutzer (user_id-Scope), Grid/List/Compact, Import-Sessions, API-Token, Import-Vorschau, Sortier-/Kategorie-Vorschlaege, Favoriten-Tab, Tags-Tab, Collections-Tab, Einstellungen-Tab, Quick-Add-Modal | Archiv-Tab; Sortierung als gespeicherter Standard vollenden |
 | Phase 2 - Dedup | ~75 % | URL-Normalisierung, Preflight, Dry-Run, Merge ohne Loeschen, Merge-Undo, Merge-Historie, Conflict Center teilweise | Pflege-Score; tote Favoriten; groessere Sync-/Restore-Konflikte jenseits der aktuellen Rueckimport-Vorschau |
 | Phase 3 - Archivierung | ~5 % | Weiter bewusst zurueckgestellt | Reader-Extrakt, Archivstatus, Screenshot/PDF, Single-HTML |
 | Phase 4 - Automatisierung | ~45 % | Activity/Audit-Log teilweise, API-Token, Companion Extension mit Discovery, Filtern, Preview, Rueckimport und Konfliktentscheidungen | Rule Engine; Smart Collections; API-Token-Testbutton; vollstaendiger Sync; History-Enrichment nur optional |
@@ -178,7 +178,8 @@ aus Roadmap und Status zusammen diese Reihenfolge:
 Erledigt seit letzter Analyse: Profil-Tab, Admin-Tab, Scoped Settings
 (user_id), Haertung (Body-Limit, SQLite-Timeout, JSON-Guards, SSL-Logging),
 Favoriten-Tab, Tags-Tab, Collections-Tab, Einstellungen-Tab,
-Migrations-Robustheit (role/user_id-Spaltenreihenfolge), cssEscape-Fix.
+Migrations-Robustheit (role/user_id-Spaltenreihenfolge), cssEscape-Fix,
+Quick-Add-Modal (N-Shortcut, "+ Neu"-Button, Dubletten-Preflight inline).
 
 ## Fazit
 

@@ -66,7 +66,7 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Schnellfilter in der Bookmark-Liste.
 - [x] Regelbasierte Vorschlaege fuer Tags/Collections aus Domain, Titel,
   Beschreibung und URL.
-- [ ] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
+- [x] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
   Feldern.
 - [x] Ansichtsumschalter fuer Bookmarks: Compact List, Detailed List und Grid.
 - [~] Anzeigeoptionen je Nutzer speichern: Titel, Beschreibung, Notizen, Tags,
