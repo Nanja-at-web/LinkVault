@@ -93,12 +93,11 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
 - [x] Merge-Historie mit Snapshots fuer Gewinner-vorher, Verlierer-vorher und
   Gewinner-nachher.
 - [~] Conflict Center fuer Import-, Sync- und Merge-Konflikte: Import-,
-  Merge- und Companion-Restore-Konflikte sind jetzt sichtbar; Restore-
-  Sessions zeigen Fortschritt (X/Y erledigt) und bieten Sammelentscheidung
-  pro Gruppe und "Offene mit Standard auflösen" per Session;
-  get_restore_session und apply_session_defaults als Backend; groessere
-  Sync-Konflikte (Drift-Erkennung, Loeschungen, Zwei-Wege-Sync)
-  noch offen.
+  Merge- und Companion-Restore-Konflikte vorhanden; Restore-Sessions
+  mit Fortschritt und Sammelentscheidung; Drift-Erkennung mit Snapshot-
+  Baseline (record_sync_snapshot, compute_sync_drift) und vier
+  Kategorien (geloescht, neu, geaendert, nur-LinkVault) vorhanden;
+  destruktiver Zwei-Wege-Sync und Floccus-Bridge noch offen.
 - [~] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen.
 - [ ] Pflege-Score je Sammlung: Metadaten, Archivstatus, Dubletten, tote Links, Kategorisierung.
 
