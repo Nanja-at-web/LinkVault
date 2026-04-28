@@ -1,197 +1,381 @@
 # LinkVault - bereinigte Statusanalyse
 
-**Stand:** 26. April 2026, aktualisiert nach Session
+**Stand:** 28. April 2026  
 **Projekt:** <https://github.com/Nanja-at-web/LinkVault>
 
-## Fragestellung
+## Zweck dieser Statusanalyse
 
-Geprueft wurde der Projektstatus von **LinkVault** anhand der Dokumentation im
-Repository unter `/docs`, der sichtbaren Produktoberflaeche und der lokalen
-Arbeitsbasis.
+Diese Datei bewertet den aktuellen Projektstand von **LinkVault** so, dass die Produktprioritäten konsistent zur aktuellen Projektmission bleiben.
 
-## Bereinigung der Ausgangsinformation
+### Verbindliche Produktlinie
 
-Die fruehere Statusanalyse war als Zwischenstand brauchbar, ist aber inzwischen
-an mehreren Stellen ueberholt. Besonders die dort genannten "naechsten
-Schritte" (`Import-Sessions`, `Merge-Undo`, `Saved Views`) sind inzwischen
-nicht mehr offen, sondern umgesetzt. Diese Fassung fasst deshalb den
-aktuelleren, konsolidierten Stand zusammen.
+LinkVault ist primär ein:
 
-## Beruecksichtigte Dokumente
+- self-hosted Bookmark-Manager
+- Favoriten-Manager
+- Link-Organisationssystem
+- Dubletten-Bereinigungswerkzeug
+- Import-/Export- und Sync-fähiges Selfhost-Produkt
 
-- `ROADMAP.md` und `ROADMAP.en.md`
-- `ROADMAP_SOLUTIONS.md`
-- `RESEARCH_IMPACT.md`
-- `ARCHITECTURE.md`
-- `PRODUCT_SPEC.md`
-- `DEDUP_SORTING_CATEGORIZATION.md`
-- `BACKUP_RESTORE.md`
-- `DEBIAN_LXC_TEST.md`
-- `PROXMOX_COMMUNITY_SCRIPT.md`
-- `COMPANION_EXTENSION.md`
-- `DEVELOPMENT_WINDOWS.md`
+LinkVault ist **nicht primär**:
 
-## Kernaussagen
+- ein Read-later-Produkt
+- eine Reader-App
+- ein Webarchiv als Hauptprodukt
+- eine Knowledge Base
+- ein Notiztool mit Bookmark-Nebenfunktion
 
-### Dokumentation und Produktdenken sind weiterhin eine Staerke
+Archiv-, Reader- oder Webarchive-Funktionen dürfen später optional ergänzt werden, sind aber **nicht** die Hauptmission.
 
-`PRODUCT_SPEC.md`, `ARCHITECTURE.md`, `DEDUP_SORTING_CATEGORIZATION.md` und
-`RESEARCH_IMPACT.md` wirken fuer ein Solo-Fruehprojekt weiterhin ungewoehnlich
-reif. LinkVault ist nicht als loses Bookmark-Frontend gedacht, sondern als
-bewusst kleine, selfhost-taugliche Synthese aus:
+---
 
-- linkding-artiger URL-Deduplizierung
-- Karakeep-/Linkwarden-Ideen fuer Organisation und spaetere Automation
-- Readeck-/Shiori-Naehe bei Betrieb und Leichtgewichtigkeit
-- community-scripts-/Proxmox-Tauglichkeit
+## Kurzfazit
 
-### Proxmox ist echtes Engineering, nicht nur eine Idee
+LinkVault ist technisch und betrieblich bereits stärker als die sichtbare Hauptoberfläche vermuten lässt.
 
-Die Doku belegt nicht nur einen Installationswunsch, sondern einen real
-geprueften Betriebsweg:
+Die größten Stärken liegen aktuell in:
 
-- LXC-Installation auf echter Proxmox-Hardware
-- Healthcheck erfolgreich
-- Backup/Restore getestet
-- Update getestet
-- Post-Install-Helper vorhanden
-- Migration in einen frischen zweiten LXC nachgewiesen
+- dedup-/merge-orientierter Datenpflege
+- Import-/Restore-/Konfliktlogik
+- Proxmox-/LXC-Betriebsfähigkeit
+- Backup/Restore/Update
+- Bookmark-Metadaten und Browser-/Extension-Nähe
+- strukturiertem Projektdenken und solider Dokumentation
 
-Das ist fuer Version 1 ein echter Vertrauensfaktor.
+Die größte sichtbare Schwäche bleibt:
 
-### ROADMAP_SOLUTIONS.md bleibt der beste Planungsanker
+- die **Hauptoberfläche**
+- die **Navigationsarchitektur**
+- die **klare bookmark-zentrierte Arbeitsansicht**
+- die **Favoriten-/Listen-/Collections-/Tags-Operabilität im Frontend**
+- die **sichtbare, alltagstaugliche Dublettenpflege im UI**
 
-Das Dokument ist weiterhin der reifste Plan, aber sein frueherer "naechster
-Sprint" ist zum Teil bereits abgearbeitet. Fuer die aktuelle Priorisierung
-muessen daher `ROADMAP.md` und der aktuelle Workspace mitgelesen werden.
+Kurz gesagt:
 
-### Companion Extension ist nicht mehr nur Preview, sondern ein echter Teil des Produkts
+**Backend, Betriebsfähigkeit und Datenlogik sind vielerorts weiter als das Produktgefühl in der Oberfläche.**
 
-Der Stand ist weiter als in der alten Analyse beschrieben. Im Projekt vorhanden
-und dokumentiert sind inzwischen:
+---
 
-- Firefox-/Chromium-Support
-- API-Token und Discovery
-- Speichern des aktuellen Tabs
-- Browser-Bookmark-Lesen
+## Strategische Korrektur
+
+Frühere Dokumente und Zwischenstände haben LinkVault teils zu stark in Richtung:
+
+- Archivierung
+- Restore-/Konfliktzentrum
+- Read-later-Nähe
+- sekundäre Admin-/Systemthemen
+
+gezogen.
+
+Diese Statusanalyse korrigiert das.
+
+### Neue Prioritätsregel
+
+Wenn eine Aufgabe nicht dazu beiträgt, LinkVault als **besseren Bookmark-/Favoriten-/Link-Manager mit Dublettenbehandlung und Sync-Fähigkeit** zu machen, dann ist sie aktuell nachrangig.
+
+---
+
+## Kernaussagen zum Produktstatus
+
+### 1. Der Bookmark-Kern ist substanziell vorhanden
+
+Bereits sichtbar oder dokumentiert vorhanden sind wesentliche Grundlagen für den Bookmark-Kern:
+
+- Bookmarks speichern
+- URL-Normalisierung
+- Metadaten-Ermittlung
+- Favoriten
+- Tags
+- Collections / Listen-Strukturen
+- Volltextsuche
+- Filterung
+- Saved Views
 - Import-Vorschau
-- Importfilter fuer Ordner, Textsuche, Adresse/Domain und Datum
-- gefilterter LinkVault-Export
-- Browser-Rueckimport in neuen oder bestehende Ordner
-- Conflict-Center-Anbindung fuer Link-, Zielordner- und Ordner-/Struktur-
-  Konflikte mit ersten Konfliktgruppen und Sammelentscheidungen fuer
-  Restore-Sessions
+- Browser-/Extension-Anbindung
+- Bulk-nahe Datenpflege
+- dedup-/merge-orientierte Logik
 
-### Auth und Benutzerverwaltung sind jetzt vollstaendig als eigene Bereiche sichtbar
+Das ist eine starke Grundlage.
 
-Im aktuellen Stand vorhanden:
+### 2. Dublettenbehandlung ist bereits eine echte Kernstärke
 
-- Admin/User-Rollen
-- benutzergebundene API-Tokens
-- eigener Passwortwechsel
-- Admin-Passwort-Reset
-- dedizierter **Profil-Tab**: Benutzerinfo, API-Token-Verwaltung, Passwortwechsel
-- dedizierter **Admin-Tab** (nur fuer Admins sichtbar): Benutzerliste, Benutzer
-  anlegen, Rolle aendern, Passwort-Reset, Benutzer loeschen
-- Saved Views per Nutzer gespeichert (`user_id`-Scope in `user_settings`)
-- Robustheit: Body-Limit gegen DoS, SQLite-Timeout, JSON-Fehlerbehandlung,
-  SSL-Fallback-Logging
+LinkVault hat bei der Dublettenlogik schon jetzt ein Profil, das über viele Referenztools hinausgehen kann.
 
-Das ist noch kein grosses Rollen- oder SSO-System, aber die Kern-Auth-Features
-sind jetzt als eigenstaendige, sauber getrennte UI-Bereiche erreichbar.
+Vorhanden oder geplant im Kern:
 
-### Die groesste sichtbare Luecke bleibt die Frontend-Navigation
+- URL-Normalisierung
+- Duplicate Preflight
+- Dry-Run
+- Merge ohne blindes Löschen
+- Merge-Historie / Undo-Richtung
+- Konfliktorientierte Review
+- sichere Merge- und Pflege-Workflows
+- Erhalt wichtiger Daten statt destruktiver Bereinigung
 
-Backend, Infrastruktur, Deduplizierung, Importlogik, Proxmox und Extension sind
-in vielen Bereichen weiter als die sichtbare Hauptoberflaeche. Favoriten-,
-Collections-, Tags-, Archiv- und Einstellungs-Tabs fehlen noch.
+### 3. Infrastruktur und Selfhosting sind ungewöhnlich weit
 
-## Roadmap-Status nach Phasen
+Für ein noch junges Projekt ist die Betriebsseite stark:
 
-| Phase | Status | Vorhanden | Offen |
-|---|---:|---|---|
-| Phase 0 - Fundament | ~97 % | Struktur, Lizenz, Research-Auswertung, englischer Einstieg, systemd, Windows-Dev-Doku | Docker Compose; Node.js-Checks sauber in lokale/CI-Routine ziehen |
-| Phase 1 - Bookmark-Kern | ~93 % | Login, Rollenbasis mit Admin/User, Passwortwechsel, Benutzerverwaltung, Profil-Tab, Admin-Tab, FTS5, Inbox, Saved Views per Nutzer (user_id-Scope), Grid/List/Compact, Import-Sessions, API-Token, Import-Vorschau, Sortier-/Kategorie-Vorschlaege, Favoriten-Tab, Tags-Tab, Collections-Tab, Einstellungen-Tab, Quick-Add-Modal | Archiv-Tab; Sortierung als gespeicherter Standard vollenden |
-| Phase 2 - Dedup | ~85 % | URL-Normalisierung, Preflight, Dry-Run, Merge ohne Loeschen, Merge-Undo, Merge-Historie, Conflict Center mit Session-Fortschritt, Sammelentscheidung pro Gruppe, apply_session_defaults, get_restore_session, Sync-Drift-Erkennung (Snapshot-Baseline, vier Drift-Kategorien, API, UI) | Pflege-Score; tote Favoriten; destruktiver Zwei-Wege-Sync; Floccus-Bridge |
-| Phase 3 - Archivierung | ~5 % | Weiter bewusst zurueckgestellt | Reader-Extrakt, Archivstatus, Screenshot/PDF, Single-HTML |
-| Phase 4 - Automatisierung | ~45 % | Activity/Audit-Log teilweise, API-Token, Companion Extension mit Discovery, Filtern, Preview, Rueckimport und Konfliktentscheidungen | Rule Engine; Smart Collections; API-Token-Testbutton; vollstaendiger Sync; History-Enrichment nur optional |
-| Phase 5 - Proxmox | ~80 % | Echter LXC-Betrieb, Installations-, Backup-, Restore-, Update- und Migrationstest, Post-Install-Helper | `build.func`/`install.func`-Konventionen; Default-/Advanced-Mode; ProxmoxVED-/community-scripts-Vorbereitung |
-| Phase 6 - Migrationen | ~30 % | Chromium-JSON, Firefox-JSON teilweise, Safari-ZIP teilweise, HTML-Import mit Vorschau | JSONLZ4, generischer CSV/JSON-Import, weitere Tool-Importe |
+- Proxmox LXC
+- Debian-LXC-Installationspfad
+- Backup/Restore
+- Update-Skripte
+- Helper-Werkzeuge
+- Healthchecks
+- reproduzierbare Testwege
 
-## Was jetzt laut Roadmap wirklich als naechstes sinnvoll ist
+Das ist ein klarer Vertrauensfaktor.
 
-Die frueheren naechsten drei Schritte aus `ROADMAP_SOLUTIONS.md`
-(`Import-Sessions`, `Merge-Undo`, `Saved Views`) sind inzwischen erledigt.
-Dadurch verschiebt sich der Fokus.
+### 4. Die Produktidentität ist im UI noch nicht klar genug sichtbar
 
-### 1. Conflict Center fuer groessere Sync-/Restore-Faelle ausbauen
+Der größte Mangel ist nicht nur „fehlende Optik“, sondern eine fehlende oder zu schwache bookmark-zentrierte Hauptarbeitsoberfläche.
 
-Die Basis fuer Import-, Merge- und Companion-Restore-Konflikte steht bereits.
-Der naechste starke Kernschritt ist daher:
+Die sichtbare Oberfläche muss deutlicher zeigen:
 
-- groessere Browser-Sync-/Restore-Konflikte
-- klarere Konfliktvorschau fuer Struktur und Zielkonflikte
-- spaetere Konfliktlogik fuer echte Ruecksynchronisation, nicht nur sicheren Restore
+- wo neue Bookmarks landen
+- wo Favoriten liegen
+- wie Tags / Lists / Collections gepflegt werden
+- wo Dubletten aktiv bearbeitet werden
+- wie Import / Export / Sync alltagsnah bedienbar sind
 
-### 2. Frontend-Navigation endlich vollstaendig machen
+---
 
-Favoriten-, Tags-, Collections- und Einstellungs-Tab sind jetzt vorhanden.
-Verbleibend:
+## Aktueller Stärkenblock
 
-- Archiv-Tab
-- Einstellungen-Tab ausbauen (bisher nur Platzhalter)
+## A. Daten- und Pflegequalität
 
-Die Nutzerwirkung davon ist groesser als weiterer unsichtbarer Unterbau.
+Stark oder vielversprechend:
 
-### 3. Quick-Add bauen
+- nicht-destruktive Dublettenlogik
+- Merge statt blindem Löschen
+- Herkunfts- und Konfliktbewusstsein
+- saubere Import-Vorschau
+- nachvollziehbare Status-/Pflegeflüsse
 
-Der Bookmark-Kern ist funktional, aber noch nicht leicht genug fuer den
-Alltagseinstieg. Ein kurzer Standarddialog mit Inbox-Default ist weiterhin ein
-starker Roadmap-Punkt.
+## B. Betriebsqualität
 
-### 4. Migrationen verbreitern
+Stark:
 
-Nach HTML, Chromium-JSON und den ersten Firefox-/Safari-Pfaden ist jetzt der
-sinnvolle naechste Migrationsblock:
+- Proxmox-/LXC-Fokus
+- Backup-/Restore-/Update-Fähigkeit
+- Helper/Operations-Denken
+- geringer Core-Anspruch an die Laufzeitumgebung
 
-- generischer CSV-/JSON-Import
-- Firefox JSONLZ4
-- danach einzelne Tool-Importer
+## C. Produktbasis
 
-### 5. ProxmoxVED/community-scripts vorbereiten, aber nicht vorziehen
+Stark:
 
-Die technische Vorarbeit ist bereits stark genug, um ernst genommen zu werden.
-Offizielle community-scripts-/ProxmoxVED-Konformitaet sollte trotzdem erst
-nach den groesseren Produktluecken kommen.
+- klare Referenztool-Auswertung
+- sinnvolle Orientierung an Karakeep, linkding, Linkwarden, LinkAce, Readeck, Shiori
+- erkennbare Strategie für Bookmark-Organisation und Datenpflege
+
+---
+
+## Größte Schwächen / Lücken
+
+## 1. UI / GUI / Navigation
+
+Die wichtigste offene Produktlücke ist die Hauptoberfläche.
+
+Es fehlt noch eine durchgehend starke bookmark-zentrierte Arbeitsfläche mit:
+
+- klarer Sidebar oder gleichwertiger Primärnavigation
+- deutlicher Trennung von Inbox / All Bookmarks / Favourites / Lists / Collections / Tags / Duplicates / Import / Settings
+- schneller Favoritensteuerung
+- klar sichtbaren Bulk-Aktionen
+- guter Listen-/Tabellen-/Kartenlogik
+- schneller Sortierung und Filterung
+- deutlichem Duplicate-Center
+
+## 2. Quick-Add / Alltagseinstieg
+
+Es fehlt ein ausreichend schneller, alltagstauglicher Standardfluss für:
+
+- neuen Link speichern
+- direkt in Inbox landen
+- optional schnell favorisieren
+- optional mit Tags / Liste / Collection versehen
+- sofortige Duplicate-Warnung
+
+## 3. Favoriten- und Organisations-UX
+
+Favoriten, Tags, Lists und Collections müssen sich wie **echte Arbeitsbereiche** anfühlen.
+
+Nicht ausreichend ist:
+- sie nur als Datenfelder zu besitzen
+
+Sie müssen im Produktalltag leicht nutzbar sein.
+
+## 4. Dedup-UX im Frontend
+
+Die Datenlogik ist stark, aber die Dublettenpflege muss im UI noch sichtbarer und verständlicher werden:
+
+- eigene Dublettenansicht
+- Kandidatengruppen
+- Feldvergleich
+- Gewinner-Vorschlag
+- Merge-Plan
+- Safe Remove
+- Undo-/Historienhinweise
+- Bulk-Bereinigungsmodi
+
+## 5. Migrationen / Importbreite
+
+Import ist schon klar als Kernrichtung erkennbar, aber noch nicht breit genug fertig.
+
+Wichtige nächste Ausbaurichtung:
+- HTML als universelle Baseline gut halten
+- Vendor-Enrichment ausbauen
+- Browserformate erweitern
+- Tool-Importe später ergänzen
+- Rohdaten-Erhalt und Konfliktlogik stabil halten
+
+---
+
+## Was aktuell NICHT zum Hauptfokus werden sollte
+
+Folgende Themen sind aktuell bewusst nachrangig:
+
+- Reader-Extrakte
+- Screenshot/PDF/Single-HTML als Standard
+- WARC
+- große Archiv-Worker als Kernelement
+- AI-Zusammenfassungen
+- Enterprise-/Provisioning-Themen
+- breite Team-/Org-Funktionen
+- große Plattform-/Multi-Service-Ausweitung
+
+Diese Themen sind nicht verboten, aber sie dürfen den Bookmark-Kern nicht verdrängen.
+
+---
+
+## Status nach Arbeitsbereichen
+
+| Bereich | Status | Bewertung |
+|---|---:|---|
+| Fundament / Selfhosting | hoch | bereits ungewöhnlich stark |
+| Bookmark-Kern | hoch | solide Basis, gute Richtung |
+| Favoriten / Organisation | mittel | Datenlogik da, UX/UI noch ausbauen |
+| Suche / Filter / Views | mittel bis hoch | gute Basis, muss UI-seitig stärker werden |
+| Dublettenlogik | hoch | Kernstärke |
+| Dubletten-UI | mittel | deutlich ausbaufähig |
+| Import / Migration | mittel | strategisch richtig, noch ausbauen |
+| Sync-nahe Flows | mittel | hilfreich, aber Kernziel nicht überlagern |
+| Archivierung | niedrig | bewusst nachrangig |
+| Admin / Profile / Betrieb | mittel bis hoch | wichtig, aber nicht die Produktmitte |
+| Frontend-Navigation / GUI | kritisch offen | aktuell größte sichtbare Lücke |
+
+---
+
+## Priorisierte nächste Schritte
+
+## Priorität 1 — sichtbare Bookmark-Arbeitsoberfläche stärken
+
+Als Nächstes sollte LinkVault vor allem im UI/GUI spürbar besser werden.
+
+### Ziel
+Eine Oberfläche, die sofort als Bookmark-/Favoriten-/Link-Manager erkennbar ist.
+
+### Besonders wichtig
+- klare Sidebar / Navigation
+- klare Hauptansicht für Bookmarks
+- starke Suche und Filter
+- sichtbare Favoritensteuerung
+- sichtbare Listen / Collections / Tags
+- klare Bulk-Aktionen
+- sichtbarer Duplicate-Bereich
+
+## Priorität 2 — Quick-Add und Inbox-Flow
+
+Der Alltagseinstieg muss leichter werden.
+
+### Ziel
+Neue Links sollen ohne Reibung erfasst und später sauber organisiert werden.
+
+## Priorität 3 — Duplicate Center UX
+
+Dublettenpflege ist eine Kernstärke von LinkVault und sollte auch als solche erlebbar sein.
+
+### Ziel
+Dubletten nicht nur technisch gut behandeln, sondern UI-seitig klar und sicher pflegbar machen.
+
+## Priorität 4 — Favoriten / Lists / Collections / Tags operativ ausbauen
+
+Diese Organisationsachsen müssen im Alltag stark werden.
+
+### Ziel
+LinkVault soll sich nicht nur nach „Datenmodell“ anfühlen, sondern nach echter Arbeitsumgebung.
+
+## Priorität 5 — Import-/Migrationsbreite erweitern
+
+HTML-Basis halten, Vendor-Enrichment ausbauen, Vorschau-/Konfliktlogik stärken.
+
+## Priorität 6 — Sync-/Restore-/Conflict-Flows gezielt einordnen
+
+Diese Systeme bleiben wichtig, aber nur als Unterstützung für Bookmark-Management und sichere Migration.
+
+---
+
+## Konkrete aktuelle Produktreihenfolge
+
+Die derzeit sinnvollste Reihenfolge ist:
+
+1. UI/GUI-Navigation und Hauptoberfläche bookmark-zentriert fertigziehen
+2. Quick-Add / Inbox / Favoriten / Listen / Collections / Tags im Alltag stärken
+3. Duplicate Center sichtbar und stark machen
+4. Import-/Export-/Migrationspfade erweitern
+5. Sync-/Restore-/Conflict-Flows dort verbessern, wo sie Bookmarks und Migration wirklich helfen
+6. Proxmox-/community-scripts-Reife weiter erhöhen
+7. Archiv-/Reader-Themen erst danach optional ausbauen
+
+---
 
 ## Empfehlung
 
-Wenn man nur nach "Was bringt LinkVault jetzt am weitesten?" fragt, ergibt sich
-aus Roadmap und Status zusammen diese Reihenfolge:
+Wenn man nur fragt:
 
-1. **Conflict Center weiter ausbauen**
-2. **Frontend-Navigation fertigziehen** (Favoriten, Tags, Collections, Einstellungen)
-3. **Quick-Add**
-4. **Migrationen verbreitern**
-5. **Proxmox/community-scripts vorbereiten**
+**„Was bringt LinkVault jetzt am weitesten in Richtung eines starken Produkts?“**
 
-Erledigt seit letzter Analyse: Profil-Tab, Admin-Tab, Scoped Settings
-(user_id), Haertung (Body-Limit, SQLite-Timeout, JSON-Guards, SSL-Logging),
-Favoriten-Tab, Tags-Tab, Collections-Tab, Einstellungen-Tab,
-Migrations-Robustheit (role/user_id-Spaltenreihenfolge), cssEscape-Fix,
-Quick-Add-Modal (N-Shortcut, "+ Neu"-Button, Dubletten-Preflight inline),
-Conflict Center ausgebaut (Session-Fortschritt, apply_session_defaults,
-get_restore_session, json_extract-Query fuer grosse Sessions,
-Sammelentscheidung pro Gruppe direkt in Restore-Sessions-Panel).
+dann lautet die Antwort:
 
-## Fazit
+### Nicht zuerst:
+- mehr Archivtiefe
+- mehr Reader-Funktionen
+- mehr schwere Plattformtechnik
 
-LinkVault ist inzwischen klar mehr als ein MVP auf Papier. Die Mischung aus
-realem Proxmox-Betrieb, Companion-Extension, Deduplizierung mit Undo,
-Import-Sessions, Saved Views und wachsendem Conflict Center zeigt ein echtes
-Produktgeruest.
+### Sondern zuerst:
+- bessere Bookmark-Arbeitsoberfläche
+- stärkere Favoriten-/Organisations-Workflows
+- sichtbare und sichere Dublettenpflege
+- schnellerer Alltagseinstieg
+- robuste Import-/Sync-Grundlage
 
-Der Hebel mit der schnellsten Aussenwirkung bleibt die
-**Frontend-Navigation**. Der Hebel mit dem staerksten technischen Nutzen fuer
-die naechste Produktreife bleibt das **Conflict Center** inklusive
-Companion-Restore und spaeterem Sync/Restore.
+---
+
+## Endbewertung
+
+LinkVault ist aktuell **kein unfertiger Ideenhaufen**, sondern bereits ein ernstzunehmendes Bookmark-/Dedup-/Selfhost-Projekt mit guter technischer Basis.
+
+Der aktuelle Engpass ist nicht:
+- fehlendes Denken
+- fehlende Betriebsfähigkeit
+- fehlende dedup-orientierte Datenlogik
+
+Der Engpass ist vor allem:
+- **sichtbare Produktführung in der Oberfläche**
+- **klare bookmark-zentrierte Navigation**
+- **starke Alltags-Workflows für Favoriten, Organisation und Dublettenpflege**
+
+## Endsatz
+
+LinkVault sollte jetzt nicht breiter, sondern **klarer** werden:
+
+- klarer als Bookmark-Manager
+- klarer als Favoriten-Tool
+- klarer als Dubletten-Bereinigungswerkzeug
+- klarer als selfhosted Sync-/Import-/Export-Plattform
+
+Nicht klarer als Reader oder Archivsystem.
+``` id="vsjvwk"
+
+Wenn du willst, schreibe ich dir als Nächstes direkt auch noch die **bereinigte Fassung für `COMPANION_EXTENSION.md`**, damit die Browser-/Import-/Sync-Richtung ebenfalls konsistent bleibt.
