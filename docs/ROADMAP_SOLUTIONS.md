@@ -1,195 +1,393 @@
-# Roadmap-Loesungsplan
+# Roadmap Solutions
 
-Stand: 2026-04-23
+**Status:** 2026-04-28
 
-Dieses Dokument uebersetzt die offenen Roadmap-Punkte in konkrete
-Loesungswege. Es ist bewusst naeher an Umsetzung als an Wunschliste: Was
-blockiert Version 1, was kann klein geloest werden, und was bleibt optional?
+This document translates the roadmap into concrete implementation direction.
 
-## Leitentscheidung
+It is intentionally more practical than aspirational:
+- what blocks Version 1
+- what should be solved first
+- what can stay lightweight
+- what should remain optional later
 
-LinkVault bleibt im Standard klein und LXC-freundlich:
+---
 
-- Python-MVP, SQLite, FTS5, systemd, Backup/Restore, Update und Companion
-  Extension bleiben der Core.
-- Archivierung, Screenshot/PDF, AI, PostgreSQL, externe Suche und schwere
-  Browser-Worker werden Profile, nicht Pflicht fuer die normale Installation.
-- Vor neuen grossen Features werden Import, Dedup, Sync/Restore und Betrieb
-  stabilisiert.
+## 0. Guiding decision
 
-## Naechste Prioritaeten
+LinkVault remains **small, bookmark-first and LXC-friendly by default**.
 
-1. **Conflict Center weiter ausbauen**
-   Import, Merge und Browser-Restore sind bereits angebunden. Als naechstes
-   fehlen nach den ersten Konfliktgruppen fuer Zielordner, bestehende
-   Struktur und vorhandene Links mit Sammelentscheidungen groessere
-   Sync-/Restore-Konflikte,
-   Konfliktvorschau fuer komplexere Strukturfaelle und spaetere
-   Konfliktlogik fuer destruktive Syncs.
-   Fuer spaeter vormerken: kleine Struktur-Vorschau pro Konfliktgruppe,
-   also nicht nur Textzaehler wie "3 parallele Ordner", sondern konkrete
-   Mini-Vorher/Nachher-Pfade.
+### Core path
+The default product path stays focused on:
+- bookmark management
+- favorites
+- tags / lists / collections
+- search / filters / sorting
+- duplicate review and cleanup
+- import / export / migration
+- sync-adjacent but controlled browser flows
+- Proxmox / Debian LXC operation
 
-2. **Quick-Add**
-   Der Bookmark-Kern ist funktional, aber ein kurzer Standarddialog mit Inbox-
-   Default und aufklappbaren Zusatzfeldern fehlt noch.
+### Optional later paths
+These may exist later, but do not steer the core:
+- archive workers
+- reader extracts
+- screenshot / PDF / single-HTML
+- AI-heavy helpers
+- heavier platform services
+- large team / org features
 
-3. **Frontend-Navigation**
-   Die Kernlogik ist weiter als die sichtbare UI. Favoriten, Tags,
-   Collections, Archiv, Aktivitaet und Einstellungen brauchen noch klarere
-   Einstiege.
+### Core rule
+Before adding large new capabilities, stabilize:
+- UI / navigation
+- duplicate workflows
+- import / migration
+- safe browser round-trips
+- operations / backup / restore / update
 
-4. **Migrationen verbreitern**
-   Chromium-JSON, Firefox-JSON und Safari-ZIP sind gute Anfaenge; generische
-   CSV/JSON-Migrationsprofile und weitere Tool-Importer sind der naechste
-   Schritt.
+---
 
-5. **Community-Scripts/ProxmoxVED-Vorbereitung**
-   Nicht sofort offizieller PR, sondern Layout, Default/Advanced Mode,
-   `build.func`/`install.func`-Kompatibilitaet und Post-Install-Ausgabe
-   sauber nachziehen.
+## 1. Current highest priorities
 
-## Phase 0: Fundament
+## Priority 1 — Bookmark workspace UI and navigation
 
-| Offen | Loesung | Prioritaet |
+The core logic is already ahead of the visible product surface.
+
+The next major step is to make LinkVault clearly recognizable as a bookmark and favorites manager in the UI.
+
+### Needed outcomes
+- clear primary navigation
+- visible areas for:
+  - Inbox
+  - All Bookmarks
+  - Favourites
+  - Lists / Collections
+  - Tags
+  - Duplicates
+  - Import / Export
+  - Profile / Settings / Admin
+  - Operations
+- stronger main bookmark working view
+- clearer filters / sort / bulk action placement
+- visible favorites handling
+- visible duplicate entry point
+
+### Why now
+This is the biggest visible product gap.
+Without it, existing strengths remain hidden.
+
+---
+
+## Priority 2 — Quick Add and everyday capture
+
+The bookmark core already exists, but the everyday capture flow must become lighter and faster.
+
+### Needed outcomes
+- short default dialog
+- URL-first flow
+- Inbox as default destination
+- optional expanded fields
+- immediate duplicate preflight
+- optional favorites / tags / list assignment
+
+### Why now
+Quick capture is one of the fastest ways to make LinkVault feel like a real daily-use bookmark product.
+
+---
+
+## Priority 3 — Favorites, lists, collections and tags as real working surfaces
+
+It is not enough that these exist in the data model.
+They must feel operational in daily use.
+
+### Needed outcomes
+- dedicated Favorites view
+- clear lists / collections navigation
+- strong tags workflow
+- bulk assignment / bulk cleanup
+- per-user saved views for recurring work patterns
+- visible distinction between:
+  - tags
+  - lists
+  - collections
+  - favorites
+  - archive
+
+### Why now
+Organization is one of LinkVault’s core promises.
+It must become visible and efficient.
+
+---
+
+## Priority 4 — Duplicate Center UX
+
+Duplicate handling is already one of LinkVault’s strongest differentiators.
+The next step is making that strength clearly usable in the interface.
+
+### Needed outcomes
+- dedicated Duplicate Center
+- candidate grouping
+- winner suggestion
+- field comparison
+- dry-run visualization
+- safe merge flow
+- explicit safe-remove path
+- merge history / undo visibility
+- bulk cleanup modes:
+  - safe
+  - review
+  - similar
+
+### Why now
+This is a real differentiation opportunity, not a side feature.
+
+---
+
+## Priority 5 — Import / export / migration breadth
+
+Import already has the right direction.
+Now it needs broader and cleaner execution.
+
+### Needed outcomes
+- keep HTML import robust
+- improve preview and conflict clarity
+- broaden vendor enrichment:
+  - Chromium JSON
+  - Firefox JSON / JSONLZ4
+  - Safari ZIP
+- add generic CSV / JSON import
+- preserve provenance and raw vendor fields
+- prepare later tool-specific importers
+
+### Why now
+Migration quality is part of LinkVault’s value proposition.
+Import is data maintenance, not mere file ingestion.
+
+---
+
+## Priority 6 — Sync-adjacent conflict and restore logic
+
+Conflict and restore flows remain important, but they should serve bookmark management, not dominate the roadmap.
+
+### Needed outcomes
+- keep restore / conflict logic safe and reviewable
+- improve browser round-trip visibility
+- make sync-adjacent decisions understandable
+- keep per-item / per-group decisions where needed
+- connect conflict handling to import, duplicates and migration
+
+### Important limitation
+Do not let Conflict Center become the product identity.
+
+### Why after the above
+A strong bookmark workspace and Duplicate Center create clearer product value first.
+
+---
+
+## Priority 7 — Proxmox and community-scripts maturity
+
+Self-hosting quality remains a real advantage, but the core product must stay ahead of packaging polish.
+
+### Needed outcomes
+- stable installer / helper path
+- clear post-install output
+- reproducible LXC tests
+- update / backup / restore maturity
+- community-scripts-compatible conventions later
+
+### Why here
+The Proxmox path matters, but product-core clarity should come first.
+
+---
+
+## 2. Phase-by-phase implementation guidance
+
+---
+
+## Phase 0 — Foundation
+
+### Open items
+| Open item | Solution direction | Priority |
 |---|---|---|
-| Backend-Stack final entscheiden | Python bis Version 1 weiterfuehren. Go erst pruefen, wenn Core stabil und Release-Paketierung ein echtes Problem ist. | niedrig |
-| Migrationen | Kleine Migrationstabelle einfuehren: `schema_migrations(version, applied_at)`. Jede neue Spalte als idempotente Migration. | hoch |
-| Docker Compose Dev-Setup | Nur fuer lokale Entwicklung: App, Volume, Port 3080. Keine Pflicht fuer LXC. | mittel |
-| Node.js fuer Extension-Checks | Nur Dev/CI: `node --check extensions/linkvault-companion/*.js`. Node nicht im LXC installieren. | mittel |
+| Final backend stack decision | Keep Python through Version 1. Reconsider only if the core becomes operationally blocked. | low |
+| Schema migrations | Introduce a small `schema_migrations(version, applied_at)` table and idempotent migrations. | high |
+| Docker Compose for local dev | Development-only convenience, not part of the LXC runtime story. | medium |
+| Node.js for extension checks | Dev/CI only. Never make Node a required LinkVault LXC runtime dependency. | medium |
 
-## Phase 1: Bookmark-Kern
+### Phase rule
+Do not reopen architectural debates unless they clearly unblock the bookmark core.
 
-| Offen | Loesung | Prioritaet |
+---
+
+## Phase 1 — Bookmark core
+
+### Open items
+| Open item | Solution direction | Priority |
 |---|---|---|
-| Benutzerprofile und Rechte nach dem ersten Multiuser-Schritt | Die Basis mit Admin/User, benutzergebundenen Tokens, Passwortwechsel und Admin-Benutzerverwaltung steht. Als naechstes nur konservativ erweitern: Profilseite fuer den aktuellen Nutzer, persoenliche Anzeige-/Companion-Einstellungen und spaeter feinere Rechte statt sofort komplexer Rollenmatrix. | mittel |
-| Navigation: Favoriten, Tags, Collections, Archiv, Aktivitaet, Einstellungen | Zuerst Aktivitaet und Collections/Favoriten als einfache Filterseiten, spaeter vollstaendige Verwaltungsseiten. | mittel |
-| Quick-Add | Kompakter Dialog: URL, Titel optional, Inbox default, Vorschlaege. Erweiterte Felder ausklappbar. | mittel |
-| Anzeigeoptionen serverseitig speichern | Tabelle `user_settings(key, value_json)`. Lokale Browser-Settings bleiben Fallback. | mittel |
-| Sortierung/Filter als Standard speichern | `saved_views` oder `user_settings.bookmark_default_view`; Button "Als Standard speichern". | hoch |
+| Bookmark-centered navigation | Build clear entry points for bookmarks, favorites, tags, collections, duplicates, import/export, settings and operations. | very high |
+| Quick Add | Short dialog with Inbox default, optional expanded fields, immediate duplicate preflight. | very high |
+| Favorites workflow | Dedicated favorites page, quick toggle, bulk favorite handling, saved favorite views. | very high |
+| Lists / collections / tags UX | Strengthen assignment, navigation and bulk operations. | high |
+| Sorting defaults | Store sorting together with views/filters so users can preserve their working mode. | high |
+| Display options per user | Keep user-specific display settings, but prioritize work-oriented bookmark views over archive/preview views. | medium |
+| Profile and personal settings | Conservative expansion only: user profile, own tokens, password flow, personal display/companion settings. | medium |
 
-## Phase 2: Dubletten und Favoritenpflege
+### Phase rule
+Phase 1 must make LinkVault clearly usable as a bookmark product before deeper secondary systems expand.
 
-| Offen | Loesung | Prioritaet |
+---
+
+## Phase 2 — Deduplication and favorites cleanup
+
+### Open items
+| Open item | Solution direction | Priority |
 |---|---|---|
-| Undo fuer Merge | Bestehende Merge-Snapshots reichen als Basis. API: `POST /api/dedup/merges/{id}/undo`. Gewinner/Verlierer aus Snapshot wiederherstellen. | sehr hoch |
-| Conflict Center | Start mit Import- und Merge-Konflikten. Modell: `conflicts(id, kind, source_id, state, payload_json, created_at)`. | sehr hoch |
-| Tote Favoriten | Link-Health-Check als leichter HEAD/GET-Job, erst manuell starten, spaeter regelmaessig. | mittel |
-| Pflege-Score je Sammlung | Reiner Score aus vorhandenen Daten: fehlende Metadaten, Inbox-Anteil, Dubletten, tote Links. | mittel |
+| Duplicate Center UI | Strong dedicated UI for groups, comparisons, preview and action flow. | very high |
+| Undo for merge | Keep or expand snapshot-based undo for safe recovery. | very high |
+| Dead favorites / broken links | Lightweight health checks, initially manual or low-frequency. | medium |
+| Collection or maintenance score | Build from existing signals: missing metadata, duplicates, uncategorized items, dead links. | medium |
+| Safe remove | Explicit removal path after review, never as silent default. | medium |
 
-## Phase 3: Archivierung
+### Phase rule
+Dedup must remain safe-by-default and explainable.
 
-| Offen | Loesung | Prioritaet |
+---
+
+## Phase 3 — Import / export / migration
+
+### Open items
+| Open item | Solution direction | Priority |
 |---|---|---|
-| Archivstatus | Spalten/Tabelle fuer `archive_state`, `last_archived_at`, `archive_error`. Sichtbar machen, bevor Worker gebaut wird. | mittel |
-| Reader-Extrakt | Optionales Worker-Profil. Zuerst nur HTML abrufen und Readability-Text speichern. | niedrig |
-| Screenshot/PDF/Single-HTML | Spaeter eigenes Profil mit Playwright/Browser-Tools und hoeheren LXC-Ressourcen. | niedrig |
-| Archivassets in Backup/Restore | Backup-Skripte um `/var/lib/linkvault/archive` erweitern, sobald Assets existieren. | niedrig |
+| Generic CSV/JSON import | Simple mapping-based migration profile for common bookmark fields. | high |
+| Raw vendor payload preservation | Keep vendor-specific fields in import records, not in a fragile bookmark core schema. | high |
+| Firefox JSONLZ4 | Optional parser path, but avoid making LXC runtime heavy by default. | medium |
+| Safari Reading List handling | Add as an explicit import semantic if detection is reliable. | medium |
+| Tool-specific importers | Add after generic import/session/provenance model is solid. | medium |
 
-## Phase 4: Automatisierung
+### Phase rule
+Preview, provenance and duplicate checks matter more than importer count.
 
-| Offen | Loesung | Prioritaet |
+---
+
+## Phase 4 — Companion extension and sync-adjacent flows
+
+### Open items
+| Open item | Solution direction | Priority |
 |---|---|---|
-| Activity/Audit-Log | Vor Regel-Engine bauen. Das ist die Grundlage fuer Vertrauen und Fehlersuche. | sehr hoch |
-| Rule Engine | Klein starten: Wenn Domain/URL enthaelt X, dann Tags/Collection setzen. Keine AI noetig. | mittel |
-| Smart Collections | Gespeicherte Suche plus Filter. Keine neue Datenstruktur erzwingen. | mittel |
-| API-Token Test-Button | In `Betrieb` Button gegen `/api/bookmarks` oder `/healthz` mit Token anzeigen. | mittel |
-| Webhooks | Erst nach Audit-Log und stabiler Public API. | niedrig |
-| History-Enrichment | Optional und explizit, weil `history`-Berechtigung sehr sensibel ist. | niedrig |
-| Browser-Sync mit Loeschungen | Erst nach Conflict Center, Undo und Audit-Log. Standard: kein Loeschen. | niedrig |
-| Masonry/Preview-Bilder | Erst nach Archiv-/Preview-Daten. Vorher Compact/List/Grid weiter verbessern. | niedrig |
+| Duplicate UX in extension | Surface preflight and conflict choices more clearly. | high |
+| API token usability | Add clearer token status and connection test flows. | medium |
+| History enrichment | Optional only, with explicit permission and clear privacy boundary. | low |
+| Destructive browser sync | Only after strong conflict review, undo and logging exist. | low |
+| Browser sync bridges | Evaluate later, after import/export and conflict handling are mature. | low |
+| Packaging and release path | Improve only after daily-use extension flows are stable. | medium |
 
-## Phase 5: Proxmox-Installation
+### Phase rule
+The extension must remain a bookmark/import/export companion, not a separate product identity.
 
-| Offen | Loesung | Prioritaet |
+---
+
+## Phase 5 — Operations and Proxmox maturity
+
+### Open items
+| Open item | Solution direction | Priority |
 |---|---|---|
-| Release-Binary | Fuer Python-MVP nicht blockierend. Erst Wheel/Tagged Release, Go-Binary spaeter bewerten. | niedrig |
-| Release-Installer | Installer soll Git-Ref/Tag statt nur `main` koennen. Healthcheck und Rollback behalten. | hoch |
-| Default/Advanced Mode | `ct/linkvault.sh`: Default minimal fragen, Advanced fuer CTID, Storage, RAM, CPU, Bridge, IP. | hoch |
-| Post-Install UX | Abschlussausgabe vereinheitlichen: URL, Setup-Token, Helper-Befehle, Backup, Restore, Update, Logs. | hoch |
-| Community-Scripts-Konventionen | Separaten Kompatibilitaetsordner vorbereiten, aber erst ProxmoxVED pruefen. | mittel |
-| ProxmoxVE-Local | Einzeiler und lokale Skriptstruktur testen; Dokumentation ergaenzen. | mittel |
-| Version-Matrix | Tests auf Proxmox VE 8.4 und 9.x dokumentieren. | mittel |
-| Archive-Worker-Profil | Ressourcenprofil definieren: mehr RAM, mehr Disk, zusaetzliche Pakete. | niedrig |
+| Release installer behavior | Support Git ref/tag selection, keep healthcheck and rollback awareness. | high |
+| Post-install UX | Print URL, setup token, healthcheck, logs, backup, restore and update guidance clearly. | high |
+| community-scripts conventions | Align gradually with `build.func` / `install.func`, but only after product-core gaps are reduced. | medium |
+| ProxmoxVE-Local compatibility | Validate once script structure is more mature. | medium |
+| Version matrix | Document tested Proxmox versions over time. | medium |
+| Optional archive-worker profile | Document only later as a separate heavier profile. | low |
 
-## Phase 6: Migrationen
+### Phase rule
+Proxmox quality supports credibility, but should not hide UI/product gaps.
 
-| Offen | Loesung | Prioritaet |
+---
+
+## Phase 6 — Optional later extensions
+
+### Only after core stability
+| Later topic | Direction | Priority |
 |---|---|---|
-| JSONLZ4 fuer Firefox | Optionales Parser-Modul, vermutlich externe LZ4-Abhaengigkeit nur fuer Dev/Core-Import. Nicht LXC-schwer machen. | mittel |
-| Safari Reading List | ZIP/HTML bleibt Basis; Reading List als eigener Importtyp markieren, wenn Daten sicher erkannt werden. | niedrig |
-| CSV/JSON generisch | Mapping-Import: Felder `url`, `title`, `description`, `tags`, `collections`, `notes`. | hoch |
-| `raw_vendor_payload` | Import-Records speichern Rohdaten, nicht direkt Bookmark-Tabelle ueberladen. | hoch |
-| linkding Import | Zuerst Datei-/API-Profil mit URL, Titel, Beschreibung, Tags, unread/shared falls vorhanden. | mittel |
-| Karakeep/Linkwarden/Readeck/Shiori/LinkAce | Nach generischem JSON/CSV und Import-Sessions. Jedes Tool eigenes Mapping, aber gleicher Preview-/Conflict-Pfad. | mittel |
+| Rule engine | Start small: domain/path/text rules, no AI dependency required. | medium later |
+| Smart collections | Saved searches / filtered views first, no heavy new model needed. | medium later |
+| Expanded public API | After core workflows stabilize. | medium later |
+| Webhooks | After activity log and API maturity. | low later |
+| Archive-heavy features | Reader text, screenshot/PDF/single-HTML only after core product is strong. | low later |
+| AI tagging / summaries | Optional helper only, never product identity. | low later |
+| Heavy service expansion | Only if clearly needed by real usage, not by ambition alone. | low later |
 
-## Empfohlener naechster Sprint
+---
 
-### 1. Conflict Center / Restore-Sessions
+## 3. Recommended next sprint
 
-Ergebnis:
+## Sprint focus 1 — Bookmark workspace UI
+Result:
+- clear navigation
+- better bookmark working surface
+- visible favorites / tags / collections / duplicates
+- less “all-in-one page” feeling
 
-- `conflicts` und `restore_sessions` in SQLite.
-- Browser-Restore erzeugt serverseitige Vorschau, Konflikte und
-  Abschlussstatus.
-- UI zeigt Konflikte und letzte Restore-Sessions im Tab `Betrieb`.
+### Why first
+This is the biggest visible product gain.
 
-Warum jetzt:
+## Sprint focus 2 — Quick Add
+Result:
+- URL-first quick dialog
+- Inbox default
+- expandable extra fields
+- integrated duplicate preflight
 
-- Macht Browser-Rueckimport nachvollziehbar und spaeter sync-faehig.
-- Liefert die Basis fuer groessere Sync-/Restore-Fluesse.
-- Verbindet Extension und Haupt-App ueber denselben Konfliktzustand.
+### Why second
+It improves everyday use immediately.
 
-### 2. Quick-Add
+## Sprint focus 3 — Duplicate Center UX
+Result:
+- stronger visible dedup workflow
+- better candidate review
+- better merge confidence
+- clearer cleanup path
 
-Ergebnis:
+### Why third
+This is one of LinkVault’s strongest differentiation opportunities.
 
-- Kleiner Standarddialog fuer URL, optional Titel, Inbox default.
-- Erweiterte Felder nur bei Bedarf ausklappen.
-- Duplicate-Preflight und Regelvorschlaege direkt im kurzen Flow.
+## Sprint focus 4 — Migration breadth
+Result:
+- broader import formats
+- better provenance handling
+- stronger preview/conflict paths
 
-Warum jetzt:
+### Why fourth
+Import is one of LinkVault’s core promises.
 
-- Beschleunigt den echten Alltagsnutzen.
-- Nutzt den vorhandenen Bookmark-Kern statt nur weitere Infrastruktur zu bauen.
+---
 
-### 3. Frontend-Navigation
+## 4. Explicitly later
 
-Ergebnis:
+These topics stay later on purpose:
 
-- Sichtbare Einstiege fuer Favoriten, Tags, Collections, Archiv, Aktivitaet
-  und Einstellungen.
-- Weniger lange Einzelseite, klarere Produktoberflaeche.
+- screenshot / PDF / single-HTML
+- reader extract
+- AI tagging / summaries
+- destructive browser sync
+- PostgreSQL / Redis / external search
+- Go rewrite / migration
+- official community-scripts submission before product-core clarity
+- archive-heavy worker design as a default expectation
 
-Warum jetzt:
+They are not forbidden.
+They are simply not the best next moves.
 
-- Die groesste sichtbare Luecke ist derzeit die UI-Struktur.
-- Das macht den bereits vorhandenen Funktionsumfang besser erkennbar.
+---
 
-### 4. Profilseite fuer den aktuellen Nutzer
+## 5. Final implementation rule
 
-Ergebnis:
+For every proposed solution, ask:
 
-- Klarer Ort fuer Benutzername, Passwortwechsel, API-Tokens und spaetere
-  persoenliche Einstellungen.
-- Die neue Admin/User-Basis wird damit von "Operations-Unterbau" zu einer
-  erkennbaren Produktfunktion.
+**Does this solution make LinkVault clearly better as a bookmark, favorites, organization, dedup, import/export and sync-capable self-hosted product?**
 
-Warum jetzt:
+If the answer is mainly:
+- “it expands archive depth”
+- “it improves reader behavior”
+- “it makes conflict infrastructure more elaborate without stronger bookmark value”
+- “it makes the stack heavier before the core becomes clearer”
 
-- Die Codebasis kann inzwischen mehrere Benutzer sauber verwalten.
-- Sichtbar fehlt aber noch der vertraute Einstieg ueber "Mein Konto" /
-  "Profil".
-
-## Bewusst spaeter
-
-- Screenshot/PDF/Single-HTML.
-- AI-Tagging.
-- Destruktiver Browser-Sync.
-- PostgreSQL/Meilisearch/Tantivy.
-- Go-Port.
-- Offizielle community-scripts.org-Einreichung.
-
-Diese Punkte sind wertvoll, aber sie werden besser, wenn Import-Sessions,
-Conflict Center, Undo und Betrieb zuerst stabil sind.
-
+then the solution is being prioritized too early.

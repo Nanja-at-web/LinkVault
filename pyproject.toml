@@ -1,7 +1,7 @@
 [project]
 name = "linkvault"
 version = "0.1.0"
-description = "Selfhosted bookmark and archive manager MVP"
+description = "Self-hosted bookmark, favorites and link management platform"
 license = "AGPL-3.0-or-later"
 requires-python = ">=3.11"
 dependencies = []

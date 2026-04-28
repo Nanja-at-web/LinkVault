@@ -1,258 +1,292 @@
 # LinkVault
 
-LinkVault ist der Entwurf fuer ein selbsthostbares Bookmark-, Archiv- und
-Wissensverwaltungstool, das die staerksten Eigenschaften von Karakeep,
-linkding, Linkwarden, LinkAce, Readeck und Shiori zusammenfuehrt.
+LinkVault ist eine self-hosted Plattform zum Verwalten von Bookmarks, Favoriten und Links – mit starker Dublettenbehandlung, Import-/Export-Workflows und leichtgewichtigem, Proxmox-freundlichem Betrieb.
 
-Der Schwerpunkt liegt auf:
+## Was LinkVault ist
 
-- sehr guter Dublettenbereinigung mit sicherem Merge statt blindem Loeschen
-- Favoriten, Pins, Listen, Collections, Tags und Regeln
-- automatischem Sortieren und Kategorisieren
-- lokaler Archivierung von Webseiten, Artikeln, PDFs, Bildern und Notizen
-- einfacher Installation als Proxmox-LXC ueber community-scripts.org
-- Import aus bestehenden Bookmark-Tools und Browsern
+LinkVault ist für Menschen gedacht, die:
 
-## Sprache
+- Links schnell speichern wollen
+- Bookmarks und Favoriten verwalten möchten
+- große Link-Sammlungen mit Tags, Listen und Collections organisieren wollen
+- effizient suchen, filtern und sortieren möchten
+- Dubletten sicher erkennen, prüfen, zusammenführen und optional entfernen wollen
+- Bookmarks aus Browsern und anderen Tools importieren möchten
+- das gesamte System leichtgewichtig self-hosted betreiben wollen
 
-- [English README](README.md)
-- Deutsche README: diese Datei
+## Was LinkVault nicht ist
 
-## Dokumente
+LinkVault ist **nicht primär**:
 
-- [Produktvision](docs/PRODUCT_SPEC.md)
-- [Technische Architektur](docs/ARCHITECTURE.md)
-- [Einfluss der Deep-Research-Sammlung](docs/RESEARCH_IMPACT.md)
-- [Einfluss der UX-Research-Sammlung](docs/UX_RESEARCH_IMPACT.md)
-- [Einfluss der Demo-UX-Analyse](docs/DEMO_UX_ANALYSIS.md)
-- [Einfluss der Browser- und Import-Recherche](docs/BROWSER_IMPORT_RESEARCH.md)
-- [Browser-Bookmark-UX-Muster](docs/BROWSER_BOOKMARK_UX_PATTERNS.md)
-- [Layout- und Anzeige-UX-Muster](docs/LAYOUT_DISPLAY_UX_PATTERNS.md)
-- [Companion-Extension-Plan](docs/COMPANION_EXTENSION.md)
-- [Windows-Entwicklungssetup](docs/DEVELOPMENT_WINDOWS.md)
-- [Bereinigte Statusanalyse](docs/linkvault_statusanalyse.md)
-- [Einfluss der Installations- und Requirements-Recherche](docs/INSTALLATION_REQUIREMENTS.md)
-- [Dubletten, Sortierung und Kategorien](docs/DEDUP_SORTING_CATEGORIZATION.md)
-- [Proxmox Community-Scripts Zielbild](docs/PROXMOX_COMMUNITY_SCRIPT.md)
-- [Debian-LXC Installationstest](docs/DEBIAN_LXC_TEST.md)
-- [Backup und Restore](docs/BACKUP_RESTORE.md)
-- [MVP-Roadmap](docs/ROADMAP.md)
-- [MVP Roadmap English](docs/ROADMAP.en.md)
+- eine Read-later-App
+- ein Reader-First-Produkt
+- ein Webarchiv als Hauptprodukt
+- eine Knowledge Base
+- ein Notiztool mit Bookmark-Nebenfunktion
 
-## Lokaler MVP-Prototyp
+Archiv- oder Reader-nahe Funktionen können später optional ergänzt werden, sind aber nicht die Hauptausrichtung des Produkts.
 
-Der erste Prototyp nutzt nur die Python-Standardbibliothek. Er speichert
-Bookmarks in SQLite, holt beim Speichern Metadaten aus Webseiten, normalisiert
-URLs, bietet SQLite-FTS5-Volltextsuche mit Filtern und zeigt exakte
-Dublettengruppen inklusive Merge-Dry-Run.
+---
 
-```bash
-PYTHONPATH=src python3 -m linkvault.server
-```
+## Warum LinkVault existiert
 
-Danach ist die Mini-UI unter `http://127.0.0.1:3080` erreichbar.
+Viele self-hosted Bookmark-Tools zwingen zu einem Kompromiss:
 
-Konfiguration kann lokal ueber `.env` oder im Servicebetrieb ueber
-`/etc/linkvault/linkvault.env` gesetzt werden:
+- entweder leichtgewichtig und einfach
+- oder funktionsreich, aber schwerer und weniger auf Pflege und Migration ausgerichtet
 
-```env
-LINKVAULT_ADDR=0.0.0.0:3080
-LINKVAULT_DATA_DIR=/var/lib/linkvault
-```
+LinkVault soll genau diese Lücke schließen.
 
-`LINKVAULT_DATA` kann alternativ direkt auf eine SQLite-Datei zeigen. Ohne
-Konfiguration nutzt der lokale MVP `data/linkvault.sqlite3`.
+Die zentralen Stärken sind:
 
-## Debian-Service
+- starke Bookmark- und Favoriten-Verwaltung
+- sichtbare Dublettenprüfung und Dublettenbereinigung
+- saubere Import-/Export- und Migrations-Workflows
+- browsernahe Metadatenbehandlung
+- sichere, nachvollziehbare Merge-Logik
+- leichtgewichtiger Selfhost-Betrieb auf Proxmox VE / Debian LXC
 
-Die erste Debian-Installation fuer Tests liegt in `scripts/install-debian.sh`.
-Sie installiert LinkVault in eine virtuelle Python-Umgebung unter
-`/opt/linkvault`, legt den Systemuser `linkvault` an, schreibt
-`/etc/linkvault/linkvault.env`, nutzt `/var/lib/linkvault` als Datenpfad und
-aktiviert `deploy/linkvault.service`.
+---
 
-```bash
-sudo ./scripts/install-debian.sh
-curl http://127.0.0.1:3080/healthz
-linkvault-requirements
-```
+## Aktueller Fokus
 
-Fuer interne LXC-Tests gibt es `proxmox/linkvault-lxc-test.sh`. Das ist noch
-kein offizielles community-scripts.org-Skript, sondern der naechste
-Zwischenschritt fuer reproduzierbare Proxmox-LXC-Tests.
+Der aktuelle Produktfokus liegt auf:
 
-Experimenteller Proxmox-Host-Einzeiler fuer einen neuen Debian-LXC:
+- Bookmark-Speicherung und Bearbeitung
+- Favoriten, Pins, Tags, Collections und Notizen
+- Volltextsuche mit SQLite FTS5
+- Bulk-Aktionen
+- Duplicate Preflight vor dem Speichern
+- Dublettenprüfung, Dry-Run und Merge ohne blindes Löschen
+- Import-Vorschau und sichere Migration
+- Browser-Companion-Workflows
+- Proxmox-freundlichem Installations-, Update-, Backup- und Restore-Pfad
 
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nanja-at-web/LinkVault/main/ct/linkvault.sh)"
-```
+---
 
-Dieser Befehl wird in der Proxmox VE Shell ausgefuehrt. Er erstellt einen
-neuen Debian-LXC, startet ihn und installiert LinkVault darin.
-Der Installer gibt auch das erste Setup-Token aus. Dieses Token wird einmalig
-in der Web-UI genutzt, um den initialen Admin-User anzulegen.
+## Aktueller Funktionsumfang
 
-Der offizielle Community-Scripts-Weg bleibt stufenweise: Dieses Repo behaelt
-zuerst den experimentellen Installer, neue Skript-Einreichungen sollen ueber
-`community-scripts/ProxmoxVED` laufen, und spaetere Pflege kann nach Aufnahme
-in `community-scripts/ProxmoxVE` erfolgen.
+### Bookmark-Verwaltung
+- Links mit URL-Normalisierung speichern
+- Metadaten wie Titel, Beschreibung, Favicon und Domain laden
+- Bookmarks in der UI bearbeiten
+- Favoriten und Pins verwalten
+- Tags, Collections und Notizen vergeben
+- mit Inbox-ähnlichen unsortierten Bookmarks arbeiten
+- Saved Views und mehrere Anzeigeformen nutzen
 
-Backup und Restore fuer den SQLite-MVP:
+### Suche, Filter und Organisation
+- SQLite-FTS5-Volltextsuche
+- Filter für Favoriten, Pins, Domain, Tags, Collections und Status
+- Compact-, Detailed- und Grid-Ansichten für Bookmarks
+- Bulk-Aktionen für Tags, Collections, Favoriten und Pins
 
-```bash
-sudo ./scripts/backup-linkvault.sh
-sudo ./scripts/restore-linkvault.sh /var/backups/linkvault/linkvault-backup-YYYYmmdd-HHMMSS.tar.gz
-```
+### Dublettenbehandlung
+- exakte Dublettenerkennung
+- Dublettenerkennung über normalisierte URLs
+- Duplicate Preflight vor dem Speichern
+- Dubletten-Dashboard mit Dry-Run
+- Gewinner-Vorschlag und Feldvergleich
+- Merge ohne blindes hartes Löschen
+- Merge-Historie / Undo-Richtung
+- markierte gemergte Dubletten statt stiller destruktiver Bereinigung
 
-Update eines installierten LinkVault-LXC vom Proxmox-Host:
+### Import und Migration
+- Browser-HTML-Import mit Vorschau
+- Chromium-JSON-Importpfad
+- Import-Session-Metadaten
+- Dubletten- und Konfliktbewusstsein beim Import
+- herkunftsbewusste Richtung für spätere breitere Migrationen
 
-```bash
-pct exec 112 -- linkvault-helper update
-pct exec 112 -- linkvault-helper health
-```
+### Companion Extension
+- aktuellen Tab speichern
+- Browser-Bookmarks lesen
+- Bookmark-Vorschauen an LinkVault senden
+- sicherer Browser-Rückimport mit Vorschau
+- dubletten- und konfliktbewusste Browser-Roundtrips
 
-`112` durch die eigene Container-ID ersetzen. Mehr Details stehen in
-[Update](docs/UPDATE.md).
+### Selfhosting und Betrieb
+- Python + SQLite + FTS5 im Kern
+- Proxmox VE / Debian LXC freundlicher Deployment-Pfad
+- Helper-Befehle für Health, Update, Backup und Restore
+- dokumentierter Update-Pfad
+- dokumentierter Backup-/Restore-Pfad
+- reale LXC-Smoke-Test-Richtung
 
-Wichtige Endpunkte:
+---
 
-- `GET /healthz`
-- `GET /api/setup/status`
-- `POST /api/setup`
-- `POST /api/login`
-- `POST /api/logout`
-- `GET /api/me`
-- `GET /api/users`
-- `POST /api/users`
-- `PATCH /api/users/{id}`
-- `DELETE /api/users/{id}`
-- `POST /api/users/{id}/reset-password`
-- `POST /api/account/password`
-- `GET /api/tokens`
-- `POST /api/tokens`
-- `DELETE /api/tokens/{id}`
-- `GET /api/bookmarks`
-- `GET /api/bookmarks?q=suchbegriff`
-- `GET /api/bookmarks?q=suchbegriff&favorite=true&pinned=true&domain=github.com&tag=selfhost&collection=Development&status=active`
-- `POST /api/bookmarks`
-- `POST /api/bookmarks/suggestions`
-- `POST /api/bookmarks/bulk`
-- `GET /api/bookmarks/{id}`
-- `PATCH /api/bookmarks/{id}`
-- `DELETE /api/bookmarks/{id}`
-- `POST /api/import/browser-html/preview`
-- `POST /api/import/browser-html`
-- `POST /api/import/browser-bookmarks/preview`
-- `POST /api/import/browser-bookmarks`
-- `POST /api/import/chromium-json/preview`
-- `POST /api/import/chromium-json`
-- `POST /api/import/firefox-json/preview`
-- `POST /api/import/firefox-json`
-- `POST /api/import/safari-zip/preview`
-- `POST /api/import/safari-zip`
-- `GET /api/export/browser-bookmarks`
-- `GET /api/dedup`
-- `GET /api/dedup/dry-run`
-- `GET /api/dedup/merges`
-- `POST /api/dedup/merge`
+## Produktrichtung
 
-API-Token koennen API-Aufrufe mit `Authorization: Bearer <token>` oder
-`X-LinkVault-Token: <token>` authentifizieren. Token-Erstellung und
-Token-Loeschung brauchen weiterhin einen aktiven Browser-Login.
+LinkVault wird um fünf Kernsäulen herum gebaut:
 
-Importformate im MVP:
+1. Bookmark-Verwaltung
+2. Favoriten als Konzept erster Klasse
+3. starke Organisation mit Tags, Listen und Collections
+4. sichere Dublettenprüfung und Dublettenbereinigung
+5. Import/Export und sync-nahe Browser-Workflows
 
-- Browser-HTML / Netscape
-- Chromium-JSON fuer Chrome, Edge, Brave, Vivaldi und Opera
-- Firefox-JSON aus Lesezeichen-Backups
-- Safari-ZIP mit `Bookmarks.html`
+Alles andere ist nachrangig.
 
-Firefox-JSONLZ4 sowie generische CSV-/JSON-Importe fuer andere Bookmark-Tools
-bleiben als naechste Ausbaustufen offen.
+---
 
-## Produktprioritaet Aus Der Recherche
+## Dubletten-Philosophie
 
-Die Deep-Research-Sammlung bestaetigt: LinkVault sollte nicht einfach ein
-weiterer Bookmark-Manager werden. Die staerkste Positionierung ist eine
-gezielte Synthese:
+LinkVault behandelt Dubletten nicht nur als Import-Warnung, sondern als echte Produktfunktion.
 
-- linkding als Vorbild fuer robuste URL-Deduplizierung, API und geringen
-  Betriebsaufwand
-- Karakeep als Vorbild fuer Favoriten, Listen, Regeln, AI-Optionen und
-  moderne Wissensworkflows
-- Linkwarden als Vorbild fuer Langzeitarchivierung, Collections,
-  Reader-Ansicht und Annotationen
-- Readeck als Vorbild fuer leichtgewichtige lokale Lesekopien, Highlights und
-  EPUB/OPDS-nahe Reader-Fluesse
-- LinkAce als Vorbild fuer klassische Multiuser-, SSO-, API- und
-  Link-Monitoring-Reife
-- Shiori/Readeck als Mahnung, den Betrieb klein und selfhost-freundlich zu
-  halten
-- community-scripts.org als Praxisreferenz fuer Proxmox-LXC-Installation,
-  Logs, Healthcheck, Updates und Backup/Restore
+### Kernprinzipien
+- Dubletten früh erkennen
+- vor riskanten Aktionen eine Vorschau zeigen
+- nützliche Metadaten beim Merge erhalten
+- nichts blind löschen
+- Bereinigung verständlich halten
+- große Bibliotheken pflegbar machen
 
-Die UX-Recherche ergaenzt: Pflegeaufgaben muessen sichtbar sein, nicht in APIs
-versteckt. LinkVault soll in Richtung klarer Navigation mit Inbox, Favoriten,
-Dubletten, Collections, Tags, Archiv, Aktivitaet und Einstellungen wachsen.
-Daraus folgen nach dem erfolgreichen echten LXC-Backup/Restore-Smoke-Test als
-naechste Produktschritte URL-Duplicate-Preflight, staerkeres Dedup-Dashboard
-und spaeter API-Token mit Sync-Setup. Archiv-Worker, AI und Browser-Sync kommen
-danach schrittweise.
+### Merge-Verhalten
+Beim Zusammenführen von Dubletten soll LinkVault wichtige Daten erhalten, zum Beispiel:
+- Favoriten
+- Tags
+- Collections
+- Notizen
+- bessere Metadaten
+- Import-/Quellkontext
 
-Der aktuelle MVP ist ausserdem nicht mehr rein Single-User: LinkVault hat
-jetzt Admin/User-Rollen, benutzergebundene API-Token, eigenen Passwortwechsel,
-Admin-Passwort-Reset und eine erste Benutzerverwaltung im Bereich `Betrieb`.
+---
 
-## Lizenz
+## Import-Philosophie
 
-LinkVault steht unter AGPL-3.0-or-later. Das passt zum Ziel einer freien
-Selfhost-Web-App, bei der Verbesserungen auch bei Netzwerkbetrieb wieder der
-Community zugutekommen sollen.
+Import ist nicht einfach nur „Datei hochladen“.
 
-Tests:
+Für LinkVault bedeutet Import:
 
-```bash
-PYTHONPATH=src python3 -m unittest discover -s tests
-```
+- zuerst Vorschau
+- Dubletten erkennen
+- Konflikte sichtbar machen
+- Herkunft erhalten
+- Metadaten soweit möglich bewahren
+- stille destruktive Ergebnisse vermeiden
 
-Windows-Hinweis:
+HTML bleibt die gemeinsame Baseline.  
+Reichere browserspezifische Formate können später als Anreicherung ergänzt werden.
 
-```powershell
-$env:PYTHONPATH='src'
-.\.venv\Scripts\python.exe -m unittest discover -s tests
-```
+---
 
-## Leitidee
+## Selfhosting-Philosophie
 
-LinkVault soll nicht nur Links speichern. Es soll eine Link-Sammlung aktiv
-pflegen: doppelte Favoriten erkennen, aehnliche Inhalte gruppieren,
-schlechte Metadaten verbessern, tote Links ueberwachen und neue Links anhand
-von Regeln, AI-Vorschlaegen und Nutzungsverhalten passend einordnen.
+LinkVault ist bewusst so gedacht, dass es für kleine self-hosted Installationen praktisch bleibt.
 
-## Research
+### Standardpfad
+- leichtgewichtig
+- SQLite-basiert
+- mit einem Dienst realistisch betreibbar
+- einfach zu sichern
+- einfach wiederherzustellen
+- einfach zu aktualisieren
+- realistisch für Proxmox-Homelab-Nutzung
 
-Das beigefuegte Research-Zip wurde nach
-[`selfhosted-bookmark-research`](selfhosted-bookmark-research/) extrahiert.
-Es enthaelt Vergleichstabellen, Projektzusammenfassungen, Quellenlisten und
-erste Dedup-Beispiele.
+### Schwere optionale Funktionen
+Schwerere Themen wie Archive Worker, Screenshot/PDF, Reader-Extraktion, AI-Helfer oder größere Service-Topologien sind spätere optionale Erweiterungen und keine Standardvoraussetzung.
 
-Die zusaetzliche Deep-Research-Sammlung vom 19.04.2026 wurde in
-[Research Impact](docs/RESEARCH_IMPACT.md) ausgewertet und in Roadmap sowie
-Produktprioritaet uebernommen.
+---
 
-Die UX-Research-Sammlung vom 19.04.2026 wurde in
-[UX Research Impact](docs/UX_RESEARCH_IMPACT.md) ausgewertet. Die wichtigste
-Folge: Dublettenpflege, Bulk-Organisation, Sync-Konflikte, Archivstatus und
-Betriebszustand sollen eigene sichtbare Workflows werden.
+## Tech-Stack
 
-Die Demo-UX-Analyse vom 21.04.2026 wurde in
-[Demo UX Analysis Impact](docs/DEMO_UX_ANALYSIS.md) ausgewertet. Die wichtigste
-Folge: LinkVault kombiniert Linkwarden-Struktur, linkding-Suche/Shortcuts und
-Karakeep-Workspaces, ohne den kleinen Selfhost-Core aufzugeben.
+Aktueller Kern-Stack:
 
-Die zusaetzlichen Research-Pakete vom 20.04.2026 wurden in
-[Browser and Import Research Impact](docs/BROWSER_IMPORT_RESEARCH.md)
-ausgewertet. Die wichtigste Folge: Browser-Import wird als eigener,
-verlustbewusster Workflow geplant. HTML bleibt der Baseline-Import; spaeter
-kommen optionale Vendor-Anreicherungen, Import-Vorschau, Checksummen,
-Quellmetadaten und Erhaltung unbekannter Browser-Rohdaten dazu.
+- Python
+- SQLite
+- SQLite FTS5
+- eigenes Backend-Runtime-Modell
+- Firefox Companion Extension
+- Proxmox VE / Debian LXC Deployment-Pfad
+- stdlib-orientierter Testansatz
+
+---
+
+## Projektstatus
+
+LinkVault ist aktiv in Entwicklung.
+
+Die technische Basis ist bereits stark bei:
+- Bookmark-Speicherung
+- Dedup-Logik
+- Import-Vorschau
+- Browser-Companion-Grundlagen
+- Proxmox-Installationspfad
+- Backup-, Restore- und Update-Workflows
+
+Die größte verbleibende sichtbare Produktlücke ist aktuell noch die Klarheit der Haupt-UI/GUI bei:
+- Navigation
+- Favoriten
+- Organisation
+- Dublettenpflege
+- alltäglichen Bookmark-Workflows
+
+---
+
+## Dokumentation
+
+Wichtige Dokumente:
+
+- `ROADMAP.md`
+- `ROADMAP.en.md`
+- `PROJECT_MEMORY.md`
+- `docs/linkvault_statusanalyse.md`
+- `PRODUCT_SPEC.md`
+- `ARCHITECTURE.md`
+- `RESEARCH_IMPACT.md`
+- `UX_RESEARCH_IMPACT.md`
+- `COMPANION_EXTENSION.md`
+- `COMPANION_EXTENSION_UPDATE.md`
+- `DUPLICATE_PREFLIGHT.md`
+- `DEDUP_SORTING_CATEGORIZATION.md`
+- `PROXMOX_COMMUNITY_SCRIPT.md`
+- `BACKUP_RESTORE.md`
+- `UPDATE.md`
+- `HELPER.md`
+
+---
+
+## Entwicklungsprioritäten
+
+Aktuell hoch priorisiert:
+
+- bookmark-zentrierte Navigation
+- Quick Add
+- Favoriten-/Tags-/Listen-/Collections-Workflows
+- Duplicate Center UX
+- breitere Import-/Export-/Migrationsabdeckung
+- stabile Browser-Roundtrips
+- weitere Proxmox-Betriebsreife
+
+Niedriger priorisiert:
+
+- Reader-Modus
+- archivlastige Flows
+- Screenshot / PDF / Single-HTML
+- AI-Zusammenfassungen
+- schwere Multi-Service-Erweiterungen
+- Enterprise-Provisioning
+
+---
+
+## Zielgruppe
+
+LinkVault richtet sich besonders an Menschen, die wollen:
+
+- self-hosting
+- Kontrolle über ihre Bookmarks
+- Browser-Migrationsunterstützung
+- Dublettenbereinigung
+- Favoriten-Verwaltung
+- Proxmox-freundliches Deployment
+- ein fokussiertes System, das praktisch bleibt
+
+---
+
+## Leitfrage
+
+Für jede größere Entscheidung fragt LinkVault:
+
+**Macht das das Produkt besser als self-hosted Plattform für Bookmarks, Favoriten, Organisation, Dublettenbereinigung, Import/Export und sync-nahe Workflows?**
+
+Wenn die Antwort hauptsächlich lautet „es macht LinkVault mehr zu einem Reader- oder Archivprodukt“, dann ist die Richtung falsch.

@@ -2,199 +2,420 @@
 
 ## Ziel
 
-LinkVault soll ein modernes Selfhost-Tool fuer Favoriten, Bookmarks,
-Read-it-later-Inhalte und Webarchive werden. Es kombiniert die besten
-Eigenschaften der verglichenen Tools und behebt vor allem die wiederkehrenden
-Schwaechen: schwache Dublettenlogik, uneinheitliche Kategorien, fehlende
-Merge-Workflows, unklare Archivkonsistenz und zu wenig Automatisierung.
+LinkVault ist ein modernes **self-hosted Tool zum Verwalten, Organisieren, Sortieren, Kategorisieren, Synchronisieren und Bereinigen von Favoriten, Links und Bookmarks**.
+
+Der Schwerpunkt liegt auf:
+
+- schnellem Speichern von Links
+- strukturierter Bookmark-Verwaltung
+- Favoriten-Management
+- Tags, Listen und Collections
+- Suche, Filter und Sortierung
+- Bulk-Aktionen
+- verlustarmen Import-/Export-Workflows
+- sicherer Dubletten-Erkennung und Dubletten-Bereinigung
+- leichter, robuster Selfhosting-Bereitstellung auf Proxmox LXC
+
+## Bewusste Abgrenzung
+
+LinkVault ist **nicht primär**:
+
+- ein Read-later-Tool
+- eine Reader-App
+- ein Webarchiv als Hauptprodukt
+- eine Knowledge Base
+- ein Notiztool mit Bookmark-Nebenfunktion
+
+Read-later-, Reader- oder Archivfunktionen dürfen später optional ergänzt werden, aber sie dürfen **nicht** die Produktmission, Navigation, Datenstruktur, Roadmap oder UI dominieren.
+
+---
+
+## Produktkern
+
+LinkVault ist in erster Linie ein:
+
+- Bookmark-Manager
+- Favoriten-Manager
+- Link-Organisationssystem
+- Dubletten-Bereinigungswerkzeug
+- Sync- und Import-/Export-fähiges Selfhost-Produkt
+
+### Kernversprechen
+
+LinkVault soll drei Dinge besonders gut können:
+
+1. **Bookmarks und Favoriten sauber verwalten**
+2. **große Link-Sammlungen übersichtlich organisieren**
+3. **Dubletten sicher erkennen, prüfen, zusammenführen oder entfernen**
+
+---
 
 ## Inspirationsquellen
 
-| Quelle | Uebernehmen | Verbessern |
+| Quelle | Übernehmen | Verbessern |
 |---|---|---|
-| Karakeep | Links, Notizen, Assets, AI-Tags, Regeln, Listen, API, Webhooks | stabilere Admin- und Merge-Werkzeuge, klarere Datenpflege |
-| linkding | Minimalismus, schnelle Bedienung, Bulk-Editing, URL-Check, REST-API | Favoriten/Pins, hierarchische Organisation, bessere Archivierung |
-| Linkwarden | Collections, Sub-Collections, Sharing, lokale Archivformate, Annotationen | echte Dubletten- und Merge-Logik |
-| LinkAce | Listen, Tags, Monitoring, Import/Export, SSO/OIDC | moderne Archivierung, bessere Favoriten- und Sortierfunktionen |
-| Readeck | Read-it-later, lokale Inhaltskopien, Labels, Favorites, EPUB/OPDS | staerkere Bookmark-Organisation und Sync |
-| Shiori | leichtes Go-Selfhosting, einfache Bedienung | vollstaendigere Team-, Archiv- und Dedup-Funktionen |
+| Karakeep | Favoriten, Listen, Regeln, starke Organisation, spätere Automatisierung | klarere Bookmark-Pflege, stärkere Dubletten-Workflows |
+| linkding | Minimalismus, schnelle Bedienung, Bulk-Editing, Suche, REST-API | Favoriten-/Collections-/Mehrfachorganisation |
+| Linkwarden | Collections, Sub-Collections, Pinning, strukturierte Navigation | echte Dubletten- und Merge-Logik |
+| LinkAce | klassische Bookmark-Verwaltung, Tags, Listen, Monitoring | modernere Bulk-/Dedup-/Sync-Flows |
+| Readeck | leichter Betrieb, gute Struktur | nicht als Read-later-Hauptidentität übernehmen |
+| Shiori | leichtgewichtiges Selfhosting, einfache Bedienung | stärkere Organisation, bessere Pflege-Workflows |
 
-## Produktformel Aus Der Deep-Research-Sammlung
+## Grundregel zu Referenzen
 
-Die Deep-Research-Sammlung vom 19.04.2026 schaerft die Produktlinie:
+LinkVault übernimmt **Stärken**, aber nicht die komplette Identität anderer Produkte.
 
-```text
-linkding-artige URL-Deduplizierung
-+ Karakeep-artige Favoriten, Listen, Regeln und AI-Optionen
-+ Linkwarden-artige Archivformate und Collections
-+ Readeck-artige Reader-/Highlight- und leichte Speicherlogik
-+ LinkAce-artige Multiuser-, SSO-, API- und Monitoring-Reife
-+ Shiori-artige Einfachheit im Betrieb
-+ community-scripts-artige Proxmox-LXC-Installation
-```
+Insbesondere:
+- keine Reader-first-Produktlinie
+- keine Archiv-first-Produktlinie
+- keine überladene Content-Consumption-Oberfläche
 
-Damit ist LinkVaults Kernversprechen nicht "alle Features sofort", sondern:
-sichere Link-Pflege, starke Favoriten-/Dublettenbereinigung, gute
-Selfhost-Betriebsqualitaet und schrittweise Archivtiefe.
+---
 
-## UX-Formel Aus Der UX-Research-Sammlung
+## Kernarbeitsbereiche
 
-Die UX-Research-Sammlung vom 19.04.2026 schaerft, wie diese Produktlinie
-bedienbar werden soll:
+Die zentrale Informationsarchitektur von LinkVault soll bookmark-zentriert sein.
 
-```text
-linkding-Klarheit
-+ Karakeep-Arbeitsoberflaeche
-+ Linkwarden-Archiv- und Collection-Tiefe
-+ Readeck-Lesemodus
-+ LinkAce-Verwaltungskontrolle
-+ Shiori-Betriebseinfachheit
-+ community-scripts.org-Entdeckbarkeit
-```
+### 1. Inbox
+Für neue, unsortierte oder noch nicht geprüfte Bookmarks.
 
-Die wichtigste UX-Regel: Pflegeaufgaben duerfen nicht versteckt sein.
-Dubletten, Inbox, Favoriten, Bulk-Organisation, Archivstatus, Sync-Konflikte
-und Betriebszustand sollen eigene sichtbare Wege bekommen.
+### 2. All Bookmarks
+Die Hauptarbeitsansicht für die gesamte Bookmark-Bibliothek.
 
-## Browser-/API-Research Vom 20.04.2026
+### 3. Favourites
+Eigene Ansicht für persönliche Favoriten.
 
-Das Browser-API-Research ergaenzt die Produktlinie um eine wichtige Regel:
-Import ist nicht nur "Datei hochladen", sondern Datenpflege. LinkVault soll
-HTML als universellen Einstieg akzeptieren, aber reichere Browser-Formate
-spaeter verlustarm aufnehmen koennen.
+### 4. Lists / Collections
+Strukturierte Organisation über Listen, Sammlungen und ggf. Unterstrukturen.
 
-```text
-Netscape-HTML zuerst
-+ Chromium-JSON als Enrichment
-+ Firefox-JSON/JSONLZ4 als Enrichment
-+ Safari-ZIP als Enrichment
-+ Import-Vorschau und Konfliktliste
-+ Rohdaten-Erhaltung fuer unbekannte Vendor-Felder
-```
+### 5. Tags
+Flexible Mehrfach-Kategorisierung über Schlagworte.
 
-Sync-Daten gelten dabei nicht automatisch als Backup. LinkVault soll Quelle,
-Profil, Datei, Checksumme, Sync-Herkunft und Importzeitpunkt sichtbar halten,
-damit Nutzer spaeter nachvollziehen koennen, wo Dubletten und Konflikte
-entstanden sind.
+### 6. Duplicates
+Eigene Pflegezentrale für Dubletten-Erkennung, Prüfung, Merge und optionales Entfernen.
+
+### 7. Import / Export
+Dedizierter Bereich für Browser-Importe, Tool-Importe, Vorschau, Konflikte und Exporte.
+
+### 8. Archive
+Sekundärer Bereich für archivierte oder bewusst ausgeblendete Bookmarks.  
+Nicht als Hauptproduktfläche.
+
+### 9. Settings / Profile / Admin
+Klar getrennte Bereiche für Benutzerprofil, API-Token, Integrationen und Administration.
+
+---
 
 ## Kernfunktionen
 
-### Navigation und Arbeitsbereiche
+## 1. Bookmarks speichern und verwalten
 
-- Inbox fuer neue, unsortierte oder noch zu pruefende Links.
-- Favoriten fuer haeufig genutzte Links.
-- Dubletten als sichtbare Pflegezentrale.
-- Collections/Listen und Tags als getrennte Organisationsbereiche.
-- Archiv fuer gespeicherte Inhalte und Archivstatus.
-- Aktivitaet fuer Import, Bulk-Aktionen, Merge, Restore und spaeter Regeln.
-- Einstellungen fuer Setup, API-Token, Sync, Betrieb und Proxmox-Hinweise.
+LinkVault speichert Bookmarks mit mindestens:
 
-### Bookmarks und Inhalte
+- URL
+- Titel
+- Beschreibung
+- Domain
+- Favicon
+- Erstellungs-/Importzeitpunkt
+- Favoritenstatus
+- Tags
+- Listen / Collections
+- Notizen
+- Quelle / Herkunft
 
-- Link-Bookmarks mit Titel, Beschreibung, Screenshot, Favicon, Sprache,
-  Autor, Publisher, Lesedauer und Inhaltstyp.
-- Textnotizen, PDFs, Bilder und hochgeladene Dateien als gleichwertige Items.
-- Reader-Ansicht mit Volltext, Highlights, Notizen und Zitaten.
-- Versionierte Archivierung: Live-URL, Reader-Extrakt, Screenshot, PDF,
-  Single-HTML und optional WARC.
-- Link Health Checks: erreichbar, Weiterleitung, Zertifikatsfehler, 404,
-  Soft-404, Inhalt geaendert.
+### Schnelles Speichern
+- Quick Add mit Fokus auf URL
+- Standardziel z. B. Inbox
+- sofortige Duplikat-Prüfung
+- optionale Direktzuweisung von Tags / Liste / Favorit
 
-### Favoriten und Pins
+---
 
-- `favorite`: persoenlicher Favorit.
-- `pin`: sichtbar hervorgehobener Link auf Dashboard oder Collection.
-- `priority`: niedrig, normal, hoch, kritisch.
-- `read_status`: unread, reading, done, archived.
-- Mehrere Favoritenansichten: alle Favoriten, kuerzlich favorisiert,
-  haeufig geoeffnet, ungelesene Favoriten, kaputte Favoriten.
+## 2. Favoriten
 
-### Kategorien, Tags und Collections
+Favoriten sind eine Kernfunktion, nicht nur ein kleines Flag.
 
-- Collections als Ordnerstruktur mit Sub-Collections.
-- Tags als flexible, mehrfache Labels.
-- Smart Collections mit gespeicherten Suchfiltern.
-- Bundles fuer kuratierte Link-Sets.
-- Regeln: Wenn Domain, Inhaltstyp, Text, Sprache, Autor oder Tag passt,
-  dann Collection/Tag/Favorit/Prioritaet setzen.
-- AI-Vorschlaege fuer Tags, Titel, Zusammenfassung, Collection und
-  Dublettengruppe, aber mit nachvollziehbarer Begruendung.
+### Anforderungen
+- eigener Favoritenbereich
+- Favorit schnell umschaltbar
+- Filter nach Favoriten
+- Bulk-Favorisieren / Bulk-Entfernen
+- Favoritenstatus sichtbar in Listen- und Detailansicht
 
-### Dublettenbereinigung
+### Ziel
+Favoriten sollen sich wie ein echter Arbeitsbereich anfühlen, nicht wie eine versteckte Nebeneigenschaft.
 
-LinkVault behandelt Dubletten als Datenpflege-Workflow, nicht als
-Ein-Klick-Risiko.
+---
 
-- Exakte URL-Dubletten nach kanonisierter URL.
-- Near-Duplicates nach Weiterleitung, Canonical-Link, Inhaltshash,
-  Titel-Aehnlichkeit und Domain/Slug-Aehnlichkeit.
-- Merge-Kandidaten mit Score und Grund.
-- Dry-Run vor jeder Massenaktion.
-- Siegerregeln: Favorit > Pin > mit Highlights > mit Notizen > mit Archiv >
-  aelterer Originaleintrag > haeufiger genutzt.
-- Merge uebernimmt Tags, Collections, Notizen, Highlights, Archivdateien,
-  Favoritenstatus, Pins und Importquellen.
-- Undo-Log fuer Merge- und Loeschaktionen.
-- Duplicate-Preflight beim Speichern: vorhandenen Eintrag oeffnen,
-  aktualisieren, Archivversion anhaengen, separat speichern oder spaeter
-  pruefen.
-- Conflict Center fuer Import-, Sync- und Merge-Konflikte.
+## 3. Organisation: Tags, Listen, Collections
 
-### Suche und Sortierung
+LinkVault organisiert Bookmarks über mehrere Ebenen:
 
-- Volltextsuche ueber Titel, URL, Textinhalt, Notizen, Tags und OCR-Text.
-- Sortierung nach Relevanz, Aktualitaet, Lesedauer, Domain, Collection,
-  Favorit, Health-Status, Nutzungsfrequenz und manueller Reihenfolge.
-- Facetten: Tag, Collection, Domain, Sprache, Autor, Inhaltstyp, Status,
-  Importquelle, Archivstatus.
-- Saved Searches und Smart Collections.
+### Tags
+- flexible Mehrfach-Labels
+- ideal für Themen, Status, Kontexte
 
-### Import, Export und Sync
+### Lists
+- kuratierte, manuelle Gruppierung
+- ein Bookmark kann mehreren Listen zugeordnet werden
 
-- Browser-Bookmark-HTML.
-- Netscape Bookmark Format.
-- Import-Vorschau mit Dry-Run, Duplikatbericht und Konfliktliste.
-- Import-Sessions mit Quelle, Datei, Checksumme, Profil und Ergebniszahlen.
-- Optionales Vendor-Enrichment fuer Chromium-JSON, Firefox-JSON/JSONLZ4 und
-  Safari-ZIP.
-- Rohdaten-Erhaltung fuer unbekannte Browserfelder statt verlustbehafteter
-  Normalisierung.
-- CSV und JSON.
-- Importprofile fuer Karakeep, linkding, Linkwarden, LinkAce, Readeck und
-  Shiori, sofern deren Exporte/API-Zugriffe verfuegbar sind.
-- WebDAV/OPDS fuer Lesefluss.
-- Floccus-kompatible Bridge als spaetere Ausbaustufe.
-- REST-API und Webhooks fuer Automatisierung.
-- Sync-Setup mit Test-Button, letztem Erfolg, Fehlerdetails und
-  Konfliktuebersicht.
+### Collections
+- strukturierende Oberkategorie / Container
+- optional mit Unterebenen
 
-### Benutzer, Rechte und Selfhost
+### Saved Views
+- gespeicherte Filter-/Sortier-/Ansichtskombinationen
+- nutzerbezogen speicherbar
 
-- Einzelbenutzer-Modus als Default.
-- Multi-User mit Rollen: owner, admin, editor, reader.
-- OIDC/OAuth2 und Reverse-Proxy-Auth.
-- Public Sharing fuer Collections oder einzelne Links.
-- Audit-Log fuer Import, Merge, Delete, Share und Admin-Aktionen.
+### Regeln und Automatisierung
+Später optional:
+- Domain-Regeln
+- Pfad-Regeln
+- Text-/Keyword-Regeln
+- Vorschläge für Tag / Liste / Collection / Favorit
 
-## Nicht-Ziele fuer Version 1
+Regeln dienen der Bookmark-Organisation, nicht dem Aufbau einer Reader-/Archivplattform.
 
-- Kein Social-Network-Feed.
-- Keine Cloud-Pflicht.
-- Keine proprietaeren AI-Abhaengigkeiten.
-- Keine aggressive automatische Loeschung ohne Dry-Run und Undo.
+---
 
-## Quellenlage
+## 4. Dubletten-Erkennung und Dubletten-Bereinigung
 
-Die lokale Research-Sammlung liegt unter
-[`selfhosted-bookmark-research`](../selfhosted-bookmark-research/). Zusaetzlich
-wurde am 18.04.2026 geprueft:
+Dublettenbehandlung ist eine der wichtigsten Kernfunktionen von LinkVault.
 
-- Community-Scripts beschreibt LXC-Container-Skripte als Einstiegspunkt unter
-  `ct/*.sh`, die auf dem Proxmox-Host laufen und ein
-  `install/*.sh`-Skript im Container ausfuehren.
-- Das Community-Scripts-Repository nennt Proxmox VE 8.4, 9.0 und 9.1 als
-  aktuelle Zielversionen und beschreibt Default/Advanced-Installationsmodi.
-- Linkwarden dokumentiert Links, Tags und Collections als Kerndatenmodell,
-  wobei Links genau einer Collection gehoeren koennen und mehrere Tags haben.
-- Karakeep dokumentiert eine API fuer Bookmarks, Listen, Tags, Highlights,
-  Assets und Backups.
+### Ziele
+- doppelte Links früh erkennen
+- unnötige Dubletten vermeiden
+- vorhandene Daten nicht verlieren
+- sichere Review vor Änderungen
+- Massenbereinigung kontrolliert ermöglichen
+
+### Erkennung
+LinkVault soll Dubletten mindestens auf diesen Ebenen erkennen:
+
+- exakte URL
+- normalisierte URL
+- Canonical-/Redirect-Ziel
+- ähnliche URL auf derselben Domain
+- spätere heuristische Kandidatengruppen
+
+### Duplicate Preflight
+Vor dem Speichern oder Importieren wird geprüft:
+
+- existiert dieselbe URL schon?
+- existiert dieselbe normalisierte URL?
+- gibt es wahrscheinliche Kandidaten?
+
+Wenn ja, soll der Nutzer:
+- vorhandenen Bookmark öffnen
+- vorhandenen Bookmark aktualisieren
+- bewusst separat speichern
+- Merge-/Review-Workflow starten
+
+### Dedup Center
+Eine eigene Oberfläche für Dublettenpflege mit:
+
+- Dublettengruppen
+- Gewinner-Vorschlag
+- Feldvergleich
+- Merge-Plan
+- Dry-Run
+- Statusanzeige
+- Undo-/Historien-Konzept
+
+### Merge-Grundsätze
+Beim Merge dürfen wichtige Daten nicht verloren gehen:
+
+- Tags
+- Listen / Collections
+- Favoritenstatus
+- Pin-Status
+- Notizen
+- bessere Titel/Beschreibungen
+- Importquelle
+- Redirect-/Herkunftskontext
+
+### Entfernen von Dubletten
+Dubletten dürfen entfernt werden, aber nur:
+- bewusst
+- nachvollziehbar
+- nach Review
+- nie blind automatisch im Standardfluss
+
+### Standardprinzip
+**Safe by default.**
+Kein hartes Löschen ohne ausdrückliche Entscheidung.
+
+---
+
+## 5. Suche, Filter und Sortierung
+
+LinkVault soll sich für große Bookmark-Sammlungen eignen.
+
+### Suche
+- Volltextsuche
+- URL-/Domain-Suche
+- Tag-/List-/Collection-Filter
+- Kombinierbarkeit von Filtern
+
+### Sortierung
+- nach Titel
+- nach Domain
+- nach hinzugefügt
+- nach geändert
+- nach Favorit
+- nach Pin
+- nach Pflege-/Deduplikationsstatus
+- nach Importzeitpunkt
+- später optional nach Nutzungssignalen
+
+### Pflegesichten
+Beispiele:
+- neue Links prüfen
+- Dubletten bereinigen
+- fehlende Tags ergänzen
+- kaputte Links prüfen
+- Favoriten pflegen
+
+---
+
+## 6. Bulk-Aktionen
+
+Bulk-Operationen sind Pflicht für ernsthafte Bookmark-Verwaltung.
+
+Mindestens:
+- Tags hinzufügen / entfernen
+- Listen / Collections zuweisen
+- Favorisieren / entfavorisieren
+- Archivieren
+- Löschen
+- Dublettenprüfung anstoßen
+- Merge-Review vorbereiten
+- Exportieren
+
+Bulk-Aktionen müssen klar sichtbar, sicher und verständlich sein.
+
+---
+
+## 7. Import / Export / Migration
+
+Import und Export sind Kernfunktionen, nicht nur Behelfslösungen.
+
+### Import-Ziele
+- Browser-Bookmarks
+- HTML als universelle Baseline
+- später reichere Vendor-Formate
+- Tool-Importe in späteren Phasen
+
+### Import-Grundsätze
+- Vorschau vor Commit
+- Konfliktanzeige
+- Dublettenprüfung
+- Rohdaten-Erhalt für unbekannte Felder
+- sichere Merge-/Create-/Update-Entscheidungen
+
+### Export
+- normale Bookmark-Exporte
+- gefilterte Exporte
+- browserfreundliche Exportpfade
+- spätere migrationsfreundliche Formate
+
+### Ziel
+LinkVault soll Browser- und Tool-Wechsel erleichtern, ohne Metadaten unnötig zu verlieren.
+
+---
+
+## 8. Synchronisierung
+
+Synchronisierung ist ein Zielthema, aber kontrolliert und nachvollziehbar.
+
+### Wichtige Prinzipien
+- Sync darf nie blind Daten zerstören
+- Import ist nicht automatisch Backup
+- Restore ist nicht automatisch Zwei-Wege-Sync
+- Konflikte müssen sichtbar sein
+- Dubletten und Sync-Konflikte hängen zusammen
+
+### Roadmap-Richtung
+- extension-gestützte Browser-Flows
+- serverseitige Vorschau
+- konfliktbewusste Sync-/Restore-Logik
+- später ausbaubare echte Sync-Pfade
+
+---
+
+## 9. Selfhosting und Betrieb
+
+LinkVault soll im Standardpfad leicht, robust und gut wartbar bleiben.
+
+### Betriebsziele
+- Debian / Proxmox LXC freundlich
+- SQLite + FTS5 im Kern
+- geringer Ressourcenbedarf
+- einfacher Update-/Backup-/Restore-Pfad
+- gut testbarer Installationsweg
+- klare lokale Admin-Werkzeuge
+
+### Grundsatz
+Der Core bleibt klein und effizient.  
+Schwere Zusatzfunktionen werden nicht zum Standardzwang.
+
+---
+
+## 10. UI / UX / GUI Zielbild
+
+LinkVault soll sich wie ein echtes Bookmark-Arbeitswerkzeug anfühlen.
+
+### UI-Ziele
+- klare Navigation
+- Sidebar oder ähnlich starke Hauptstruktur
+- sichtbare Hauptbereiche
+- starke Bookmark-Liste / Detailansicht
+- schnelle Suche
+- klare Filter
+- gut erkennbare Favoriten
+- klare Bulk-Aktionen
+- sichtbarer Dublettenbereich
+
+### UX-Ziele
+- schneller Standardfluss
+- geringer Reibungsverlust
+- gute Pflege großer Bibliotheken
+- vertraute Bookmark-Muster aus Browsern und Referenztools
+- keine Reader-zentrierte Hauptfläche
+
+### GUI-Ziele
+- brauchbare Tabellen-/Listen-/Kartenansichten
+- gute Zustände für Auswahl, Laden, Fehler, Konflikte
+- klare Dialoge für Import und Merge
+- keine kosmetische Spielerei ohne Bookmark-Mehrwert
+
+---
+
+## Bewusst nachrangig
+
+Diese Themen dürfen später kommen, sind aber nicht Hauptmission:
+
+- Reader-Modus
+- Webarchivierungstiefe
+- Screenshot/PDF/Single-HTML als Standard
+- WARC
+- AI-Zusammenfassungen
+- schwere Crawler-/Worker-Stacks
+- Enterprise-Provisioning
+- große Team-/Org-Funktionen
+
+Wenn eines dieser Themen die Bookmark-Verwaltung verdrängt, ist das eine Fehlentwicklung.
+
+---
+
+## Kurzform der Produktformel
+
+```text
+linkding-artige Klarheit und Geschwindigkeit
++ Karakeep-artige Organisation, Listen und Regeln
++ Linkwarden-artige Collections und strukturierte Navigation
++ LinkAce-artige Verwaltungsreife
++ Shiori-/Readeck-artige Leichtgewichtigkeit im Betrieb
++ starke eigene Dubletten-Erkennung, Review und sichere Bereinigung
++ selfhosted Proxmox-LXC-Tauglichkeit

@@ -1,148 +1,52 @@
 # UX Research Impact
 
-## Quelle
+## Source
 
-Diese Auswertung basiert auf der lokalen Sammlung
-`UX-Research-Sammlung fuer LinkVault` vom 19.04.2026. Sie vergleicht
-Karakeep, linkding, Linkwarden, LinkAce, Readeck, Shiori und
-community-scripts.org aus UX-/UI-/GUI-Sicht.
+This document consolidates the most important UX, UI, GUI and usability conclusions from the research that compared tools such as:
 
-Die wichtigste Wirkung auf LinkVault: Das Projekt braucht nicht nur mehr
-Funktionen, sondern bessere Sichtbarkeit fuer Pflegeaufgaben. Speichern und
-Suchen sind nur der Anfang; Aufraeumen, Zusammenfuehren, Priorisieren,
-Synchronisieren und Wiederlesen muessen als eigene Wege sichtbar werden.
+- Karakeep
+- linkding
+- Linkwarden
+- LinkAce
+- Readeck
+- Shiori
+- community-scripts.org patterns
 
-## UX-Produktformel
+Its purpose is to translate research into **practical product direction for LinkVault**.
 
-```text
-linkding-Klarheit
-+ Karakeep-Arbeitsoberflaeche
-+ Linkwarden-Archiv- und Collection-Tiefe
-+ Readeck-Lesemodus
-+ LinkAce-Verwaltungskontrolle
-+ Shiori-Betriebseinfachheit
-+ community-scripts.org-Entdeckbarkeit
-```
+---
 
-## Wichtigste Erkenntnisse
+## Core UX conclusion
 
-### 1. Dubletten brauchen eine sichtbare Zentrale
+LinkVault does not mainly need “more features.”
+It needs **better visibility and operability for bookmark work**.
 
-Viele Referenztools haben technische URL-Pruefungen oder Import-Schutz. Was
-oft fehlt, ist eine gut sichtbare UX fuer taegliche Dublettenpflege.
+That means users must be able to do these things quickly and confidently:
 
-Konsequenz fuer LinkVault:
+- save links
+- find bookmarks
+- favorite important items
+- organize with tags, lists and collections
+- clean up duplicates
+- review import results
+- manage bulk actions
+- understand sync-adjacent conflicts
+- keep control of their library over time
 
-- `Dubletten` sollte ein Hauptnavigationspunkt werden.
-- Vor dem Speichern braucht LinkVault spaeter einen Duplicate-Preflight:
-  vorhanden oeffnen, aktualisieren, Archivversion anhaengen, separat speichern
-  oder spaeter pruefen.
-- Merge muss immer Vorschau, Dry-Run, klare Gewinnerregel und Undo bekommen.
+The UX opportunity is not “becoming a reader.”
+The UX opportunity is becoming a **better bookmark workspace**.
 
-### 2. Quick Add muss leicht bleiben
+---
 
-linkding und LinkAce zeigen: schnelles Speichern ist entscheidend. Karakeep
-und Linkwarden zeigen zugleich, dass Metadaten, Listen, Favoriten und Archive
-beim Speichern hilfreich sind, solange sie nicht den Standardfluss ueberladen.
+## Product UX formula
 
-Konsequenz fuer LinkVault:
+LinkVault should follow this UX direction:
 
-- Ein Quick-Add-Feld sollte dauerhaft leicht erreichbar sein.
-- Der Standarddialog bleibt kurz: URL, Titel, Tags, Collections, Favorit/Pin.
-- Erweiterte Optionen wie Archivmodus, Regeln oder Duplicate-Details werden
-  stufenweise aufgeklappt.
-
-### 3. Navigation muss Pflegeaufgaben abbilden
-
-Die Sammlung empfiehlt eine klare Hauptnavigation:
-
-- Inbox
-- Favoriten
-- Dubletten
-- Listen oder Collections
-- Tags
-- Archiv
-- Aktivitaet
-- Einstellungen
-
-Konsequenz fuer LinkVault:
-
-- Die aktuelle MVP-Seite darf simpel bleiben, aber das Zielbild sollte eine
-  linke Navigation mit direkten Pflegebereichen bekommen.
-- `Inbox` wird der Ort fuer neue oder unsortierte Links.
-- `Aktivitaet` zeigt spaeter Import, Merge, Bulk-Aktionen, Restore und Regeln.
-
-### 4. Bulk-Aktionen sind Kern-UX, kein Nebenfeature
-
-Die UX-Recherche bestaetigt den bisherigen Schritt: Bulk Actions sind fuer
-echte Bookmark-Pflege notwendig.
-
-Konsequenz fuer LinkVault:
-
-- Bereits umgesetzt: Auswahl, Tags hinzufuegen/entfernen, Collections setzen,
-  Favorit/Pin setzen und Loeschen.
-- Spaeter ergaenzen: bulk archive, bulk export, bulk share, bulk merge und
-  Status-Aenderungen.
-
-### 5. Sync und Konflikte brauchen eigene Oberflaechen
-
-Browser-Erweiterungen, Mobile Share, Floccus/WebDAV und API-Importe erzeugen
-Konflikte: gleiche URL mit anderen Tags, Offline-Capture, veraenderte
-Collections oder doppelte Ordner.
-
-Konsequenz fuer LinkVault:
-
-- API-Token sollten nicht nur technisch existieren, sondern in einem
-  Sync-Setup-Assistenten sichtbar werden.
-- Spaeter braucht es ein Conflict Center fuer Sync-, Import- und Merge-Faelle.
-- Jeder Konflikt braucht eine begruendete Entscheidung, nicht nur
-  `replace`/`keep`.
-
-### 6. Archivierung muss als Erlebnis sichtbar sein
-
-Linkwarden und Readeck zeigen, dass Archive nicht nur Backup-Dateien sind. Sie
-beeinflussen Lesen, Wiederfinden und Vertrauen.
-
-Konsequenz fuer LinkVault:
-
-- Archivstatus wird ein sichtbares Feld je Bookmark.
-- Spaetere Save-Optionen: URL only, Reader, Single-HTML, PDF/Screenshot.
-- Archivassets muessen in Backup/Restore und Merge-Plan auftauchen.
-
-### 7. Betrieb ist auch UX
-
-community-scripts.org zeigt, wie stark klare Suche, Kategorien, Copy/Paste-
-Befehle, Default/Advanced-Auswahl und Nachinstallationshinweise wirken.
-
-Konsequenz fuer LinkVault:
-
-- Proxmox-Installation muss nicht nur funktionieren, sondern klar erklaeren:
-  URL, Setup-Token, Healthcheck, Logs, Backup, Update.
-- Ein Post-Install Helper sollte spaeter Update, Logs, Status, Backup/Restore
-  und Diagnose fuehren.
-
-## Priorisierte UX-Folgen
-
-1. **Navigation/Startseite ueberarbeiten**: Quick Add, Suche, Inbox,
-   Favoriten, Dubletten und Bulk-Auswahl klarer trennen.
-2. **URL-Check / Duplicate Preflight**: vor dem Speichern anzeigen, ob eine URL
-   bereits existiert.
-3. **Dedup-Dashboard ausbauen**: Gruppen, Gewinner, Merge-Plan und Dry-Run
-   visuell bearbeitbar machen.
-4. **Activity/Audit vorbereiten**: Import, Bulk, Merge, Delete, Restore und
-   spaeter Regeln nachvollziehbar machen.
-5. **API-Token + Sync-Setup**: Token nicht nur als Endpoint, sondern mit
-   Test-Button und Status sichtbar machen.
-6. **Archivstatus in der UI**: zuerst Statusfeld, spaeter Reader/Archivtabs.
-7. **Post-Install Helper**: Proxmox-Nutzer durch Update, Logs, Backup/Restore
-   und Healthcheck fuehren.
-
-## Bewusste MVP-Grenze
-
-Die UX-Sammlung enthaelt viele groessere Ideen wie Mobile Share, Browser-
-Extension, Conflict Center, Reader Tabs, Archive Preview und Sync Wizard. Diese
-sind wichtig, aber nicht alle sofort MVP. Fuer den aktuellen Python-MVP zaehlt:
-
-- bestehende Pflegefunktionen stabilisieren,
-- echte Proxmox-Backup/Restore-Laeufe nachweisen,
-- URL-Check und Dedup-UX als naechste Produktdifferenzierung bauen.
+```text id="2dq4w9"
+linkding clarity and speed
++ Karakeep-style workspace feeling
++ Linkwarden-style structured navigation
++ LinkAce-style management control
++ Shiori/Readeck-style lightweight operation
++ first-class duplicate cleanup UX
++ self-host-friendly operational clarity

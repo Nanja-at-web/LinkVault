@@ -1,57 +1,161 @@
 # Technische Architektur
 
+## Architekturleitbild
+
+LinkVault ist im Kern eine **leichtgewichtige, selfhost-taugliche Bookmark-, Favoriten-, Link-Management- und Sync-Plattform**.
+
+Die Architektur muss zuerst diese Kernaufgaben unterstützen:
+
+- Bookmarks schnell speichern und bearbeiten
+- Favoriten verwalten
+- Tags, Listen und Collections organisieren
+- große Link-Bibliotheken filtern, durchsuchen und sortieren
+- Dubletten sicher erkennen, prüfen, zusammenführen und optional entfernen
+- Browser- und Tool-Importe sauber verarbeiten
+- Import-/Restore-/Sync-Konflikte nachvollziehbar behandeln
+- zuverlässig auf Proxmox VE / Debian LXC laufen
+
+## Bewusste Abgrenzung
+
+LinkVault ist **architektonisch nicht primär**:
+
+- ein Read-later-System
+- ein Reader-first-Produkt
+- ein Archivierungs-Stack mit schwerem Worker-Zwang
+- ein Multi-Service-Plattformprodukt im MVP
+- eine AI- oder Crawler-zentrierte Anwendung
+
+Archivierung, Reader-Funktionen, Screenshots/PDF oder externe Worker dürfen später wachsen, aber **nicht** den Core dominieren.
+
+---
+
 ## Betriebsphilosophie
 
-Das Installation-Research vom 20.04.2026 bestaetigt: LinkVault sollte im
-Standardpfad klein bleiben und schwere Archiv-/Crawler-/AI-Funktionen als
-optionale Profile behandeln. Der Core-MVP orientiert sich betrieblich eher an
-linkding, Readeck, Shiori, Betula und Shaarli als an Karakeep, Linkwarden oder
-Omnivore.
+Der Standardpfad von LinkVault bleibt **klein, robust und LXC-freundlich**.
 
-Installationsprofile:
+Die Architektur folgt daher einem **Core-first-Modell**:
 
-| Profil | Zweck | Pflichtdienste |
-|---|---|---|
-| Core MVP | Bookmarks, Login, SQLite, FTS5, Dedup, Backup/Restore, Update | ein systemd Service |
-| Archive Worker | Reader-Extrakt, Single-HTML, Screenshot/PDF, Assets | optionaler Worker, Browser-/Archivtools |
-| Platform Mode | grosse Installationen, externe Suche, Worker-Trennung | spaeter PostgreSQL/Search/Queue bewerten |
+### Core MVP
+Pflichtbestandteile:
+- Bookmark-Verwaltung
+- Login / Auth
+- SQLite
+- FTS5
+- Favoriten / Tags / Listen / Collections
+- Suche / Filter / Sortierung
+- Dedup / Duplicate Preflight / Dedup Center
+- Import / Export
+- Backup / Restore
+- Update
+- Companion Extension
+- Proxmox-/Debian-LXC-tauglicher Betrieb
+
+### Optionale spätere Profile
+Nur nachrangig und optional:
+- Archive Worker
+- Reader-Extrakte
+- Screenshot / PDF / Single-HTML
+- AI-Vorschläge
+- externe Suchdienste
+- Plattformmodus für größere Installationen
+
+### Grundsatz
+Der Core muss alleine nützlich, schnell und stabil sein.
+
+Schwere Zusatzprofile dürfen:
+- separat aktiviert werden
+- zusätzliche Dienste benötigen
+- mehr Ressourcen brauchen
+
+Sie dürfen aber **nicht** Voraussetzung für den normalen Bookmark-Betrieb sein.
+
+---
 
 ## Empfohlener Stack
 
-LinkVault sollte als robuste, LXC-freundliche Web-App gebaut werden:
+### Aktueller Kern
+- **Backend:** Python
+- **Datenbank:** SQLite
+- **Suche:** SQLite FTS5
+- **Deployment:** Proxmox VE / Debian LXC
+- **Companion:** Firefox WebExtension
+- **Tests:** stdlib `unittest`
 
-- Backend: Go oder TypeScript/Node. Empfehlung: Go fuer kleine Binaries,
-  einfache LXC-Installation und Shiori-aehnliche Leichtigkeit.
-- Frontend: React mit serverseitig ausgeliefertem Build.
-- Datenbank: SQLite fuer den Python-MVP und kleine Installationen,
-  PostgreSQL spaeter nur fuer groessere Installationen oder Platform Mode.
-- Suche: SQLite FTS5 im Core-MVP, spaeter PostgreSQL Full Text Search,
-  Meilisearch oder Tantivy-basierter Index als optionales Profil.
-- Queue: eingebaute Job-Tabelle fuer MVP, spaeter Redis optional.
-- Archivierung: Readability-Extraktion, Single-HTML, Screenshot/PDF ueber
-  Playwright oder Browserless-kompatiblen Worker, aber nicht als Core-Pflicht.
-- AI: Provider-Abstraktion. Lokal via Ollama/OpenAI-kompatible API,
-  remote optional, komplett abschaltbar.
+### Architekturregel
+Die bestehende Python/SQLite-Architektur ist der aktuelle Standardpfad.
+
+LinkVault soll **nicht ohne ausdrückliche Neuentscheidung** auf:
+- Go
+- TypeScript/Node
+- PostgreSQL
+- Redis
+- externe Search-Stacks
+umgelenkt werden.
+
+### Spätere optionale Erweiterungen
+Nur bei echtem Bedarf:
+- optionaler Worker-Prozess für Archivierung
+- optionale externe Suche bei sehr großen Installationen
+- optionale Queue-Erweiterung
+- optionale alternative Release-Artefakte
+
+### Grundsatz
+Erst den Bookmark-Kern gut machen, dann schwere Technik ergänzen.
+
+---
+
+## Architekturprinzipien
+
+### 1. Bookmark-first
+Alle Kernmodule und Datenflüsse müssen zuerst den Bookmark- und Favoriten-Workflow unterstützen.
+
+### 2. Safe by default
+Dubletten, Importe, Konflikte und Sync-nahe Änderungen dürfen nie blind destruktiv arbeiten.
+
+### 3. Lightweight self-hosting
+Keine unnötigen Pflichtdienste im MVP.
+
+### 4. Erweiterbarkeit ohne Drift
+Spätere Funktionen dürfen angebaut werden, ohne den Kern in ein Reader-/Archivprodukt zu verwandeln.
+
+### 5. Datenbewahrung bei Merge und Import
+Wichtige Metadaten dürfen nicht unnötig verloren gehen.
+
+---
 
 ## Module
 
 | Modul | Aufgabe |
 |---|---|
-| `ingest` | URL speichern, Metadaten laden, Redirects verfolgen, Canonical URL bestimmen |
-| `archive` | Reader-Text, Screenshot, PDF, Single-HTML, Assets speichern |
-| `dedup` | Fingerprints, Kandidaten, Scores, Merge-Plan, Undo |
-| `organize` | Regeln, AI-Vorschlaege, Smart Collections, Bulk-Edit |
-| `search` | Volltextindex, Facetten, gespeicherte Suche |
-| `health` | Link-Checks, Dead-Link-Erkennung, Redirect-Historie |
-| `importer` | Browser/HTML/CSV/JSON/API-Importe |
-| `api` | REST, Webhooks, API-Keys |
-| `auth` | lokale Nutzer, OIDC, Reverse-Proxy-Auth |
+| `ingest` | URL speichern, normalisieren, Metadaten laden, Redirects/Candidate-Daten vorbereiten |
+| `bookmarks` | Bookmark-CRUD, Favoriten, Pins, Status, Listen-/Collection-/Tag-Zuordnung |
+| `dedup` | Duplicate Preflight, Kandidatenbildung, Scores, Merge-Plan, Review, Undo |
+| `organize` | Regeln, Bulk-Edit, Saved Views, Sortierung, Kategorisierung |
+| `search` | Volltextsuche, Filter, Sortierung, gespeicherte Ansichten |
+| `importer` | Browser-/HTML-/CSV-/JSON-/Tool-Importe mit Vorschau und Konfliktlogik |
+| `sync` | sync-nahe Import-/Restore-/Konfliktflüsse, Snapshot-/Drift-Logik |
+| `api` | REST-Endpunkte, Extension-Schnittstellen, Tokens |
+| `auth` | lokale Nutzer, Rollen, API-Tokens, Passwortwechsel/-reset |
 | `admin` | Jobs, Logs, Backups, Updates, Diagnose |
+| `health` | Link-Checks, Redirect-/Dead-Link-Prüfung, Pflegehinweise |
+| `archive` | optionales späteres Modul für Reader-/Screenshot-/PDF-/Single-HTML-Funktionen |
+
+## Modulregel
+
+`archive` ist **nicht** Teil des verpflichtenden Kernbetriebs.  
+Die Kernidentität von LinkVault entsteht aus:
+- `bookmarks`
+- `dedup`
+- `organize`
+- `search`
+- `importer`
+- `sync`
+
+---
 
 ## Import-Architektur
 
-Das Browser-API-Research vom 20.04.2026 fuehrt zu einer klaren
-Import-Schichtung:
+Die Import-Architektur folgt einer klaren, nicht-destruktiven Schichtung:
 
 ```text
 source file / API
@@ -61,153 +165,3 @@ source file / API
   -> import preview
   -> merge/create/update plan
   -> committed bookmark records
-```
-
-Netscape-HTML ist die gemeinsame Baseline. Vendor-Formate sollen nur
-zusaetzlich anreichern:
-
-- Chromium-Familie: HTML plus optionales Chromium-JSON.
-- Firefox/Tor Desktop: HTML plus optionales JSON/JSONLZ4.
-- Safari: ZIP mit `Bookmarks.html` plus optionale Metadaten.
-- Samsung Internet und DuckDuckGo Browser: zuerst als eingeschraenkte
-  Importquellen, keine allgemeine Bookmark-API voraussetzen.
-
-Unbekannte Felder werden nicht verworfen. Sie landen in `raw_vendor_payload`
-oder in einem spaeteren Import-Record, damit LinkVault bei Importen keine
-Browserdaten kaputt normalisiert.
-
-## Datenmodell
-
-```text
-users
-  id, email, display_name, role, auth_provider, created_at
-
-items
-  id, owner_id, type, title, url, canonical_url, normalized_url,
-  description, content_hash, domain, language, author, publisher,
-  favorite, pinned, priority, read_status, created_at, updated_at
-
-collections
-  id, owner_id, parent_id, name, description, color, visibility
-
-item_collections
-  item_id, collection_id, position, pinned
-
-tags
-  id, owner_id, name, normalized_name, color
-
-item_tags
-  item_id, tag_id, source
-
-archives
-  id, item_id, kind, storage_path, content_hash, byte_size, created_at
-
-import_sessions
-  id, owner_id, source_name, source_format, source_file_name,
-  source_file_checksum_sha256, sync_origin, imported_at,
-  created_count, duplicate_count, conflict_count, raw_summary_json
-
-import_records
-  id, session_id, item_id, source_browser, source_profile, source_device,
-  source_path, source_id, source_guid, parent_source_id, url_raw,
-  url_normalized, added_at, modified_at, last_used_at,
-  is_reading_list, is_speed_dial, is_mobile_root, is_managed,
-  raw_vendor_payload
-
-highlights
-  id, item_id, user_id, text, note, locator, color, created_at
-
-dedup_candidates
-  id, group_id, item_a_id, item_b_id, score, reasons, state
-
-merge_actions
-  id, group_id, winner_item_id, merged_item_ids, plan_json,
-  undo_json, actor_id, created_at
-
-rules
-  id, owner_id, name, enabled, trigger_json, action_json, priority
-
-jobs
-  id, kind, payload_json, state, attempts, last_error, created_at, updated_at
-```
-
-## URL-Normalisierung
-
-Die Normalisierung muss deterministisch und sichtbar sein:
-
-- Scheme lowercasen, Default-Port entfernen.
-- Host lowercasen, `www.` optional als Aehnlichkeitsmerkmal behandeln.
-- Tracking-Parameter entfernen: `utm_*`, `fbclid`, `gclid`, `mc_cid`,
-  `igshid` und konfigurierbare weitere Parameter.
-- Fragment entfernen, ausser es ist fuer bestimmte Domains relevant.
-- Trailing Slash normalisieren.
-- Redirect-Ziel und HTML-Canonical getrennt speichern.
-
-## Dedup-Score
-
-```text
-score = exact_normalized_url * 100
-      + same_redirect_target * 90
-      + same_canonical_url * 85
-      + same_content_hash * 80
-      + title_similarity * 40
-      + slug_similarity * 35
-      + same_domain * 15
-      - conflicting_content_type * 30
-```
-
-Score-Bedeutung:
-
-- `>= 95`: automatisch als sichere Dublettengruppe vorschlagen.
-- `80-94`: Review erforderlich.
-- `60-79`: nur als "moeglicherweise aehnlich" anzeigen.
-- `< 60`: keine Dublette.
-
-## Merge-Sicherheit
-
-Jeder Merge erzeugt einen Plan:
-
-```json
-{
-  "winner": "item_123",
-  "merge": ["item_456", "item_789"],
-  "move_tags": true,
-  "move_collections": true,
-  "move_highlights": true,
-  "move_archives": true,
-  "keep_redirect_history": true,
-  "delete_losers": false
-}
-```
-
-Default ist `delete_losers: false`: Verlierer werden zuerst als
-`merged_into` markiert. Endgueltiges Loeschen ist ein separater Cleanup-Job.
-
-## LXC-Betrieb
-
-Aktueller Python-MVP:
-
-- Debian 13 LXC
-- 2 vCPU empfohlen
-- 768 MB RAM Minimum, 1024 MB empfohlen
-- 16 GB LXC-Disk als aktueller Default
-- systemd Service `linkvault`
-- Konfiguration ueber `/etc/linkvault/linkvault.env`
-- App unter `/opt/linkvault`
-- Daten unter `/var/lib/linkvault/linkvault.sqlite3`
-- Logs ueber journald/stdout
-- Healthcheck ueber `/healthz`
-- Requirements-Check ueber `linkvault-requirements` oder
-  `linkvault-helper requirements`
-
-Spaeteres Default-Ziel:
-
-- Debian 13 LXC
-- 2 vCPU
-- 4096 MB RAM
-- 16 GB Disk fuer kleine Archive
-- PostgreSQL lokal im Container
-- optionaler Browser/Archive-Worker im selben Container fuer einfache
-  Installation
-
-Groessere Installationen sollten Archivspeicher und Worker trennen koennen.

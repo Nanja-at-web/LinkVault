@@ -1,257 +1,476 @@
-# MVP-Roadmap
+# ROADMAP.md
 
-Status-Legende:
+## LinkVault Roadmap
 
-- `[x]` erledigt
-- `[~]` teilweise erledigt
-- `[ ]` offen
+**Stand:** 2026-04-28  
+**Projekt:** LinkVault  
+**Ausrichtung:** self-hosted Bookmark-, Favoriten-, Link-Management-, Dedup- und Sync-Plattform
 
-Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
+---
 
-## Phase 0: Fundament
+## 0. Produktmission
 
-- [x] Repository-Struktur festlegen.
-- [x] Lizenz waehlen: AGPL-3.0-or-later.
-- [x] Deep-Research-Sammlung auswerten und Produktprioritaeten ableiten.
-- [x] UX-Research-Sammlung auswerten und UX-Prioritaeten ableiten.
-- [x] Demo-UX-Analyse zu Linkwarden, linkding und Karakeep auswerten.
-- [x] Layout-/Anzeige-UX von Karakeep, Linkwarden und linkding auswerten.
-- [x] Browser/API-Research vom 20.04.2026 auswerten und Import-Architektur
-  ableiten.
-- [x] Installations-/Requirements-Research vom 20.04.2026 auswerten und
-  Betriebsprofile ableiten.
-- [x] Englischsprachigen Repo-Einstieg und englische Roadmap anlegen.
-- [~] Backend-Stack final entscheiden: Python bleibt bis Phase 2, Go wird spaeter neu bewertet.
-- [~] Datenmodell als Migrationen anlegen: SQLite-Schema vorhanden, Migrationen noch simpel.
-- [ ] Lokale Dev-Installation mit Docker Compose.
-- [ ] Node.js als lokale/CI-Dev-Abhaengigkeit fuer Companion-Extension-
-  Syntaxchecks einplanen, ohne Node in die LinkVault-LXC-Runtime zu ziehen.
-- [x] Healthcheck, .env-Konfiguration, feste Service-Datenpfade und erste systemd Unit.
+LinkVault ist primär ein:
 
-## Phase 1: Bookmark-Kern
+- Bookmark-Manager
+- Favoriten-Manager
+- Link-Organisationssystem
+- Dubletten-Bereinigungswerkzeug
+- Import-/Export- und Sync-fähiges Selfhost-Produkt
 
-- [~] Login, Setup und Benutzerkonten: initiales Setup-Token, Session-Login,
-  Admin/User-Rollen, eigenes Passwort aendern, Admin-Passwort-Reset,
-  benutzergebundene API-Tokens, Benutzerverwaltung und dedizierter Admin-Tab
-  vorhanden; feinere Rechteverwaltung offen.
-- [~] Link anlegen, bearbeiten, loeschen.
-- [x] Link bearbeiten in der UI: Titel, Beschreibung, Tags, Collections, Favorit, Pin, Notizen.
-- [x] Bulk-Aktionen fuer Tags, Collections, Favoriten und Pins.
-- [x] Metadaten laden: Titel, Beschreibung, Favicon, Domain.
-- [~] Tags, Collections, Favoriten und Pins.
-- [x] SQLite-FTS5-Volltextsuche mit Filtern fuer Favorit, Pin, Domain, Tag und Collection.
-- [~] Import aus Browser-Bookmark-HTML.
-- [x] Import-Vorschau fuer Browser-HTML: neue Links, Dubletten, Ordnerpfade,
-  Tags/Collections und Konflikte vor dem Schreiben anzeigen.
-- [x] Browser-Import-Metadaten fuer Companion-Import speichern:
-  `source_browser`, `source_root`, `source_folder_path`, `source_position`
-  und `source_bookmark_id`.
-- [x] Import-Session-Metadaten speichern: Quelle, Datei, Checksumme, Profil,
-  Format, Zeitpunkt und Ergebniszahlen.
-- [x] API-Token fuer Import, Extension und Automatisierung.
-- [x] Profile und Kontoverwaltung: eigener Profil-Tab mit Benutzerinfo,
-  API-Token-Verwaltung und Passwortwechsel; Admin-Tab mit Benutzerliste,
-  Benutzer anlegen, Rolle aendern, Passwort-Reset und Benutzer loeschen;
-  Saved Views per Nutzer gespeichert (user_id-Scope).
-- [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
-  Erkennung im lokalen Netzwerk.
-- [x] Startseite/Navigation ueberarbeiten: Sichtbare Tabs: Quick-Add-Button,
-  Inbox, Bookmarks, Favoriten, Tags, Collections, Dubletten, Import, Betrieb,
-  Admin (nur Admin-User) und Profil. Speichern, Archiv und Einstellungen
-  programmatisch erreichbar (hidden), da Speichern via Quick-Add-Vollformular
-  abgedeckt wird und Archiv noch nicht implementiert ist.
-- [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
-  Arbeitsleisten auslagern.
-- [x] Inbox/Unsortiert: neue Links ohne Collection landen automatisch in
-  `Inbox`.
-- [x] Inbox sichtbar machen: eigener Einstieg in der Navigation und
-  Schnellfilter in der Bookmark-Liste.
-- [x] Regelbasierte Vorschlaege fuer Tags/Collections aus Domain, Titel,
-  Beschreibung und URL.
-- [x] Quick-Add-Flow mit kurzem Standarddialog und optionalen erweiterten
-  Feldern.
-- [x] Ansichtsumschalter fuer Bookmarks: Compact List, Detailed List und Grid.
-- [~] Anzeigeoptionen je Nutzer speichern: Titel, Beschreibung, Notizen, Tags,
-  Collections, Domain, Datum, Favorite/Pin und Status jetzt serverseitig pro
-  LinkVault-Instanz; spaetere Archiv-/Preview-Ansichten offen.
-- [x] Sortierung und Filter als Standard speichern, angelehnt an linkding:
-  Filter, Suche und Sortierung (sort_by, sort_order) sind serverseitig
-  gespeichert und werden in Saved Views eingeschlossen.
-- [x] Grid/Card-Ansicht fuer visuelles Browsing mit aktuellen Bookmark-Daten.
+### Hauptziele
+LinkVault soll besonders gut sein bei:
 
-## Phase 2: Dubletten und Favoritenpflege
+- schnellem Speichern von Links
+- Verwalten großer Bookmark-Sammlungen
+- Favoriten pflegen
+- Tags, Lists und Collections organisieren
+- Suche, Filter und Sortierung
+- Bulk-Aktionen
+- Duplikate erkennen, prüfen, zusammenführen und optional entfernen
+- verlustarmem Import und Export
+- kontrollierten sync-nahen Workflows
+- leichtem Betrieb auf Proxmox VE / Debian LXC
 
-- [x] URL-Normalisierung.
-- [x] Exakte Dublettenerkennung.
-- [x] URL-Check-Endpunkt nach linkding/Karakeep-Vorbild: `/api/bookmarks/preflight`.
-- [~] Duplicate-Preflight beim Speichern: vorhanden oeffnen, aktualisieren oder
-  bewusst separat speichern vorhanden; Archivversion spaeter.
-- [x] Dubletten-Dashboard mit Gewinner-Vorschlag, Verlierer-Liste,
-  Unterschiedsansicht und klarem Zusammenfuehren-Button.
-- [x] Merge-Plan mit Dry-Run.
-- [x] Undo fuer Merge.
-- [x] Merge-Ausfuehrung ohne Loeschen: Gewinner aktualisieren, Verlierer als
-  `merged_duplicate` markieren und Daten uebernehmen.
-- [x] Statusfilter fuer aktive und gemergte Dubletten in API/UI.
-- [x] Merge-Historie mit Snapshots fuer Gewinner-vorher, Verlierer-vorher und
-  Gewinner-nachher.
-- [~] Conflict Center fuer Import-, Sync- und Merge-Konflikte: Import-,
-  Merge- und Companion-Restore-Konflikte vorhanden; Restore-Sessions
-  mit Fortschritt und Sammelentscheidung; Drift-Erkennung mit Snapshot-
-  Baseline (record_sync_snapshot, compute_sync_drift) und vier
-  Kategorien (geloescht, neu, geaendert, nur-LinkVault) vorhanden;
-  destruktiver Zwei-Wege-Sync und Floccus-Bridge noch offen
-  (Floccus-Forschung: siehe FLOCCUS_SYNC_RESEARCH.md).
-- [x] Favoriten ohne Kategorie, doppelte Favoriten und tote Favoriten anzeigen:
-  Favoriten-Pflege-Drawer im Favoriten-Tab mit Bericht und Link-Check-Button;
-  drei Kategorien: uncategorized (nur Inbox/keine Collection), duplicated
-  (gleiche normalisierte URL), dead (Link-Check fehlgeschlagen); paralleler
-  HEAD/GET-Check via ThreadPoolExecutor, Ergebnisse in link_checks-Tabelle.
-- [x] Pflege-Score je Sammlung: Metadaten (40 %), Dedup (30 %), Tags (15 %),
-  Links (15 %); score 0-100 pro Collection; Farb-Badge (gruen/gelb/rot) im
-  Collections-Tab; Archivstatus als spaeterer Faktor vorbereitet.
+### Nicht die Hauptmission
+LinkVault ist **nicht primär**:
 
-## Phase 3: Archivierung
+- ein Read-later-Produkt
+- eine Reader-App
+- ein Webarchiv als Hauptprodukt
+- eine Knowledge Base
+- ein Notiztool mit Bookmark-Nebenfunktion
 
-- [x] Archivstatus in Bookmark-Liste und Detailansicht sichtbar machen:
-  `archive_status`-Feld (none/pending/archived/failed) in DB-Schema,
-  Bookmark-Dataclass und allen SQL-Pfaden (INSERT, UPDATE, from_row,
-  from_payload, from_snapshot, to_record, save_bookmark); Badge-Anzeige
-  in der Bookmark-Liste; Archivstatus-Select im Bearbeiten-Formular;
-  `set_archive_status()`-Store-Methode mit Wertevalidierung;
-  `PATCH /api/bookmarks/<id>/archive-status`-Endpunkt.
-- [ ] Reader-Extrakt und gespeicherter Textinhalt nach Readeck-Vorbild.
-- [ ] Optionales Archive-Worker-Profil: Seite abrufen und lesbaren Text
-  speichern, spaeter Screenshot/PDF.
-- [ ] Highlights und Notizen im Reader.
-- [ ] Screenshot und PDF.
-- [ ] Single-HTML.
-- [ ] EPUB/OPDS-nahe Export-/Reader-Option pruefen.
-- [ ] Archivstatus je Link.
-- [ ] Link Health Checks.
-- [ ] Archivassets in Backup/Restore und Merge-Plan aufnehmen.
+Reader-, Archiv- oder AI-Funktionen dürfen später optional ergänzt werden, aber sie dürfen diese Roadmap **nicht dominieren**.
 
-## Phase 4: Automatisierung
+---
 
-- [ ] Regel-Engine.
-- [~] Bulk-Editing: Bookmark-Pflege vorhanden, Archiv-/Status-Bulk offen.
-- [ ] Smart Collections.
-- [ ] AI-Tagging optional.
-- [~] Activity/Audit-Log fuer Import, Bulk, Merge, Delete und Browser-
-  Restore vorhanden; Regeln und spaetere Sync-Aktionen noch offen.
-- [ ] Anpassbares Dashboard/Betrieb-Layout nach Linkwarden-Vorbild, sobald
-  Bookmark-, Import- und Dedup-Workflows stabil sind.
-- [x] Erste Tastaturkuerzel fuer Suche, Speichern, Import, Bookmarks und
-  Dubletten.
-- [x] Shortcut-Hilfe: `?`-Taste und "? Hilfe"-Button oeffnen nativen
-  `<dialog>` mit Shortcut-Tabelle (Ctrl/Cmd+K, N, B, I, D, ?, Esc);
-  Klick auf Backdrop und Esc schliessen den Dialog; A11y-Pruefung offen.
-- [ ] A11y-Pruefung fuer Fokusreihenfolge und Screenreader-Statusmeldungen.
-- [ ] Public REST-API ausbauen.
-- [x] API-Token-Verwaltung mit Test-Button: Token-Wert gegen /api/me testen,
-  Ergebnis (Nutzer/Rolle oder Fehler) inline anzeigen; Sofort-testen-Button
-  nach Token-Erstellung; Testen-Link pro Token-Karte.
-- [ ] Webhooks.
-- [~] Companion-Extension: Entwickler-Preview fuer Firefox/Chromium mit
-  Ordnerauswahl, Popup-Vorschau, gefiltertem LinkVault-Export, sicherem
-  Browser-Rueckimport, Zielauswahl, Konfliktentscheidungen und Restore-
-  Sessions vorhanden; Packaging, destruktiver Sync und feinere Einzel-Link-
-  Auswahl offen.
-- [x] Companion-Entwickler-Updatepfad dokumentiert: stabile Firefox-ID,
-  Reload statt Entfernen, Token/URL bleiben beim Reload normalerweise erhalten.
-- [x] Companion-Importfilter fuer Ordner, Textsuche, Adresse/Domain,
-  hinzugefuegt-Datum und bereits vorhandene URLs.
-- [x] Companion-Discovery: LinkVault ueber aktuelle Eingabe, gespeicherte URL,
-  offene Tabs, `linkvault.local`, `linkvault` und optionalen Subnetzscan finden.
-- [ ] Optionales History-Enrichment fuer zuletzt besucht und meistbesucht nur
-  mit expliziter Browser-History-Berechtigung.
-- [ ] Sync-Setup fuer Browser-Erweiterung, Mobile Share, Floccus/WebDAV und API pruefen.
-- [x] LinkVault-Export-Endpunkt fuer Browser-Bookmark-Baum:
-  `GET /api/export/browser-bookmarks` mit Query/Favorit/Pin/Domain/Tag/
-  Collection/Status-Filtern.
-- [x] Companion-Rueckimport in den Browser als sicherer erster Schritt:
-  Vorschau, Restore in neuen Ordner oder gewaehlten bestehenden Browser-
-  Ordner, sowie Skip/Merge/Update fuer doppelte Links ohne Browserdaten zu
-  loeschen.
-- [ ] Destruktiver Browser-Sync mit Loeschwarnung und vollstaendigem
-  Konfliktlog.
-- [ ] Floccus-/Browser-Sync-Bridge pruefen.
-- [ ] Masonry-Ansicht und Bildoptionen Cover/Contain nach Karakeep-Vorbild,
-  sobald Preview-/Archivdaten stabil sind.
+## 1. Roadmap-Prinzipien
 
-## Phase 5: Proxmox-Installation
+### 1.1 Bookmark first
+Alles, was die alltägliche Bookmark-Verwaltung spürbar verbessert, hat Vorrang.
 
-- [ ] Release-Binary bauen.
-- [~] Debian 13 Installationsskript: lokaler Python-MVP-Installer vorhanden, Release-Installer offen.
-- [x] Internes Proxmox-LXC-Testskript: Container-Smoke-Test auf Proxmox erfolgreich.
-- [~] `ct/linkvault.sh`: community-scripts-aehnlicher Proxmox-Host-Einzeiler erfolgreich getestet, offizielle Einreichung offen.
-- [~] `install/linkvault-install.sh`: experimenteller Container-Installer vorhanden, finale community-scripts.org-Konventionen offen.
-- [~] Community-Scripts-Prozess klaeren: neue Skripte zuerst ueber ProxmoxVED, nicht direkt ueber ProxmoxVE.
-- [x] Default-/Advanced-Mode nach community-scripts.org-Konventionen:
-  interaktive Abfrage im ct-Script mit Anzeige der Default-Werte;
-  Advanced-Modus fragt CTID, Hostname, CPU, RAM, Disk, Storage und Branch;
-  nicht-interaktiver Modus (Pipe) verwendet stets Defaults.
-- [x] Post-Install Helper fuer Update, Einstellungen, Logs und Basisdiagnose: CT 112 Test am 19.04.2026 erfolgreich.
-- [x] Post-Install UX nach community-scripts.org-Vorbild: URL, Setup-Token,
-  Healthcheck, Logs, Backup, Restore und Update klar ausgeben; sowohl
-  install/linkvault-install.sh (Container-Seite) als auch
-  scripts/install-debian.sh geben nach erfolgreicher Installation eine
-  formatierte Summary-Box aus; ct/linkvault.sh gibt CTID-bezogene
-  pct-exec-Befehle aus.
-- [x] Update-Funktion fuer installierte LinkVault-LXC: CT 112 Smoke-Test am 19.04.2026 erfolgreich.
-- [x] Backup/Restore-Dokumentation: SQLite-MVP-Doku und Skripte vorhanden.
-- [x] Backup/Restore im echten Proxmox-LXC testen: CT 112 Smoke-Test am 19.04.2026 erfolgreich.
-- [x] Migrationstest in zweiten frischen Proxmox-LXC: Restore von CT 112 nach CT 114 am 19.04.2026 erfolgreich.
-- [~] Test auf Proxmox VE 8.4/9.x: erster echter Proxmox-Lauf erfolgreich, Version-Matrix offen.
-- [ ] community-scripts.org-Konventionen mit `build.func`/`install.func` pruefen.
-- [ ] ProxmoxVE-Local-Kompatibilitaet pruefen.
-- [x] Requirements-Check fuer Debian/LXC, RAM, Disk, systemd, Python, venv und
-  SQLite FTS5.
-- [ ] Archive-Worker-Profil mit zusaetzlichen Paketen und Ressourcenwerten
-  spezifizieren.
-- [ ] ProxmoxVED-Einreichung vorbereiten.
-- [ ] Nach ProxmoxVED-Pruefung spaetere ProxmoxVE-Pflege planen.
+### 1.2 Safe by default
+Import, Dedup, Merge, Restore und sync-nahe Flows müssen sicher, reviewbar und nachvollziehbar sein.
 
-## Phase 6: Migrationen aus bestehenden Tools
+### 1.3 UI/GUI ist keine Nebensache
+Navigation, Such-/Filterbarkeit, Favoritensteuerung, Bulk-Aktionen und Duplicate-UX sind Kernqualität, nicht bloß Kosmetik.
 
-- [~] Import-Vorschau mit Dry-Run und Duplikatbericht: Core- und
-  Extension-Vorschau vorhanden, Import-Sessions und Conflict-Center-
-  Anschluss teilweise umgesetzt; weitere Tool-Migrationen offen.
-- [x] Chromium-JSON-Import fuer Chrome, Edge, Brave, Vivaldi und Opera mit
-  Vorschau, Ordnerpfaden, Dublettencheck und Import.
-- [x] Firefox-JSON/JSONLZ4-Import: JSON-Parser und Pure-Python-MozLZ4-Decoder
-  vorhanden; `.jsonlz4`-Backups werden als base64 entgegengenommen,
-  dekomprimiert und ueber den bestehenden Firefox-JSON-Parser importiert.
-- [x] Safari-ZIP-Import mit `Bookmarks.html` und Reading-List-Erkennung:
-  ZIP mit `Bookmarks.html` vorhanden; `READING_LIST="true"` auf H3 und
-  `TOREADLIST="true"` auf A-Tags werden erkannt und mit Tag `reading-list`
-  markiert.
-- [x] CSV-/JSON-Import fuer andere Bookmark-Tools als generische
-  Migrationsprofile: Spalten-Inferenz, konfigurierbares Field-Mapping,
-  Vorschau-Endpunkt und Import-Endpunkt vorhanden.
-- [ ] Rohdaten-Erhaltung fuer Browser-/Vendor-Felder via `raw_vendor_payload`.
-- [x] linkding Import via API/Export: `parse_linkding_json` versteht
-  sowohl paginierte DRF-Responses (`results`-Feld) als auch bare Listen;
-  Titel-Fallback auf `website_title`, Beschreibungs-Fallback auf
-  `website_description`; `is_archived`-Flag wird als `archive_status`
-  uebernommen; Format-Option in der Import-UI vorhanden.
-- [ ] Karakeep Import.
-- [ ] Linkwarden Import.
-- [ ] LinkAce Import.
-- [ ] Readeck Import.
-- [ ] Shiori Import.
-- [ ] Wallabag/Shaarli/Omnivore/Grimoire/Betula als spaetere Importprofile
-  bewerten.
+### 1.4 Selfhost-Realität zählt
+Der Standardpfad bleibt leicht, robust und LXC-freundlich.
 
-## Akzeptanzkriterien fuer Version 1
+### 1.5 Schweres nur optional
+Archive Worker, Reader-Extrakte, Screenshots/PDF, AI oder schwere Plattformdienste bleiben optionale spätere Erweiterungen.
 
-- 10.000 Bookmarks fluessig verwalten.
-- 1.000 Dubletten-Kandidaten sicher gruppieren.
-- Kein Merge loescht Archivdaten ohne Undo.
-- Browser-HTML-Import funktioniert mit Tags und Ordnern.
-- Import-Vorschau verhindert stille Ueberschreibungen und zeigt
-  Duplikat-/Konfliktberichte.
-- Proxmox-LXC Default-Installation laeuft ohne manuelle Nacharbeit.
-- Community-Scripts-Pfad ist nachvollziehbar: interner Einzeiler, ProxmoxVED,
-  spaetere ProxmoxVE-Pflege.
-- Backup und Restore sind dokumentiert und getestet.
+---
+
+## 2. Aktuelle strategische Einschätzung
+
+### Stark vorhanden
+- Core-Bookmark-Logik
+- URL-Normalisierung
+- Metadatenbasis
+- Favoriten / Tags / Collections / Saved Views
+- Duplicate Preflight
+- Dedup-Dry-Run / Merge-Richtung / sichere Merge-Philosophie
+- Import-/Preview-Denken
+- Companion-/Browser-Nähe
+- Proxmox-/LXC-Betrieb
+- Backup/Restore/Update
+
+### Größte sichtbare Lücken
+- bookmark-zentrierte Hauptnavigation
+- klare Hauptarbeitsoberfläche
+- Quick-Add-Alltagsfluss
+- starke Favoriten-/Listen-/Collections-/Tags-UX
+- sichtbares Duplicate Center
+- breiterer Import-/Export-/Migrationspfad
+- konsistente GUI-Architektur
+
+---
+
+## 3. Prioritätsreihenfolge
+
+Die Roadmap folgt dieser Reihenfolge:
+
+1. **Bookmark-Arbeitsoberfläche**
+2. **Quick-Add + Inbox + Favoriten + Organisation**
+3. **Duplicate Center + sichere Dublettenpflege**
+4. **Import / Export / Migration**
+5. **Sync-nahe Konflikt- und Rückimport-Flows**
+6. **Betriebsreife / Proxmox / community-scripts**
+7. **Optionale Erweiterungen**
+8. **Archiv-/Reader-/AI-Themen nur später**
+
+---
+
+## 4. Phasen
+
+---
+
+## Phase 0 — Fundament und Betrieb
+**Ziel:** LinkVault zuverlässig installierbar, wartbar und testbar halten.
+
+### Zielbild
+- stabiler Python-/SQLite-Kern
+- sauberer Debian-/LXC-Betrieb
+- zuverlässige Backup-/Restore-/Update-Pfade
+- testbare Betriebswerkzeuge
+- klare Entwicklungsumgebung
+
+### Enthalten
+- Installationspfad
+- systemd-Betrieb
+- Datenpfade
+- Backup / Restore
+- Update
+- Helper
+- Requirements-Check
+- Proxmox-/LXC-Smoke-Tests
+- Windows-/Dev-Doku
+
+### Fertig, wenn
+- frische Installation reproduzierbar läuft
+- Healthcheck stabil ist
+- Backup/Restore nachvollziehbar testbar ist
+- Update-Pfad nicht fragil ist
+
+### Nachrangig in dieser Phase
+- kosmetische Admin-Erweiterungen
+- schwere Plattformdienste
+- Archiv-Worker
+
+---
+
+## Phase 1 — Bookmark-Kern
+**Ziel:** LinkVault wird klar als Bookmark- und Favoriten-Manager nutzbar.
+
+### Kernfunktionen
+- Bookmarks speichern
+- Metadaten laden
+- Inbox
+- Favoriten
+- Pins
+- Tags
+- Lists / Collections
+- Suche
+- Filter
+- Sortierung
+- Saved Views
+- Bulk-Aktionen
+- Inline-/Detail-Bearbeitung
+
+### Wichtige UX/GUI-Ziele
+- klare Sidebar oder gleichwertige Hauptnavigation
+- Bereiche für:
+  - Inbox
+  - All Bookmarks
+  - Favourites
+  - Lists / Collections
+  - Tags
+  - Duplicates
+  - Import / Export
+  - Archive
+  - Settings / Profile / Admin
+- schnelle Bookmark-Liste
+- sichtbare Filter
+- sichtbare Favoritensteuerung
+- brauchbare Compact-/Detailed-/Grid-Ansichten
+
+### Hohe Priorität in Phase 1
+- Quick-Add-Modal
+- Inbox-Default
+- Favoritenansicht
+- Bulk-Favorisieren / Bulk-Tags / Bulk-Collections
+- gespeicherte Sortierung / Standardansicht
+- klare Listen-/Collections-/Tags-Operabilität
+
+### Fertig, wenn
+- LinkVault sich im Alltag als Bookmark-Arbeitsoberfläche anfühlt
+- neue Links schnell und ohne Reibung erfasst werden können
+- Favoriten und Organisation sichtbar und leicht nutzbar sind
+
+---
+
+## Phase 2 — Dubletten-Erkennung und Bereinigung
+**Ziel:** LinkVault wird ein außergewöhnlich gutes Tool zur sicheren Dublettenpflege.
+
+### Kernfunktionen
+- Duplicate Preflight beim Speichern
+- exakte URL-Erkennung
+- normalisierte URL-Erkennung
+- ähnliche Kandidaten
+- Dry-Run
+- Merge-Plan
+- Gewinner-Vorschlag
+- Feldvergleich
+- Undo-/Historienrichtung
+- Merge ohne blindes Löschen
+- markierte Verlierer statt sofortiger Datenvernichtung
+
+### Duplicate Center
+Eine dedizierte Oberfläche für:
+- Dublettengruppen
+- Sortierung nach Score / Risiko
+- Bulk-Modi:
+  - sicher
+  - review
+  - ähnlich
+- Sichtbarkeit von:
+  - Tags
+  - Collections
+  - Favoritenstatus
+  - Notizen
+  - Importherkunft
+  - Metadatenunterschieden
+
+### Wichtige nächste Schritte
+- Duplicate Center UI fertigziehen
+- Safe Remove als bewusste Aktion
+- Merge-Historie verbessern
+- Pflege-Score ergänzen
+- tote Favoriten / kaputte Links in Pflegeflows integrieren
+
+### Nicht tun
+- keine harte automatische Löschung im Standardfluss
+- keine stille Überschreibung
+
+### Fertig, wenn
+- Dublettenpflege nicht nur technisch, sondern UI-seitig klar und sicher ist
+- Nutzer große Bibliotheken kontrolliert bereinigen können
+
+---
+
+## Phase 3 — Import / Export / Migration
+**Ziel:** LinkVault wird ein starkes Zielsystem für Browser- und Tool-Migrationen.
+
+### Import-Ziele
+- HTML als Baseline
+- Chromium-JSON
+- Firefox-JSON / JSONLZ4
+- Safari-ZIP
+- später weitere Tool-Importer
+
+### Import-Grundsätze
+- Vorschau vor Commit
+- Dublettenprüfung vor Import
+- Konfliktanzeige
+- Rohdaten-Erhalt
+- Herkunft sichtbar halten:
+  - Browser
+  - Profil
+  - Datei
+  - Pfad
+  - Zeitstempel
+  - Import-Session
+
+### Export-Ziele
+- allgemeiner Bookmark-Export
+- gefilterter Export
+- browserfreundliche Strukturen
+- stabile Rückimport-Basis
+
+### Hohe Priorität
+- HTML-Import robust halten
+- Vendor-Enrichment Schritt für Schritt ausbauen
+- generischer CSV-/JSON-Import
+- Tool-Importe später gezielt ergänzen
+
+### Fertig, wenn
+- Import nicht nur „Daten rein“, sondern sauberer Migrationsworkflow ist
+- Nutzer nachvollziehen können, was importiert, gemerged oder übersprungen wird
+
+---
+
+## Phase 4 — Companion Extension und sync-nahe Flows
+**Ziel:** Browser und LinkVault arbeiten kontrolliert zusammen.
+
+### Companion-Ziele
+- aktuellen Tab speichern
+- Browser-Bookmarks lesen
+- Import-Vorschau senden
+- Browser-Rückimport mit Vorschau
+- Duplicate Preflight auch in Extension-Flows
+- strukturierte Konfliktanzeige
+
+### Sync-nahe Grundsätze
+- kein blinder Zwei-Wege-Sync
+- kein automatisches Löschen
+- keine stillen Überschreibungen
+- Konflikte sichtbar
+- Entscheidungen nachvollziehbar
+- Import ist nicht automatisch Backup
+- Restore ist nicht automatisch Sync
+
+### Wichtige nächste Schritte
+- Duplicate-/Konflikt-UX in der Extension stärken
+- gefilterten Export sauber halten
+- Drift-/Snapshot-Logik dort verbessern, wo sie Bookmark-Nutzen hat
+- Browser-Metadaten sauber erhalten
+
+### Nicht tun
+- keine magische Hintergrundsynchronisation ohne Vorschau
+- keine Reader-/Archiv-Logik in die Extension verschieben
+
+### Fertig, wenn
+- die Extension LinkVault klar als Bookmark-/Import-/Export-/Dedup-Werkzeug ergänzt
+
+---
+
+## Phase 5 — Profile, Admin, Mehrbenutzer-Grundlagen
+**Ziel:** Solide, kleine Multi-User-Basis ohne Produktdrift.
+
+### Enthalten
+- Admin/User-Rollen
+- user-scoped settings
+- Profilbereich
+- Admin-Bereich
+- API-Token-Verwaltung
+- Passwortwechsel / Reset
+- saubere Trennung von:
+  - persönlichem Bereich
+  - Admin
+  - Operations
+
+### Wichtig
+Diese Phase bleibt dem Bookmark-Kern untergeordnet.
+
+### Nicht Hauptfokus
+- große Team-/Org-Funktionen
+- SCIM / IdP
+- globale Enterprise-Provisioning-Pfade
+
+### Später möglich
+- Shared Collections
+- viewer/editor-Modelle pro Liste / Collection
+
+---
+
+## Phase 6 — Proxmox / community-scripts Reifegrad
+**Ziel:** LinkVault wird ein überzeugendes Selfhost-Produkt auf Proxmox.
+
+### Ziele
+- stabiler Einzeiler
+- reproduzierbare LXC-Tests
+- dokumentierter Update-/Backup-/Restore-Weg
+- Helper sinnvoll ausgebaut
+- community-scripts-konforme Reife
+
+### Wichtige Schritte
+- Installer und Hilfsskripte konsolidieren
+- Requirements-Checks klar halten
+- Logs und Fehlersignale verbessern
+- Helper-Funktionen stabilisieren
+- Submission-Reife vorbereiten
+
+### Nicht überpriorisieren
+Wenn UI/GUI, Dedup oder Import noch wesentliche Lücken haben, geht Produktkern vor Einreichungsformalitäten.
+
+---
+
+## Phase 7 — Automatisierung und Regelwerk
+**Ziel:** LinkVault organisiert große Bibliotheken smarter, ohne den Kern zu überladen.
+
+### Mögliche Inhalte
+- Domain-Regeln
+- Pfad-Regeln
+- Text-/Keyword-Regeln
+- automatische Tag-/List-/Collection-Vorschläge
+- Favoriten-/Prioritätsvorschläge
+- Smart Collections
+- Aktivitäts-/Pflegehinweise
+
+### Grundsatz
+Automatisierung soll Bookmark-Pflege verbessern, nicht das Produkt in eine AI-/Reader-/Archivmaschine verwandeln.
+
+---
+
+## Phase 8 — Optionale spätere Erweiterungen
+**Ziel:** Zusätzliche Tiefe, ohne den Core zu belasten.
+
+### Nur optional und nachrangig
+- Reader-Extrakte
+- Screenshot / PDF / Single-HTML
+- AI-Zusammenfassungen
+- Archive Worker
+- schwere Plattformdienste
+- alternative Release-Artefakte
+- tiefere Sharing-/Team-Funktionen
+
+### Bedingung
+Diese Themen kommen erst, wenn:
+- Bookmark-Kern stark ist
+- GUI tragfähig ist
+- Duplicate Center gut funktioniert
+- Import-/Sync-/Migration stabil sind
+- Selfhost-Betrieb nicht leidet
+
+---
+
+## 5. Aktuelle konkrete To-do-Reihenfolge
+
+### Jetzt zuerst
+1. bookmark-zentrierte Navigation fertigziehen
+2. Hauptansicht für Bookmarks stärken
+3. Quick-Add + Inbox-Flow fertigziehen
+4. Favoriten-/Tags-/Lists-/Collections-UX stärken
+5. Duplicate Center UI priorisieren
+
+### Danach
+6. Import-/Export-/Migrationspfade verbreitern
+7. Companion-/Browser-Flows konsolidieren
+8. Sync-nahe Konfliktflüsse verbessern
+9. Admin/Profile sauber vervollständigen
+10. Proxmox/community-scripts-Reife nachziehen
+
+### Später
+11. Regelwerk / Smart Collections
+12. optionale Archive-/Reader-/AI-Erweiterungen
+
+---
+
+## 6. Was aktuell bewusst nicht priorisiert wird
+
+Diese Punkte stehen bewusst **nicht** oben auf der Roadmap:
+
+- Reader-Modus
+- Webarchivierung als Hauptfunktion
+- Screenshot/PDF/Single-HTML als Standardpfad
+- WARC
+- AI-first-Produktlogik
+- große Team-/Org-Funktionen
+- Enterprise-Provisioning
+- Plattform-/Multi-Service-Ausbau
+- Design-Spielereien ohne Bookmark-Nutzen
+
+---
+
+## 7. Erfolgskriterien
+
+Die Roadmap ist auf Kurs, wenn LinkVault für Nutzer bald klar als dieses Produkt erkennbar ist:
+
+- ein sehr guter Bookmark-Manager
+- ein starkes Favoriten-Tool
+- ein sauberer Link-Organizer
+- ein sicheres Dubletten-Bereinigungswerkzeug
+- ein zuverlässiges Import-/Export-/Sync-fähiges Selfhost-System
+
+Nicht:
+- ein halbfertiger Reader
+- ein Archivsystem mit Bookmark-Nebenfunktion
+- ein UI-lastiges Dashboard ohne starke Arbeitsoberfläche
+
+---
+
+## 8. Entscheidungsregel für neue Aufgaben
+
+Bei jedem neuen Feature, jeder UI-Änderung und jeder Architekturidee ist zu fragen:
+
+**Verbessert diese Änderung LinkVault klar als Bookmark-, Favoriten-, Organisations-, Dedup-, Import-/Export- und Sync-Plattform?**
+
+Wenn die Antwort hauptsächlich lautet:
+- „es macht LinkVault mehr zu einer Reader-App“
+- „es macht LinkVault archivlastiger“
+- „es macht LinkVault schwerer statt nützlicher“
+
+dann ist die Priorität aktuell falsch.
