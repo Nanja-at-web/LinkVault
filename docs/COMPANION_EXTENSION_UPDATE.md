@@ -1,72 +1,179 @@
 # LinkVault Companion Extension Updates
 
-## Kurzfassung
+## Ziel dieser Datei
 
-Waehrend der Entwicklung muss die temporaere Extension nicht jedes Mal
-entfernt und neu installiert werden. In Firefox reicht normalerweise
-`about:debugging` -> `LinkVault Companion` -> `Reload`. In Chromium-basierten
-Browsern reicht die Reload-Schaltflaeche fuer die entpackte Extension.
+Diese Datei beschreibt, wie die **LinkVault Companion Extension** während der Entwicklung, beim lokalen Testen und später bei der Verteilung aktualisiert werden soll.
 
-Wichtig ist: dieselbe lokale Extension aus demselben Ordner laden.
+Die Companion Extension ist eine Begleiterweiterung für:
 
-## Token und URL behalten
+- schnelles Speichern von Bookmarks
+- Browser-Bookmark-Import
+- gefilterten Export
+- Duplicate-Preflight
+- konfliktbewusste Import-/Rückimport-Flows
+- sync-nahe, aber kontrollierte Bookmark-Workflows
 
-Die Companion Extension speichert LinkVault-URL und API-Token in
-`storage.local` des Browsers. Die Firefox-Extension hat dafuer eine stabile
-ID im Manifest:
+Sie ist **nicht** primär gedacht für:
 
-```json
-"browser_specific_settings": {
-  "gecko": {
-    "id": "linkvault-companion@nanja-at-web.local"
-  }
-}
-```
+- Read-later-Funktionen
+- Reader-Modus
+- Archivkonsum
+- selbständige Inhaltsplattform-Logik
 
-Dadurch bleibt die Extension-Identitaet beim Reload stabiler. Wenn die
-Extension nur neu geladen wird, bleiben URL und Token normalerweise erhalten.
+---
 
-Wenn die Extension komplett entfernt oder aus einem anderen Ordner neu geladen
-wird, kann der Browser sie als neue Installation behandeln. Dann muessen URL
-und Token erneut eingetragen werden.
+## Grundprinzip
 
-## Warum kein Ajax-Selbstupdate?
+Während der Entwicklung soll die Extension **nicht jedes Mal entfernt und neu installiert** werden müssen.
 
-Ajax oder eine andere Programmiersprache kann Extension-Code nicht einfach
-selbst ersetzen. Browser blockieren das absichtlich: Erweiterungen duerfen
-ihren eigenen Code nicht beliebig aus dem Netzwerk nachladen und ausfuehren,
-weil das ein Sicherheitsrisiko waere.
+Das bevorzugte Update-Modell ist:
 
-Die sinnvollen Update-Wege sind:
+- lokale Dateien ändern
+- Extension im Browser **neu laden**
+- weiter testen
 
-- Entwicklung: lokale Dateien aktualisieren und Extension im Browser neu
-  laden.
-- Spaeter: signiertes Firefox-Addon oder gepackte Chromium-Extension mit
-  offiziellem Updatekanal.
-- Optional spaeter fuer Homelab/Enterprise: eigenes Update-Manifest mit
-  signiertem Paket, wenn der jeweilige Browser das fuer diesen Installationsweg
-  erlaubt.
+Dadurch bleiben Entwicklung und Fehlersuche schnell und reproduzierbar.
 
-## Praktische Befehle
+---
 
-LinkVault im Proxmox-LXC aktualisieren:
+## Entwicklungs-Update statt Neuinstallation
 
-```bash
+## Firefox
+
+Bei einer lokal geladenen temporären Extension reicht normalerweise:
+
+- `about:debugging`
+- `This Firefox`
+- `LinkVault Companion`
+- `Reload`
+
+## Chromium-basierte Browser
+
+Bei einer entpackten Extension reicht normalerweise:
+
+- Browser öffnen
+- `Extensions`
+- `Developer mode`
+- `Reload`
+
+## Wichtig
+Die Extension soll möglichst **aus demselben lokalen Ordner** erneut geladen werden.
+
+Wenn dieselbe lokale Installation nur neu geladen wird, bleiben gespeicherte Zustände oft erhalten oder verhalten sich zumindest stabiler als bei kompletter Neuinstallation.
+
+---
+
+## URL und API-Token beibehalten
+
+Die Extension speichert lokale Verbindungsdaten wie:
+
+- LinkVault-URL
+- API-Token
+- ggf. weitere lokale Einstellungswerte
+
+Diese Daten liegen im lokalen Extension-Speicher des Browsers.
+
+## Ziel
+Bei einem normalen Reload sollen URL und Token **möglichst erhalten bleiben**, damit Entwickler und Nutzer nicht bei jeder kleinen Änderung neu konfigurieren müssen.
+
+## Wichtige Bedingung
+Das funktioniert am zuverlässigsten, wenn:
+
+- die Extension dieselbe Identität behält
+- derselbe lokale Ordner verwendet wird
+- keine vollständige Entfernung erfolgt
+
+## Wann Daten verloren gehen können
+URL und Token können neu eingegeben werden müssen, wenn:
+
+- die Extension vollständig entfernt wird
+- sie aus einem anderen Ordner neu geladen wird
+- die lokale Extension-Identität wechselt
+- das Browser-Profil zurückgesetzt wurde
+
+---
+
+## Stabile lokale Identität
+
+Für die Entwicklung ist eine stabile lokale Extension-Identität wichtig.
+
+### Warum?
+Sie hilft dabei:
+
+- Reloads reproduzierbar zu machen
+- lokale Daten stabiler zu halten
+- Update-Tests realistischer zu machen
+- weniger Reibung im Entwicklungsalltag zu erzeugen
+
+### Ziel
+Ein Reload soll sich wie ein **technisches Update derselben Extension** verhalten, nicht wie eine komplett neue Installation.
+
+---
+
+## Kein Selbstupdate über Ajax oder Remote-Code
+
+Die Companion Extension soll **ihren eigenen Code nicht aus dem Netzwerk nachladen und selbst ersetzen**.
+
+### Warum nicht?
+Browser blockieren so etwas aus guten Gründen:
+
+- Sicherheitsrisiko
+- Umgehung von Review-/Signaturwegen
+- unklare Herkunft von Code
+- schwer nachvollziehbares Laufzeitverhalten
+
+### Grundsatz
+Die Extension darf nicht zu einem System werden, das sich heimlich selbst umbaut.
+
+### Daher gilt
+Keine dieser Strategien als Standardweg:
+
+- Ajax-Selbstupdate
+- dynamisches Nachladen von unkontrolliertem Code
+- versteckte Remote-Code-Pfade
+- automatischer Austausch der lokalen Extension-Dateien aus dem Web
+
+---
+
+## Sinnvolle Update-Wege
+
+## 1. Entwicklung
+Der Standardweg während der Entwicklung:
+
+- lokale Dateien ändern
+- Browser-Extension reloaden
+- testen
+
+Das ist der wichtigste und bevorzugte Weg im Alltag.
+
+## 2. Spätere Paketverteilung
+Für echte Nutzerverteilung sind später saubere Paketwege sinnvoll, zum Beispiel:
+
+- signiertes Firefox-Addon
+- gepackte Chromium-Extension
+- kontrollierter Update-Kanal je Browsermodell
+
+## 3. Optionale spätere Selfhost-/Homelab-Verteilung
+Später möglich, aber nicht nötig für den Kern:
+
+- eigener Update-Mechanismus über signierte Pakete
+- eigener Manifest-/Release-Pfad
+- kontrollierte interne Verteilung für Homelab/Enterprise-ähnliche Setups
+
+### Bedingung
+Auch dabei gilt:
+- keine unkontrollierten Selbstupdates
+- keine Reader-/Archiv-Zweckentfremdung
+- Fokus bleibt auf Bookmark-/Import-/Export-/Duplicate-/Sync-Hilfe
+
+---
+
+## Praktischer Entwickler-Workflow
+
+## LinkVault-Server aktualisieren
+Wenn LinkVault im LXC aktualisiert wurde, reicht es normalerweise danach, die Extension im Browser neu zu laden.
+
+Beispiel für den Server:
+
+```bash id="fj2g1v"
 pct exec 112 -- linkvault-helper update
-```
-
-Danach im Browser nur die Extension neu laden:
-
-- Firefox: `about:debugging#/runtime/this-firefox` -> `Reload`
-- Chrome/Edge/Brave/Vivaldi/Opera: `Extensions` -> Developer mode -> Reload
-  beim entpackten `LinkVault Companion`
-
-## Spaeterer Ausbau
-
-Fuer eine bequemere Nutzerverteilung braucht LinkVault spaeter:
-
-- Extension-Paketierung als ZIP/CRX/XPI-Vorstufe.
-- Signatur/Store-Verteilung fuer Firefox und Chromium.
-- Versionsanzeige in LinkVault und in der Companion Extension.
-- Update-Hinweis in LinkVault, wenn Extension und Server nicht zusammenpassen.
-
