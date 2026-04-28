@@ -590,6 +590,100 @@ class BookmarkStore:
             key=lambda x: (-x["count"], x["collection"].lower()),
         )
 
+    def rename_tag(self, old_name: str, new_name: str) -> int:
+        """Rename a tag across all active bookmarks. Returns count of updated bookmarks."""
+        old_name = old_name.strip()
+        new_name = new_name.strip()
+        if not old_name or not new_name or old_name == new_name:
+            return 0
+        now = datetime.now(UTC).isoformat()
+        updated = 0
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT id, tags FROM bookmarks WHERE status = 'active' AND tags LIKE ?",
+                (f"%{old_name}%",),
+            ).fetchall()
+            for row in rows:
+                tags = decode_list(row["tags"])
+                if old_name in tags:
+                    new_tags = encode_list([new_name if t == old_name else t for t in tags])
+                    connection.execute(
+                        "UPDATE bookmarks SET tags = ?, updated_at = ? WHERE id = ?",
+                        (new_tags, now, row["id"]),
+                    )
+                    updated += 1
+        return updated
+
+    def delete_tag(self, name: str) -> int:
+        """Remove a tag from all active bookmarks. Returns count of updated bookmarks."""
+        name = name.strip()
+        if not name:
+            return 0
+        now = datetime.now(UTC).isoformat()
+        updated = 0
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT id, tags FROM bookmarks WHERE status = 'active' AND tags LIKE ?",
+                (f"%{name}%",),
+            ).fetchall()
+            for row in rows:
+                tags = decode_list(row["tags"])
+                if name in tags:
+                    new_tags = encode_list([t for t in tags if t != name])
+                    connection.execute(
+                        "UPDATE bookmarks SET tags = ?, updated_at = ? WHERE id = ?",
+                        (new_tags, now, row["id"]),
+                    )
+                    updated += 1
+        return updated
+
+    def rename_collection(self, old_name: str, new_name: str) -> int:
+        """Rename a collection across all active bookmarks. Returns count of updated bookmarks."""
+        old_name = old_name.strip()
+        new_name = new_name.strip()
+        if not old_name or not new_name or old_name == new_name:
+            return 0
+        now = datetime.now(UTC).isoformat()
+        updated = 0
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT id, collections FROM bookmarks WHERE status = 'active' AND collections LIKE ?",
+                (f"%{old_name}%",),
+            ).fetchall()
+            for row in rows:
+                colls = decode_list(row["collections"])
+                if old_name in colls:
+                    new_colls = encode_list([new_name if c == old_name else c for c in colls])
+                    connection.execute(
+                        "UPDATE bookmarks SET collections = ?, updated_at = ? WHERE id = ?",
+                        (new_colls, now, row["id"]),
+                    )
+                    updated += 1
+        return updated
+
+    def delete_collection(self, name: str) -> int:
+        """Remove a collection from all active bookmarks. Returns count of updated bookmarks."""
+        name = name.strip()
+        if not name:
+            return 0
+        now = datetime.now(UTC).isoformat()
+        updated = 0
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT id, collections FROM bookmarks WHERE status = 'active' AND collections LIKE ?",
+                (f"%{name}%",),
+            ).fetchall()
+            for row in rows:
+                colls = decode_list(row["collections"])
+                if name in colls:
+                    new_colls = encode_list([c for c in colls if c != name])
+                    connection.execute(
+                        "UPDATE bookmarks SET collections = ?, updated_at = ? WHERE id = ?",
+                        (new_colls, now, row["id"]),
+                    )
+                    updated += 1
+        return updated
+
     def add(self, payload: dict[str, Any], *, enrich_metadata: bool = True) -> Bookmark:
         now = datetime.now(UTC).isoformat()
         payload = self.with_metadata(payload, enrich_metadata=enrich_metadata)

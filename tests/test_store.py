@@ -1007,6 +1007,130 @@ class StoreTest(unittest.TestCase):
             shared_after = next(c for c in colls_after if c["collection"] == "Shared")
             self.assertEqual(shared_after["count"], 1)
 
+    def test_rename_tag_updates_all_matching_bookmarks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "tags": "python,selfhost"})
+            store.add({"url": "https://b.example.com", "title": "B", "tags": "python,devops"})
+            store.add({"url": "https://c.example.com", "title": "C", "tags": "selfhost"})
+
+            updated = store.rename_tag("python", "py")
+
+            self.assertEqual(updated, 2)
+            tags = [t["tag"] for t in store.list_tags()]
+            self.assertIn("py", tags)
+            self.assertNotIn("python", tags)
+            # Other tags are unaffected
+            self.assertIn("selfhost", tags)
+            self.assertIn("devops", tags)
+
+    def test_rename_tag_does_not_affect_partial_name_matches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "tags": "work,homework"})
+
+            updated = store.rename_tag("work", "job")
+
+            tags = [t["tag"] for t in store.list_tags()]
+            self.assertIn("job", tags)
+            self.assertIn("homework", tags)
+            self.assertNotIn("work", tags)
+            self.assertEqual(updated, 1)
+
+    def test_rename_tag_returns_zero_when_tag_not_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "tags": "python"})
+
+            updated = store.rename_tag("nonexistent", "new")
+
+            self.assertEqual(updated, 0)
+            tags = [t["tag"] for t in store.list_tags()]
+            self.assertNotIn("new", tags)
+
+    def test_rename_tag_returns_zero_when_names_equal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "tags": "python"})
+
+            updated = store.rename_tag("python", "python")
+
+            self.assertEqual(updated, 0)
+
+    def test_delete_tag_removes_tag_from_all_bookmarks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "tags": "python,selfhost"})
+            store.add({"url": "https://b.example.com", "title": "B", "tags": "python,devops"})
+            store.add({"url": "https://c.example.com", "title": "C", "tags": "selfhost"})
+
+            updated = store.delete_tag("python")
+
+            self.assertEqual(updated, 2)
+            tags = [t["tag"] for t in store.list_tags()]
+            self.assertNotIn("python", tags)
+            # Other tags are unaffected
+            self.assertIn("selfhost", tags)
+            self.assertIn("devops", tags)
+
+    def test_delete_tag_returns_zero_when_tag_not_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "tags": "python"})
+
+            updated = store.delete_tag("nonexistent")
+
+            self.assertEqual(updated, 0)
+
+    def test_rename_collection_updates_all_matching_bookmarks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "collections": "Dev,Research"})
+            store.add({"url": "https://b.example.com", "title": "B", "collections": "Dev,Tools"})
+            store.add({"url": "https://c.example.com", "title": "C", "collections": "Research"})
+
+            updated = store.rename_collection("Dev", "Development")
+
+            self.assertEqual(updated, 2)
+            colls = [c["collection"] for c in store.list_collections()]
+            self.assertIn("Development", colls)
+            self.assertNotIn("Dev", colls)
+            self.assertIn("Research", colls)
+            self.assertIn("Tools", colls)
+
+    def test_rename_collection_returns_zero_when_not_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "collections": "Dev"})
+
+            updated = store.rename_collection("Nonexistent", "New")
+
+            self.assertEqual(updated, 0)
+
+    def test_delete_collection_removes_from_all_bookmarks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "collections": "Dev,Research"})
+            store.add({"url": "https://b.example.com", "title": "B", "collections": "Dev,Tools"})
+            store.add({"url": "https://c.example.com", "title": "C", "collections": "Research"})
+
+            updated = store.delete_collection("Dev")
+
+            self.assertEqual(updated, 2)
+            colls = [c["collection"] for c in store.list_collections()]
+            self.assertNotIn("Dev", colls)
+            self.assertIn("Research", colls)
+            self.assertIn("Tools", colls)
+
+    def test_delete_collection_returns_zero_when_not_found(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.example.com", "title": "A", "collections": "Dev"})
+
+            updated = store.delete_collection("Nonexistent")
+
+            self.assertEqual(updated, 0)
+
     def test_search_filters_by_flags_domain_tag_and_collection(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

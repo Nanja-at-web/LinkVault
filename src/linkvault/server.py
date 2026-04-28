@@ -401,6 +401,44 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                 if not self.require_auth(auth_store):
                     return
                 self.send_json(store.bulk_update(payload))
+            elif path == "/api/tags/rename":
+                if not self.require_auth(auth_store):
+                    return
+                old_name = str(payload.get("old_name", "")).strip()
+                new_name = str(payload.get("new_name", "")).strip()
+                if not old_name or not new_name:
+                    self.send_json({"error": "old_name and new_name are required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                updated = store.rename_tag(old_name, new_name)
+                self.send_json({"updated": updated, "old_name": old_name, "new_name": new_name})
+            elif path == "/api/tags/delete":
+                if not self.require_auth(auth_store):
+                    return
+                name = str(payload.get("name", "")).strip()
+                if not name:
+                    self.send_json({"error": "name is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                updated = store.delete_tag(name)
+                self.send_json({"updated": updated, "deleted": name})
+            elif path == "/api/collections/rename":
+                if not self.require_auth(auth_store):
+                    return
+                old_name = str(payload.get("old_name", "")).strip()
+                new_name = str(payload.get("new_name", "")).strip()
+                if not old_name or not new_name:
+                    self.send_json({"error": "old_name and new_name are required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                updated = store.rename_collection(old_name, new_name)
+                self.send_json({"updated": updated, "old_name": old_name, "new_name": new_name})
+            elif path == "/api/collections/delete":
+                if not self.require_auth(auth_store):
+                    return
+                name = str(payload.get("name", "")).strip()
+                if not name:
+                    self.send_json({"error": "name is required"}, HTTPStatus.BAD_REQUEST)
+                    return
+                updated = store.delete_collection(name)
+                self.send_json({"updated": updated, "deleted": name})
             elif path == "/api/dedup/merge":
                 if not self.require_auth(auth_store):
                     return
@@ -1318,13 +1356,29 @@ def index_html() -> str:
     .diff-winner { font-weight: 700; }
     .history-list { display: grid; gap: .6rem; }
     .tag-cloud { display: flex; flex-wrap: wrap; gap: .5rem; padding: .25rem 0; }
-    .tag-chip { display: inline-flex; align-items: center; gap: .35rem; background: #e8f0e1; border: 1px solid #c6d4ba; border-radius: 999px; padding: .25rem .75rem; cursor: pointer; font-size: .9rem; white-space: nowrap; }
+    .tag-chip { display: inline-flex; align-items: center; gap: .35rem; background: #e8f0e1; border: 1px solid #c6d4ba; border-radius: 999px; padding: .25rem .6rem .25rem .75rem; cursor: pointer; font-size: .9rem; white-space: nowrap; }
     .tag-chip:hover { background: #d3e4c7; border-color: #9ab88a; }
     .tag-chip .tag-count { color: var(--muted); font-size: .8rem; }
-    .collection-row { display: flex; align-items: center; justify-content: space-between; background: #f5f7f2; border: 1px solid #dde5d5; border-radius: 8px; padding: .5rem .85rem; cursor: pointer; }
-    .collection-row:hover { background: #e8f0e1; border-color: #c6d4ba; }
+    .tag-chip-actions { display: inline-flex; gap: .1rem; margin-left: .1rem; opacity: 0; transition: opacity .15s; }
+    .tag-chip:hover .tag-chip-actions, .tag-chip:focus-within .tag-chip-actions { opacity: 1; }
+    .tag-chip-btn { background: none; border: none; padding: .1rem .2rem; cursor: pointer; font-size: .75rem; border-radius: 3px; line-height: 1; color: var(--muted); }
+    .tag-chip-btn:hover { color: var(--ink); background: rgba(0,0,0,.08); }
+    .tag-chip-btn.danger:hover { color: #c53030; background: #fee; }
+    .collection-row { display: flex; align-items: center; justify-content: space-between; background: #f5f7f2; border: 1px solid #dde5d5; border-radius: 8px; padding: .5rem .85rem; }
+    .collection-row-left { display: flex; align-items: center; gap: .5rem; flex: 1; min-width: 0; cursor: pointer; }
+    .collection-row-left:hover .coll-name { text-decoration: underline; }
+    .collection-row-actions { display: flex; gap: .25rem; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+    .collection-row:hover .collection-row-actions, .collection-row:focus-within .collection-row-actions { opacity: 1; }
+    .collection-row-btn { background: none; border: none; padding: .2rem .4rem; cursor: pointer; font-size: .82rem; border-radius: 4px; line-height: 1; color: var(--muted); }
+    .collection-row-btn:hover { color: var(--ink); background: rgba(0,0,0,.08); }
+    .collection-row-btn.danger:hover { color: #c53030; background: #fee; }
     .collection-row .coll-name { font-weight: 500; }
     .collection-row .coll-count { color: var(--muted); font-size: .9rem; }
+    .manage-panel-toolbar { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; flex-wrap: wrap; }
+    .manage-create-form { display: flex; gap: .4rem; align-items: center; }
+    .manage-create-form input[type="text"] { padding: .3rem .6rem; font-size: .9rem; border: 1px solid var(--line); border-radius: 6px; width: 14rem; max-width: 100%; background: var(--card); color: var(--ink); }
+    .manage-create-form input[type="text"]:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+    .manage-create-form .primary-sm { font-size: .85rem; padding: .3rem .75rem; }
     .care-score { display: inline-flex; align-items: center; gap: .25rem; border-radius: 999px; padding: .15rem .55rem; font-size: .82rem; font-weight: 600; }
     .care-score-good { background: #d4edda; color: #1a5c2a; }
     .care-score-mid  { background: #fff3cd; color: #7a5800; }
@@ -1470,6 +1524,24 @@ def index_html() -> str:
       </tbody>
     </table>
     <p class="muted" style="margin:.75rem 0 0;font-size:.88rem;">Kuerzel (ausser Ctrl/Cmd+K) sind inaktiv wenn ein Eingabefeld fokussiert ist.</p>
+  </dialog>
+
+  <dialog id="rename-label-dialog" aria-label="Umbenennen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;">
+      <h3 id="rename-label-title" style="margin:0;">Umbenennen</h3>
+      <button type="button" id="rename-label-close" aria-label="Schliessen" style="background:none;border:none;font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>
+    </div>
+    <form id="rename-label-form">
+      <label style="display:block;margin-bottom:.6rem;">
+        <span id="rename-label-field-label" style="display:block;font-size:.9rem;margin-bottom:.3rem;">Neuer Name</span>
+        <input type="text" id="rename-label-input" style="width:100%;padding:.4rem .65rem;border:1px solid var(--line);border-radius:6px;font-size:1rem;background:var(--card);color:var(--ink);" maxlength="120" required autocomplete="off">
+      </label>
+      <p id="rename-label-error" class="muted" style="color:#c53030;font-size:.85rem;margin:.25rem 0 .5rem;" hidden></p>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.75rem;">
+        <button type="button" id="rename-label-cancel">Abbrechen</button>
+        <button type="submit" class="primary" id="rename-label-submit">Umbenennen</button>
+      </div>
+    </form>
   </dialog>
 
 
@@ -1721,9 +1793,15 @@ def index_html() -> str:
     <div class="panel-header">
       <div>
         <h2>Tags</h2>
-        <p class="subtitle">Alle Tags mit Anzahl. Klick filtert die Bookmark-Liste.</p>
+        <p class="subtitle">Klick auf einen Tag filtert die Bookmark-Liste. Hover zum Umbenennen oder Loeschen.</p>
       </div>
       <button type="button" id="refresh-tags">Aktualisieren</button>
+    </div>
+    <div class="manage-panel-toolbar">
+      <form class="manage-create-form" id="tag-create-form" autocomplete="off">
+        <input type="text" id="tag-create-input" placeholder="Neuen Tag anlegen&hellip;" maxlength="120" aria-label="Name fuer neuen Tag">
+        <button type="submit" class="primary primary-sm">Erstellen</button>
+      </form>
     </div>
     <div id="tags-list" class="tag-cloud"></div>
   </section>
@@ -1732,12 +1810,18 @@ def index_html() -> str:
     <div class="panel-header">
       <div>
         <h2>Collections</h2>
-        <p class="subtitle">Alle Sammlungen mit Anzahl und Pflege-Score. Klick filtert die Bookmark-Liste.</p>
+        <p class="subtitle">Klick filtert die Bookmark-Liste. Hover zum Umbenennen oder Loeschen.</p>
       </div>
       <div class="inline-actions">
         <button type="button" id="refresh-collection-scores">Scores neu berechnen</button>
         <button type="button" id="refresh-collections">Aktualisieren</button>
       </div>
+    </div>
+    <div class="manage-panel-toolbar">
+      <form class="manage-create-form" id="collection-create-form" autocomplete="off">
+        <input type="text" id="collection-create-input" placeholder="Neue Collection anlegen&hellip;" maxlength="120" aria-label="Name fuer neue Collection">
+        <button type="submit" class="primary primary-sm">Erstellen</button>
+      </form>
     </div>
     <div id="collections-list" class="history-list"></div>
   </section>
@@ -2425,15 +2509,19 @@ def index_html() -> str:
       const payload = await response.json();
       const tags = payload.tags || [];
       if (!tags.length) {
-        tagsListEl.innerHTML = '<div class="empty">Noch keine Tags vorhanden.</div>';
+        tagsListEl.innerHTML = '<div class="empty">Noch keine Tags vorhanden. Tags werden beim Speichern eines Bookmarks angelegt.</div>';
         return;
       }
       tagsListEl.innerHTML = tags.map((t) => `
-        <button type="button" class="tag-chip" data-filter-tag="${escapeAttr(t.tag)}">
-          ${escapeHtml(t.tag)} <span class="tag-count">${t.count}</span>
-        </button>
+        <span class="tag-chip" role="group" aria-label="${escapeAttr(t.tag)}">
+          <button type="button" class="tag-chip-filter" data-filter-tag="${escapeAttr(t.tag)}" title="Nach Tag filtern">${escapeHtml(t.tag)} <span class="tag-count">${t.count}</span></button>
+          <span class="tag-chip-actions" aria-label="Aktionen fuer ${escapeAttr(t.tag)}">
+            <button type="button" class="tag-chip-btn tag-rename-btn" data-tag="${escapeAttr(t.tag)}" title="Tag umbenennen" aria-label="Tag umbenennen">&#9998;</button>
+            <button type="button" class="tag-chip-btn danger tag-delete-btn" data-tag="${escapeAttr(t.tag)}" data-count="${t.count}" title="Tag loeschen" aria-label="Tag loeschen">&#x2715;</button>
+          </span>
+        </span>
       `).join('');
-      tagsListEl.querySelectorAll('[data-filter-tag]').forEach((btn) => {
+      tagsListEl.querySelectorAll('.tag-chip-filter').forEach((btn) => {
         btn.addEventListener('click', () => {
           clearBookmarkFilters();
           document.querySelector('#filter-tag').value = btn.dataset.filterTag;
@@ -2480,7 +2568,7 @@ def index_html() -> str:
         for (const s of (sp.scores || [])) collectionScores[s.collection] = s;
       }
       if (!collections.length) {
-        collectionsListEl.innerHTML = '<div class="empty">Noch keine Collections vorhanden.</div>';
+        collectionsListEl.innerHTML = '<div class="empty">Noch keine Collections vorhanden. Collections werden beim Speichern eines Bookmarks angelegt.</div>';
         return;
       }
       collectionsListEl.innerHTML = collections.map((c) => {
@@ -2490,21 +2578,29 @@ def index_html() -> str:
                 title="Metadaten ${s.factors.metadata}% &middot; Dedup ${s.factors.dedup}% &middot; Tags ${s.factors.tags}% &middot; Links ${s.factors.links}%">${s.score}</span>`
           : '';
         return `
-        <div class="collection-row" data-filter-collection="${escapeAttr(c.collection)}">
-          <span class="coll-name">${escapeHtml(c.collection)}</span>
-          <span style="display:flex;align-items:center;gap:.5rem;">
-            ${scoreHtml}
-            <span class="coll-count">${c.count} Bookmark${c.count !== 1 ? 's' : ''}</span>
+        <div class="collection-row" role="group" aria-label="${escapeAttr(c.collection)}">
+          <span class="collection-row-left" data-filter-collection="${escapeAttr(c.collection)}" tabindex="0" role="button" aria-label="Collection ${escapeAttr(c.collection)} filtern">
+            <span class="coll-name">${escapeHtml(c.collection)}</span>
+            <span style="display:flex;align-items:center;gap:.4rem;">
+              ${scoreHtml}
+              <span class="coll-count">${c.count} Bookmark${c.count !== 1 ? 's' : ''}</span>
+            </span>
+          </span>
+          <span class="collection-row-actions">
+            <button type="button" class="collection-row-btn coll-rename-btn" data-collection="${escapeAttr(c.collection)}" title="Collection umbenennen" aria-label="Collection umbenennen">&#9998;</button>
+            <button type="button" class="collection-row-btn danger coll-delete-btn" data-collection="${escapeAttr(c.collection)}" data-count="${c.count}" title="Collection loeschen" aria-label="Collection loeschen">&#x2715;</button>
           </span>
         </div>`;
       }).join('');
-      collectionsListEl.querySelectorAll('[data-filter-collection]').forEach((row) => {
-        row.addEventListener('click', () => {
+      collectionsListEl.querySelectorAll('.collection-row-left[data-filter-collection]').forEach((el) => {
+        const activate = () => {
           clearBookmarkFilters();
-          document.querySelector('#filter-collection').value = row.dataset.filterCollection;
+          document.querySelector('#filter-collection').value = el.dataset.filterCollection;
           setActiveTab('bookmarks');
           refreshBookmarks();
-        });
+        };
+        el.addEventListener('click', activate);
+        el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
       });
     }
 
@@ -4418,6 +4514,159 @@ def index_html() -> str:
     document.querySelector('#refresh-tags').addEventListener('click', refreshTags);
     document.querySelector('#refresh-collections').addEventListener('click', refreshCollections);
     document.querySelector('#refresh-collection-scores').addEventListener('click', refreshCollectionScores);
+
+    // --- Rename dialog (shared for tags and collections) ---
+    const renameLabelDialog = document.querySelector('#rename-label-dialog');
+    const renameLabelTitle = document.querySelector('#rename-label-title');
+    const renameLabelFieldLabel = document.querySelector('#rename-label-field-label');
+    const renameLabelInput = document.querySelector('#rename-label-input');
+    const renameLabelError = document.querySelector('#rename-label-error');
+    const renameLabelForm = document.querySelector('#rename-label-form');
+    let renameLabelContext = null; // { type: 'tag'|'collection', old_name: string }
+
+    function openRenameDialog(type, oldName) {
+      renameLabelContext = { type, old_name: oldName };
+      renameLabelTitle.textContent = type === 'tag' ? 'Tag umbenennen' : 'Collection umbenennen';
+      renameLabelFieldLabel.textContent = type === 'tag' ? 'Neuer Tag-Name' : 'Neuer Collection-Name';
+      renameLabelInput.value = oldName;
+      renameLabelError.hidden = true;
+      renameLabelError.textContent = '';
+      renameLabelDialog.showModal();
+      setTimeout(() => { renameLabelInput.select(); }, 50);
+    }
+
+    document.querySelector('#rename-label-close').addEventListener('click', () => renameLabelDialog.close());
+    document.querySelector('#rename-label-cancel').addEventListener('click', () => renameLabelDialog.close());
+
+    renameLabelForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!renameLabelContext) return;
+      const newName = renameLabelInput.value.trim();
+      if (!newName) return;
+      const { type, old_name } = renameLabelContext;
+      const endpoint = type === 'tag' ? '/api/tags/rename' : '/api/collections/rename';
+      renameLabelError.hidden = true;
+      document.querySelector('#rename-label-submit').disabled = true;
+      try {
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ old_name, new_name: newName }),
+        });
+        if (resp.ok) {
+          renameLabelDialog.close();
+          if (type === 'tag') { await refreshTags(); }
+          else { await refreshCollections(); }
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          renameLabelError.textContent = err.error || 'Umbenennen fehlgeschlagen.';
+          renameLabelError.hidden = false;
+        }
+      } catch {
+        renameLabelError.textContent = 'Verbindungsfehler.';
+        renameLabelError.hidden = false;
+      } finally {
+        document.querySelector('#rename-label-submit').disabled = false;
+      }
+    });
+
+    // --- Tags panel: rename/delete via event delegation ---
+    tagsListEl.addEventListener('click', async (event) => {
+      const renameBtn = event.target.closest('.tag-rename-btn');
+      const deleteBtn = event.target.closest('.tag-delete-btn');
+      if (renameBtn) {
+        event.stopPropagation();
+        openRenameDialog('tag', renameBtn.dataset.tag);
+        return;
+      }
+      if (deleteBtn) {
+        event.stopPropagation();
+        const tag = deleteBtn.dataset.tag;
+        const count = parseInt(deleteBtn.dataset.count, 10) || 0;
+        const msg = count > 0
+          ? `Tag "${tag}" aus ${count} Bookmark${count !== 1 ? 's' : ''} entfernen?`
+          : `Tag "${tag}" loeschen?`;
+        if (!confirm(msg)) return;
+        deleteBtn.disabled = true;
+        try {
+          const resp = await fetch('/api/tags/delete', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ name: tag }),
+          });
+          if (resp.ok) { await refreshTags(); }
+        } catch { /* ignore */ } finally {
+          deleteBtn.disabled = false;
+        }
+      }
+    });
+
+    // --- Tags panel: create form ---
+    document.querySelector('#tag-create-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = document.querySelector('#tag-create-input').value.trim();
+      if (!name) return;
+      // Open quick-add dialog pre-filled with this tag name
+      const tagsInput = document.querySelector('#qa-form [name="tags"]');
+      if (tagsInput) {
+        const existing = tagsInput.value.trim();
+        tagsInput.value = existing ? existing + ', ' + name : name;
+      }
+      // Expand the details section so tags field is visible
+      const qaMore = document.querySelector('.qa-more');
+      if (qaMore) qaMore.open = true;
+      document.querySelector('#tag-create-input').value = '';
+      openQuickAdd();
+    });
+
+    // --- Collections panel: rename/delete via event delegation ---
+    collectionsListEl.addEventListener('click', async (event) => {
+      const renameBtn = event.target.closest('.coll-rename-btn');
+      const deleteBtn = event.target.closest('.coll-delete-btn');
+      if (renameBtn) {
+        event.stopPropagation();
+        openRenameDialog('collection', renameBtn.dataset.collection);
+        return;
+      }
+      if (deleteBtn) {
+        event.stopPropagation();
+        const coll = deleteBtn.dataset.collection;
+        const count = parseInt(deleteBtn.dataset.count, 10) || 0;
+        const msg = count > 0
+          ? `Collection "${coll}" aus ${count} Bookmark${count !== 1 ? 's' : ''} entfernen?`
+          : `Collection "${coll}" loeschen?`;
+        if (!confirm(msg)) return;
+        deleteBtn.disabled = true;
+        try {
+          const resp = await fetch('/api/collections/delete', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ name: coll }),
+          });
+          if (resp.ok) { await refreshCollections(); }
+        } catch { /* ignore */ } finally {
+          deleteBtn.disabled = false;
+        }
+      }
+    });
+
+    // --- Collections panel: create form ---
+    document.querySelector('#collection-create-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = document.querySelector('#collection-create-input').value.trim();
+      if (!name) return;
+      // Open quick-add dialog pre-filled with this collection name
+      const collInput = document.querySelector('#qa-form [name="collections"]');
+      if (collInput) {
+        const existing = collInput.value.trim();
+        collInput.value = existing ? existing + ', ' + name : name;
+      }
+      // Expand the details section so collections field is visible
+      const qaMore = document.querySelector('.qa-more');
+      if (qaMore) qaMore.open = true;
+      document.querySelector('#collection-create-input').value = '';
+      openQuickAdd();
+    });
     document.querySelector('#refresh-favorites-report').addEventListener('click', refreshFavoritesReport);
     document.querySelector('#check-favorite-links').addEventListener('click', async () => {
       const btn = document.querySelector('#check-favorite-links');

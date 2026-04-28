@@ -94,6 +94,34 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("refreshCollections", html)
         self.assertIn("/api/collections", html)
 
+    def test_index_html_tags_panel_has_management_ui(self):
+        html = index_html()
+
+        self.assertIn('id="tag-create-form"', html)
+        self.assertIn('id="tag-create-input"', html)
+        self.assertIn("tag-rename-btn", html)
+        self.assertIn("tag-delete-btn", html)
+        self.assertIn("openRenameDialog", html)
+        self.assertIn("/api/tags/rename", html)
+        self.assertIn("/api/tags/delete", html)
+
+    def test_index_html_collections_panel_has_management_ui(self):
+        html = index_html()
+
+        self.assertIn('id="collection-create-form"', html)
+        self.assertIn('id="collection-create-input"', html)
+        self.assertIn("coll-rename-btn", html)
+        self.assertIn("coll-delete-btn", html)
+        self.assertIn("/api/collections/rename", html)
+        self.assertIn("/api/collections/delete", html)
+
+    def test_index_html_has_rename_label_dialog(self):
+        html = index_html()
+
+        self.assertIn('id="rename-label-dialog"', html)
+        self.assertIn('id="rename-label-form"', html)
+        self.assertIn('id="rename-label-input"', html)
+
     def test_index_html_has_settings_tab(self):
         html = index_html()
 
