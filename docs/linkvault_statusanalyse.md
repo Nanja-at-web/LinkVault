@@ -101,18 +101,26 @@ Im aktuellen Stand vorhanden:
 Das ist noch kein grosses Rollen- oder SSO-System, aber die Kern-Auth-Features
 sind jetzt als eigenstaendige, sauber getrennte UI-Bereiche erreichbar.
 
-### Die groesste sichtbare Luecke bleibt die Frontend-Navigation
+### Navigation rationalisiert: 14 auf 9 sichtbare Eintraege reduziert
 
-Backend, Infrastruktur, Deduplizierung, Importlogik, Proxmox und Extension sind
-in vielen Bereichen weiter als die sichtbare Hauptoberflaeche. Favoriten-,
-Collections-, Tags-, Archiv- und Einstellungs-Tabs fehlen noch.
+Vorherige Analyse beklagte fehlende Tabs. Diese wurden inzwischen alle
+ergaenzt. Anschliessende Kurskorrektur: Navigation von 14 auf 9 sichtbare
+Eintraege reduziert. Speichern (redundant mit Quick-Add-Vollformular), Archiv
+(Platzhalter ohne Inhalt) und Einstellungen (Stub mit zwei Weiterleitungen)
+sind aus der Primaer-Navigation herausgenommen. Sichtbare Nav:
+Quick-Add-Button, Inbox, Bookmarks, Favoriten, Tags, Collections, Dubletten,
+Import, Betrieb, Admin (Admin-only) und Profil.
+
+Zusaetzlich: Inline-Unfavorite-Button in der Favoriten-Ansicht hinzugefuegt.
+Vollformular-Link im Quick-Add-Dialog ergibt Zugang zum Speichern-Tab ohne
+diesen in der Primaer-Nav sichtbar halten zu muessen.
 
 ## Roadmap-Status nach Phasen
 
 | Phase | Status | Vorhanden | Offen |
 |---|---:|---|---|
 | Phase 0 - Fundament | ~97 % | Struktur, Lizenz, Research-Auswertung, englischer Einstieg, systemd, Windows-Dev-Doku | Docker Compose; Node.js-Checks sauber in lokale/CI-Routine ziehen |
-| Phase 1 - Bookmark-Kern | ~98 % | Login, Rollenbasis mit Admin/User, Passwortwechsel, Benutzerverwaltung, Profil-Tab, Admin-Tab, FTS5, Inbox, Saved Views per Nutzer (user_id-Scope), Grid/List/Compact, Import-Sessions, API-Token, Import-Vorschau, Sortier-/Kategorie-Vorschlaege, Favoriten-Tab, Tags-Tab, Collections-Tab, Einstellungen-Tab, Quick-Add-Modal, Archiv-Tab (Platzhalter), Sortierung als gespeicherter Standard (sort_by/sort_order in Saved Views) | Einstellungen-Tab ausbauen (bisher nur Platzhalter) |
+| Phase 1 - Bookmark-Kern | ~99 % | Login, Rollenbasis mit Admin/User, Passwortwechsel, Benutzerverwaltung, Profil-Tab, Admin-Tab, FTS5, Inbox, Saved Views per Nutzer (user_id-Scope), Grid/List/Compact, Import-Sessions, API-Token, Import-Vorschau, Sortier-/Kategorie-Vorschlaege, Favoriten-Tab (mit Inline-Unfavorite), Tags-Tab, Collections-Tab, Quick-Add-Modal (mit Vollformular-Zugang), Sortierung als gespeicherter Standard; Nav auf 9 sichtbare Eintraege rationalisiert | Einstellungen-Seite mit echtem Inhalt (bisher Stub); Quick-Add Preflight-Vorschlaege verbessern |
 | Phase 2 - Dedup | ~97 % | URL-Normalisierung, Preflight, Dry-Run, Merge ohne Loeschen, Merge-Undo, Merge-Historie, Conflict Center mit Session-Fortschritt, Sammelentscheidung pro Gruppe, apply_session_defaults, get_restore_session, Sync-Drift-Erkennung (Snapshot-Baseline, vier Drift-Kategorien, API, UI), Favoriten-Pflege-Report (uncategorized/duplicated/dead), Link-Health-Check light (HEAD/GET, ThreadPoolExecutor, link_checks-Tabelle), Pflege-Score je Collection (Metadaten/Dedup/Tags/Links, 0-100, Farb-Badge) | destruktiver Zwei-Wege-Sync; Floccus-Bridge |
 | Phase 3 - Archivierung | ~18 % | Archivstatus-Feld (none/pending/archived/failed) in DB und allen SQL-Pfaden, Badge in Bookmark-Liste, Select im Bearbeitungsformular, set_archive_status-Methode, PATCH-Endpunkt | Reader-Extrakt, Archive-Worker, Screenshot/PDF, Single-HTML, Highlights |
 | Phase 4 - Automatisierung | ~50 % | Activity/Audit-Log teilweise, API-Token, Companion Extension mit Discovery, Filtern, Preview, Rueckimport und Konfliktentscheidungen, Shortcut-Hilfe-Dialog (? Taste + Button, native dialog, Shortcut-Tabelle) | Rule Engine; Smart Collections; vollstaendiger Sync; A11y-Pruefung |

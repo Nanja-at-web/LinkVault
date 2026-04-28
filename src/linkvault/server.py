@@ -1041,6 +1041,9 @@ def index_html() -> str:
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .skip-link { position: absolute; top: -40px; left: 0; background: var(--accent); color: #fff; padding: .5rem 1rem; border-radius: 0 0 6px 0; font-weight: 600; z-index: 9999; transition: top .1s; }
+    .skip-link:focus { top: 0; }
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1332,10 +1335,13 @@ def index_html() -> str:
     .dead-item { background: #fff5f5; border: 1px solid #f5c6cb; border-radius: 8px; padding: .5rem .85rem; }
     .dead-item .dead-url { color: var(--muted); font-size: .85rem; word-break: break-all; }
     .dead-item .dead-error { color: #c53030; font-size: .82rem; }
-    .fav-card { background: #f5f7f2; border: 1px solid #dde5d5; border-radius: 8px; padding: .6rem .85rem; }
+    .fav-card { background: #f5f7f2; border: 1px solid #dde5d5; border-radius: 8px; padding: .6rem .85rem; display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+    .fav-card-body { flex: 1; min-width: 0; }
     .fav-card a.fav-title { font-weight: 500; color: var(--ink); text-decoration: none; }
     .fav-card a.fav-title:hover { text-decoration: underline; }
     .fav-card .fav-meta { color: var(--muted); font-size: .85rem; margin-top: .2rem; }
+    .fav-unfavorite { flex-shrink: 0; background: none; border: none; padding: .1rem .25rem; margin: 0; cursor: pointer; color: var(--muted); font-size: 1rem; border-radius: 4px; line-height: 1; }
+    .fav-unfavorite:hover { color: #c53030; background: #fee; border-color: transparent; }
     .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
     .shortcut-hint { color: var(--muted); margin: .35rem 0 0; font-size: .9rem; }
     .quick-add-nav-btn { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
@@ -1370,6 +1376,8 @@ def index_html() -> str:
   </style>
 </head>
 <body>
+<a href="#app" class="skip-link">Zum Inhalt springen</a>
+<div id="sr-status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 <div class="shell">
   <div class="toolbar">
     <div>
@@ -1400,21 +1408,22 @@ def index_html() -> str:
     <p id="auth-error" class="error"></p>
   </section>
 
-  <nav id="app-nav" class="nav" hidden>
-    <button type="button" id="quick-add-btn" class="quick-add-nav-btn">+ Neu</button>
-    <button type="button" data-tab-trigger="save">Speichern</button>
-    <button type="button" data-inbox-trigger>Inbox</button>
-    <button type="button" data-tab-trigger="import">Import</button>
-    <button type="button" data-tab-trigger="bookmarks">Bookmarks</button>
-    <button type="button" data-tab-trigger="favorites">Favoriten</button>
-    <button type="button" data-tab-trigger="tags">Tags</button>
-    <button type="button" data-tab-trigger="collections">Collections</button>
-    <button type="button" data-tab-trigger="archive">Archiv</button>
-    <button type="button" data-tab-trigger="dedup">Dubletten</button>
-    <button type="button" data-tab-trigger="operations">Betrieb</button>
-    <button type="button" data-tab-trigger="settings">Einstellungen</button>
-    <button type="button" data-tab-trigger="admin" id="admin-nav-btn" hidden>Admin</button>
-    <button type="button" data-tab-trigger="profile">Profil</button>
+  <nav id="app-nav" class="nav" role="tablist" aria-label="Hauptnavigation" hidden>
+    <button type="button" id="quick-add-btn" class="quick-add-nav-btn" aria-label="Bookmark schnell speichern (N)">+ Neu</button>
+    <button type="button" data-inbox-trigger aria-label="Inbox anzeigen">Inbox</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="bookmarks">Bookmarks</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="favorites">Favoriten</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="tags">Tags</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="collections">Collections</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="dedup">Dubletten</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="import">Import</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="operations">Betrieb</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="admin" id="admin-nav-btn" hidden>Admin</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="profile">Profil</button>
+    <!-- Tabs accessible via Vollformular-Link / programmatic setActiveTab, not primary nav -->
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="save" hidden>Speichern</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="archive" hidden>Archiv</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="settings" hidden>Einstellungen</button>
   </nav>
 
   <dialog id="quick-add-dialog" aria-label="Bookmark schnell speichern">
@@ -1435,6 +1444,7 @@ def index_html() -> str:
       <div id="qa-preflight" class="qa-preflight" hidden></div>
       <div class="qa-actions">
         <button type="button" id="qa-cancel">Abbrechen</button>
+        <button type="button" id="qa-fullform" class="link-btn" style="font-size:.85rem;margin-left:.25rem;" title="Vollformular oeffnen">Vollformular</button>
         <button type="submit" class="primary" id="qa-submit">Speichern</button>
       </div>
     </form>
@@ -2396,12 +2406,15 @@ def index_html() -> str:
       }
       favoritesListEl.innerHTML = bookmarks.map((b) => `
         <div class="fav-card">
-          <a class="fav-title" href="${escapeAttr(b.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(b.title || b.url)}</a>
-          <div class="fav-meta">
-            ${escapeHtml(b.domain || '')}
-            ${b.tags && b.tags.length ? ' &middot; ' + b.tags.map((t) => escapeHtml(t)).join(', ') : ''}
-            ${b.collections && b.collections.length ? ' &middot; ' + b.collections.map((c) => escapeHtml(c)).join(', ') : ''}
+          <div class="fav-card-body">
+            <a class="fav-title" href="${escapeAttr(b.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(b.title || b.url)}</a>
+            <div class="fav-meta">
+              ${escapeHtml(b.domain || '')}
+              ${b.tags && b.tags.length ? ' &middot; ' + b.tags.map((t) => escapeHtml(t)).join(', ') : ''}
+              ${b.collections && b.collections.length ? ' &middot; ' + b.collections.map((c) => escapeHtml(c)).join(', ') : ''}
+            </div>
           </div>
+          <button type="button" class="fav-unfavorite" data-bookmark-id="${escapeAttr(b.id)}" title="Aus Favoriten entfernen" aria-label="Aus Favoriten entfernen">&#9733;</button>
         </div>
       `).join('');
     }
@@ -2619,6 +2632,10 @@ def index_html() -> str:
 
     document.querySelector('#quick-add-btn').addEventListener('click', () => openQuickAdd());
     document.querySelector('#qa-cancel').addEventListener('click', () => quickAddDialog.close());
+    document.querySelector('#qa-fullform').addEventListener('click', () => {
+      quickAddDialog.close();
+      setActiveTab('save');
+    });
     document.getElementById('shortcut-help-btn').addEventListener('click', openShortcutHelp);
     document.getElementById('shortcut-help-close').addEventListener('click', closeShortcutHelp);
     shortcutHelpDialog.addEventListener('click', (event) => {
@@ -4381,6 +4398,23 @@ def index_html() -> str:
     });
     document.querySelector('#refresh-admin').addEventListener('click', refreshAdmin);
     document.querySelector('#refresh-favorites').addEventListener('click', refreshFavorites);
+    favoritesListEl.addEventListener('click', async (event) => {
+      const btn = event.target.closest('.fav-unfavorite');
+      if (!btn) return;
+      const id = btn.dataset.bookmarkId;
+      if (!id) return;
+      btn.disabled = true;
+      try {
+        const resp = await fetch('/api/bookmarks/bulk', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ids: [id], favorite: false }),
+        });
+        if (resp.ok) await refreshFavorites();
+      } catch { /* ignore */ } finally {
+        btn.disabled = false;
+      }
+    });
     document.querySelector('#refresh-tags').addEventListener('click', refreshTags);
     document.querySelector('#refresh-collections').addEventListener('click', refreshCollections);
     document.querySelector('#refresh-collection-scores').addEventListener('click', refreshCollectionScores);

@@ -55,9 +55,11 @@ Siehe auch: [Roadmap-Loesungsplan](ROADMAP_SOLUTIONS.md).
   Saved Views per Nutzer gespeichert (user_id-Scope).
 - [x] LinkVault-Discovery-Endpunkt `/.well-known/linkvault` fuer Companion-
   Erkennung im lokalen Netzwerk.
-- [x] Startseite/Navigation ueberarbeiten: Tabs fuer Speichern, Import,
-  Bookmarks, Favoriten, Tags, Collections, Archiv (Platzhalter), Einstellungen,
-  Dubletten, Betrieb, Admin (nur Admin-User) und Profil vorhanden.
+- [x] Startseite/Navigation ueberarbeiten: Sichtbare Tabs: Quick-Add-Button,
+  Inbox, Bookmarks, Favoriten, Tags, Collections, Dubletten, Import, Betrieb,
+  Admin (nur Admin-User) und Profil. Speichern, Archiv und Einstellungen
+  programmatisch erreichbar (hidden), da Speichern via Quick-Add-Vollformular
+  abgedeckt wird und Archiv noch nicht implementiert ist.
 - [x] Bookmark-Liste kompakter machen und Filter/Bulk als einklappbare
   Arbeitsleisten auslagern.
 - [x] Inbox/Unsortiert: neue Links ohne Collection landen automatisch in
