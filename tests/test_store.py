@@ -479,6 +479,59 @@ class StoreTest(unittest.TestCase):
             self.assertIn("tags", difference_fields)
             self.assertIn("collections", difference_fields)
 
+    def test_dedup_dry_run_includes_winner_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({
+                "url": "https://example.com/a",
+                "title": "Pinned Bookmark",
+                "pinned": True,
+            })
+            store.add({
+                "url": "https://example.com/a?utm_campaign=x",
+                "title": "Other",
+            })
+
+            dry_run = store.dedup_dry_run()
+
+            self.assertEqual(dry_run["group_count"], 1)
+            group = dry_run["groups"][0]
+            self.assertIn("winner_reason", group)
+            self.assertIsInstance(group["winner_reason"], str)
+            self.assertGreater(len(group["winner_reason"]), 0)
+            # Pinned bookmark should be winner and reason should mention it
+            self.assertIn("gepinnt", group["winner_reason"])
+
+    def test_dedup_dry_run_winner_reason_favorite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({
+                "url": "https://example.com/a",
+                "title": "Favorite",
+                "favorite": True,
+            })
+            store.add({
+                "url": "https://example.com/a?utm_source=nl",
+                "title": "Plain",
+            })
+
+            dry_run = store.dedup_dry_run()
+            group = dry_run["groups"][0]
+            self.assertIn("Favorit", group["winner_reason"])
+
+    def test_dedup_dry_run_winner_reason_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            # Neither pinned nor favorite — should fall back to "ältestes Bookmark"
+            store.add({"url": "https://example.com/a", "title": "A"})
+            store.add({"url": "https://example.com/a?utm_campaign=nl", "title": "B"})
+
+            dry_run = store.dedup_dry_run()
+            group = dry_run["groups"][0]
+            self.assertIn("winner_reason", group)
+            # Fallback reason should be non-empty
+            self.assertTrue(group["winner_reason"])
+
     def test_merge_duplicates_updates_winner_and_marks_losers(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)

@@ -213,6 +213,39 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("/api/collections/scores", html)
         self.assertIn("refreshCollectionScores", html)
 
+    def test_index_html_has_dedup_panel(self):
+        html = index_html()
+
+        self.assertIn('data-tab-trigger="dedup"', html)
+        self.assertIn('data-tab-panel="dedup"', html)
+        self.assertIn('id="dedup-output"', html)
+        self.assertIn('id="dry-run"', html)
+        self.assertIn("refreshDryRun", html)
+        self.assertIn("/api/dedup/dry-run", html)
+
+    def test_index_html_dedup_panel_has_management_ux(self):
+        html = index_html()
+
+        # Bulk bar slot
+        self.assertIn('id="dedup-bulk-bar"', html)
+        # Inline merge history
+        self.assertIn('id="dedup-merge-history-section"', html)
+        self.assertIn('id="dedup-merge-history-list"', html)
+        # Auto-load wiring
+        self.assertIn("refreshDedupPanel", html)
+        # Merge history fetch
+        self.assertIn("refreshDedupMergeHistory", html)
+        self.assertIn("/api/dedup/merges", html)
+        # Winner reason rendering
+        self.assertIn("winner_reason", html)
+        # Feedback elements
+        self.assertIn("dedup-merge-result", html)
+        self.assertIn("dedup-merge-error", html)
+        # Bulk merge all safe
+        self.assertIn("dedup-merge-all-safe", html)
+        # Silent merge helper
+        self.assertIn("mergeDuplicatesSilent", html)
+
     def test_index_html_has_api_token_test(self):
         html = index_html()
 

@@ -2605,6 +2605,7 @@ class BookmarkStore:
                 {
                     **group,
                     "winner": winner,
+                    "winner_reason": winner_reason_label(winner, group["items"]),
                     "differences": group_differences(group["items"], winner_id),
                     "merge_plan": {
                         "winner_id": winner_id,
@@ -3691,6 +3692,28 @@ def choose_winner(bookmarks: list[Bookmark]) -> Bookmark:
         ),
         reverse=True,
     )[0]
+
+
+def winner_reason_label(winner: dict[str, Any], all_items: list[dict[str, Any]]) -> str:
+    """Return a short human-readable string explaining why this bookmark was chosen as winner."""
+    reasons = []
+    if winner.get("pinned"):
+        reasons.append("gepinnt")
+    if winner.get("favorite"):
+        reasons.append("Favorit")
+    if winner.get("notes"):
+        reasons.append("hat Notizen")
+    winner_tags = len(winner.get("tags") or [])
+    max_tags = max((len(item.get("tags") or []) for item in all_items), default=0)
+    if winner_tags > 0 and winner_tags >= max_tags:
+        reasons.append(f"{winner_tags} Tag{'s' if winner_tags != 1 else ''}")
+    winner_colls = len(winner.get("collections") or [])
+    max_colls = max((len(item.get("collections") or []) for item in all_items), default=0)
+    if winner_colls > 0 and winner_colls >= max_colls and "Tags" not in " ".join(reasons):
+        reasons.append(f"{winner_colls} Collection{'s' if winner_colls != 1 else ''}")
+    if not reasons:
+        reasons.append("ältestes Bookmark")
+    return ", ".join(reasons)
 
 
 def browser_export_sort_key(bookmark: Bookmark) -> tuple[str, str, int, str]:
