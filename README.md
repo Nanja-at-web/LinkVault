@@ -1,231 +1,231 @@
 # LinkVault
 
-LinkVault ist eine self-hosted Plattform zum Verwalten von Bookmarks, Favoriten und Links – mit starker Dublettenbehandlung, Import-/Export-Workflows und leichtgewichtigem, Proxmox-freundlichem Betrieb.
+LinkVault is a self-hosted bookmark, favorites and link-management platform with strong duplicate handling, import/export workflows and lightweight Proxmox-friendly deployment.
 
-## Was LinkVault ist
+## What LinkVault is
 
-LinkVault ist für Menschen gedacht, die:
+LinkVault is built for people who want to:
 
-- Links schnell speichern wollen
-- Bookmarks und Favoriten verwalten möchten
-- große Link-Sammlungen mit Tags, Listen und Collections organisieren wollen
-- effizient suchen, filtern und sortieren möchten
-- Dubletten sicher erkennen, prüfen, zusammenführen und optional entfernen wollen
-- Bookmarks aus Browsern und anderen Tools importieren möchten
-- das gesamte System leichtgewichtig self-hosted betreiben wollen
+- save links quickly
+- manage bookmarks and favorites
+- organize large link libraries with tags, lists and collections
+- search, filter and sort efficiently
+- detect, review, merge and optionally remove duplicates safely
+- import bookmarks from browsers and other tools
+- keep the whole system self-hosted on lightweight infrastructure
 
-## Was LinkVault nicht ist
+## What LinkVault is not
 
-LinkVault ist **nicht primär**:
+LinkVault is **not primarily**:
 
-- eine Read-later-App
-- ein Reader-First-Produkt
-- ein Webarchiv als Hauptprodukt
-- eine Knowledge Base
-- ein Notiztool mit Bookmark-Nebenfunktion
+- a read-later app
+- a reader-first product
+- a web archive as the main product
+- a knowledge base
+- a note-taking tool with bookmark side functionality
 
-Archiv- oder Reader-nahe Funktionen können später optional ergänzt werden, sind aber nicht die Hauptausrichtung des Produkts.
-
----
-
-## Warum LinkVault existiert
-
-Viele self-hosted Bookmark-Tools zwingen zu einem Kompromiss:
-
-- entweder leichtgewichtig und einfach
-- oder funktionsreich, aber schwerer und weniger auf Pflege und Migration ausgerichtet
-
-LinkVault soll genau diese Lücke schließen.
-
-Die zentralen Stärken sind:
-
-- starke Bookmark- und Favoriten-Verwaltung
-- sichtbare Dublettenprüfung und Dublettenbereinigung
-- saubere Import-/Export- und Migrations-Workflows
-- browsernahe Metadatenbehandlung
-- sichere, nachvollziehbare Merge-Logik
-- leichtgewichtiger Selfhost-Betrieb auf Proxmox VE / Debian LXC
+Archive or reader-style features may exist later as optional extensions, but they are not the main product direction.
 
 ---
 
-## Aktueller Fokus
+## Why LinkVault exists
 
-Der aktuelle Produktfokus liegt auf:
+Most self-hosted bookmark tools force a trade-off:
 
-- Bookmark-Speicherung und Bearbeitung
-- Favoriten, Pins, Tags, Collections und Notizen
-- Volltextsuche mit SQLite FTS5
-- Bulk-Aktionen
-- Duplicate Preflight vor dem Speichern
-- Dublettenprüfung, Dry-Run und Merge ohne blindes Löschen
-- Import-Vorschau und sichere Migration
-- Browser-Companion-Workflows
-- Proxmox-freundlichem Installations-, Update-, Backup- und Restore-Pfad
+- either lightweight and simple
+- or feature-rich but heavier and less focused on cleanup and migration
 
----
+LinkVault aims to close that gap.
 
-## Aktueller Funktionsumfang
+Its main product strengths are:
 
-### Bookmark-Verwaltung
-- Links mit URL-Normalisierung speichern
-- Metadaten wie Titel, Beschreibung, Favicon und Domain laden
-- Bookmarks in der UI bearbeiten
-- Favoriten und Pins verwalten
-- Tags, Collections und Notizen vergeben
-- mit Inbox-ähnlichen unsortierten Bookmarks arbeiten
-- Saved Views und mehrere Anzeigeformen nutzen
-
-### Suche, Filter und Organisation
-- SQLite-FTS5-Volltextsuche
-- Filter für Favoriten, Pins, Domain, Tags, Collections und Status
-- Compact-, Detailed- und Grid-Ansichten für Bookmarks
-- Bulk-Aktionen für Tags, Collections, Favoriten und Pins
-
-### Dublettenbehandlung
-- exakte Dublettenerkennung
-- Dublettenerkennung über normalisierte URLs
-- Duplicate Preflight vor dem Speichern
-- Dubletten-Dashboard mit Dry-Run
-- Gewinner-Vorschlag und Feldvergleich
-- Merge ohne blindes hartes Löschen
-- Merge-Historie / Undo-Richtung
-- markierte gemergte Dubletten statt stiller destruktiver Bereinigung
-
-### Import und Migration
-- Browser-HTML-Import mit Vorschau
-- Chromium-JSON-Importpfad
-- Import-Session-Metadaten
-- Dubletten- und Konfliktbewusstsein beim Import
-- herkunftsbewusste Richtung für spätere breitere Migrationen
-
-### Companion Extension
-- aktuellen Tab speichern
-- Browser-Bookmarks lesen
-- Bookmark-Vorschauen an LinkVault senden
-- sicherer Browser-Rückimport mit Vorschau
-- dubletten- und konfliktbewusste Browser-Roundtrips
-
-### Selfhosting und Betrieb
-- Python + SQLite + FTS5 im Kern
-- Proxmox VE / Debian LXC freundlicher Deployment-Pfad
-- Helper-Befehle für Health, Update, Backup und Restore
-- dokumentierter Update-Pfad
-- dokumentierter Backup-/Restore-Pfad
-- reale LXC-Smoke-Test-Richtung
+- strong bookmark and favorites management
+- visible duplicate review and cleanup
+- clean import/export and migration workflows
+- browser-aware metadata handling
+- safe, reviewable merge behavior
+- lightweight self-hosted operation on Proxmox VE / Debian LXC
 
 ---
 
-## Produktrichtung
+## Current focus
 
-LinkVault wird um fünf Kernsäulen herum gebaut:
+The current product focus is:
 
-1. Bookmark-Verwaltung
-2. Favoriten als Konzept erster Klasse
-3. starke Organisation mit Tags, Listen und Collections
-4. sichere Dublettenprüfung und Dublettenbereinigung
-5. Import/Export und sync-nahe Browser-Workflows
-
-Alles andere ist nachrangig.
-
----
-
-## Dubletten-Philosophie
-
-LinkVault behandelt Dubletten nicht nur als Import-Warnung, sondern als echte Produktfunktion.
-
-### Kernprinzipien
-- Dubletten früh erkennen
-- vor riskanten Aktionen eine Vorschau zeigen
-- nützliche Metadaten beim Merge erhalten
-- nichts blind löschen
-- Bereinigung verständlich halten
-- große Bibliotheken pflegbar machen
-
-### Merge-Verhalten
-Beim Zusammenführen von Dubletten soll LinkVault wichtige Daten erhalten, zum Beispiel:
-- Favoriten
-- Tags
-- Collections
-- Notizen
-- bessere Metadaten
-- Import-/Quellkontext
+- bookmark storage and editing
+- favorites, pins, tags, collections and notes
+- full-text search with SQLite FTS5
+- bulk actions
+- duplicate preflight before save
+- duplicate review, dry-run and merge without blind deletion
+- import preview and migration safety
+- browser companion workflows
+- Proxmox-friendly install / update / backup / restore
 
 ---
 
-## Import-Philosophie
+## Current feature set
 
-Import ist nicht einfach nur „Datei hochladen“.
+### Bookmark management
+- save links with URL normalization
+- fetch metadata such as title, description, favicon and domain
+- edit bookmarks in the UI
+- manage favorites and pins
+- add tags, collections and notes
+- work with Inbox-style unsorted bookmarks
+- use saved views and multiple display modes
 
-Für LinkVault bedeutet Import:
+### Search, filtering and organization
+- SQLite FTS5 full-text search
+- filters for favorites, pins, domain, tags, collections and status
+- compact, detailed and grid-style bookmark views
+- bulk actions for tags, collections, favorites and pins
 
-- zuerst Vorschau
-- Dubletten erkennen
-- Konflikte sichtbar machen
-- Herkunft erhalten
-- Metadaten soweit möglich bewahren
-- stille destruktive Ergebnisse vermeiden
+### Duplicate handling
+- exact duplicate detection
+- normalized URL duplicate detection
+- duplicate preflight before save
+- duplicate dashboard with dry-run
+- winner suggestion and field comparison
+- merge without blind hard delete
+- merge history / undo direction
+- marked merged duplicates instead of silent destructive cleanup
 
-HTML bleibt die gemeinsame Baseline.  
-Reichere browserspezifische Formate können später als Anreicherung ergänzt werden.
+### Import and migration
+- browser HTML import preview
+- Chromium JSON import path
+- import session metadata
+- duplicate and conflict awareness during import
+- provenance-aware import direction for future migration breadth
+
+### Companion extension
+- save current tab
+- read browser bookmarks
+- send bookmark previews to LinkVault
+- safe browser re-import with preview
+- duplicate-aware and conflict-aware browser round-trips
+
+### Self-hosting and operations
+- Python + SQLite + FTS5 core
+- Proxmox VE / Debian LXC friendly deployment
+- helper commands for health, update, backup and restore
+- documented update path
+- documented backup / restore path
+- real LXC smoke-test direction
 
 ---
 
-## Selfhosting-Philosophie
+## Product direction
 
-LinkVault ist bewusst so gedacht, dass es für kleine self-hosted Installationen praktisch bleibt.
+LinkVault is being built around five core pillars:
 
-### Standardpfad
-- leichtgewichtig
-- SQLite-basiert
-- mit einem Dienst realistisch betreibbar
-- einfach zu sichern
-- einfach wiederherzustellen
-- einfach zu aktualisieren
-- realistisch für Proxmox-Homelab-Nutzung
+1. Bookmark management
+2. Favorites as a first-class concept
+3. Strong organization with tags, lists and collections
+4. Safe duplicate review and cleanup
+5. Import/export and sync-adjacent browser workflows
 
-### Schwere optionale Funktionen
-Schwerere Themen wie Archive Worker, Screenshot/PDF, Reader-Extraktion, AI-Helfer oder größere Service-Topologien sind spätere optionale Erweiterungen und keine Standardvoraussetzung.
+Everything else is secondary.
 
 ---
 
-## Tech-Stack
+## Duplicate philosophy
 
-Aktueller Kern-Stack:
+LinkVault treats duplicate handling as a real product feature, not just an import warning.
+
+### Core principles
+- detect duplicates early
+- show review before risky actions
+- preserve useful metadata during merge
+- do not delete blindly
+- keep cleanup understandable
+- support large-library maintenance
+
+### Merge behavior
+When merging duplicates, LinkVault is designed to preserve important data such as:
+- favorites
+- tags
+- collections
+- notes
+- better metadata
+- import/source context
+
+---
+
+## Import philosophy
+
+Import is not just “upload a file”.
+
+For LinkVault, import means:
+
+- preview first
+- detect duplicates
+- surface conflicts
+- keep provenance
+- preserve metadata where feasible
+- avoid silent destructive outcomes
+
+HTML remains the common baseline.  
+Richer browser-specific formats can be layered on top as enrichment.
+
+---
+
+## Self-hosting philosophy
+
+LinkVault is intentionally designed to stay practical for small self-hosted installations.
+
+### Default path
+- lightweight
+- SQLite-based
+- single-service-friendly
+- easy to back up
+- easy to restore
+- easy to update
+- realistic for Proxmox homelab use
+
+### Heavy optional features
+Heavier topics such as archive workers, screenshots/PDF, reader extraction, AI helpers or larger service topologies are later optional extensions, not default requirements.
+
+---
+
+## Tech stack
+
+Current core stack:
 
 - Python
 - SQLite
 - SQLite FTS5
-- eigenes Backend-Runtime-Modell
-- Firefox Companion Extension
-- Proxmox VE / Debian LXC Deployment-Pfad
-- stdlib-orientierter Testansatz
+- custom backend runtime
+- Firefox companion extension
+- Proxmox VE / Debian LXC deployment path
+- stdlib-first testing approach
 
 ---
 
-## Projektstatus
+## Project status
 
-LinkVault ist aktiv in Entwicklung.
+LinkVault is under active development.
 
-Die technische Basis ist bereits stark bei:
-- Bookmark-Speicherung
-- Dedup-Logik
-- Import-Vorschau
-- Browser-Companion-Grundlagen
-- Proxmox-Installationspfad
-- Backup-, Restore- und Update-Workflows
+The technical foundation is already strong in:
+- bookmark storage
+- dedup logic
+- import preview direction
+- browser companion groundwork
+- Proxmox installation path
+- backup / restore / update workflows
 
-Die größte verbleibende sichtbare Produktlücke ist aktuell noch die Klarheit der Haupt-UI/GUI bei:
-- Navigation
-- Favoriten
-- Organisation
-- Dublettenpflege
-- alltäglichen Bookmark-Workflows
+The biggest remaining visible product gap is still the main UI/GUI clarity for:
+- navigation
+- favorites
+- organization
+- duplicate maintenance
+- everyday bookmark flows
 
 ---
 
-## Dokumentation
+## Documentation
 
-Wichtige Dokumente:
+Important documents:
 
 - `ROADMAP.md`
 - `ROADMAP.en.md`
@@ -246,47 +246,47 @@ Wichtige Dokumente:
 
 ---
 
-## Entwicklungsprioritäten
+## Development priorities
 
-Aktuell hoch priorisiert:
+Current high-priority themes:
 
-- bookmark-zentrierte Navigation
+- bookmark-centered navigation
 - Quick Add
-- Favoriten-/Tags-/Listen-/Collections-Workflows
+- favorites / tags / lists / collections workflows
 - Duplicate Center UX
-- breitere Import-/Export-/Migrationsabdeckung
-- stabile Browser-Roundtrips
-- weitere Proxmox-Betriebsreife
+- broader import / export / migration coverage
+- stable browser round-trips
+- continued Proxmox operational maturity
 
-Niedriger priorisiert:
+Lower-priority themes:
 
-- Reader-Modus
-- archivlastige Flows
-- Screenshot / PDF / Single-HTML
-- AI-Zusammenfassungen
-- schwere Multi-Service-Erweiterungen
-- Enterprise-Provisioning
+- reader mode
+- archive-heavy flows
+- screenshot / PDF / single-HTML
+- AI summaries
+- heavy multi-service expansion
+- enterprise provisioning
 
 ---
 
-## Zielgruppe
+## Intended users
 
-LinkVault richtet sich besonders an Menschen, die wollen:
+LinkVault is especially aimed at people who want:
 
 - self-hosting
-- Kontrolle über ihre Bookmarks
-- Browser-Migrationsunterstützung
-- Dublettenbereinigung
-- Favoriten-Verwaltung
-- Proxmox-freundliches Deployment
-- ein fokussiertes System, das praktisch bleibt
+- bookmark control
+- browser migration support
+- duplicate cleanup
+- favorites management
+- Proxmox-friendly deployment
+- a focused system that stays practical
 
 ---
 
-## Leitfrage
+## Guiding question
 
-Für jede größere Entscheidung fragt LinkVault:
+For every major decision, LinkVault asks:
 
-**Macht das das Produkt besser als self-hosted Plattform für Bookmarks, Favoriten, Organisation, Dublettenbereinigung, Import/Export und sync-nahe Workflows?**
+**Does this make the product better as a self-hosted bookmark, favorites, organization, duplicate-cleanup, import/export and sync-capable platform?**
 
-Wenn die Antwort hauptsächlich lautet „es macht LinkVault mehr zu einem Reader- oder Archivprodukt“, dann ist die Richtung falsch.
+If the answer is mainly “it makes LinkVault more of a reader or archive product”, the direction is wrong.
