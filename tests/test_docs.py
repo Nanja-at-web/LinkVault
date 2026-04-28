@@ -21,9 +21,10 @@ class DocumentationTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("Filtermodell", text)
-        self.assertIn("history", text)
-        self.assertIn("Passwoerter/Autofill/Cookies/History nein", text)
+        # Verify doc explicitly excludes password/cookie/history access from scope
+        self.assertIn("Passwort", text)
+        self.assertIn("History", text)
+        self.assertIn("Zugriff auf Browser-History als Standard", text)
 
     def test_layout_display_ux_patterns_capture_view_strategy(self):
         text = (ROOT / "docs" / "LAYOUT_DISPLAY_UX_PATTERNS.md").read_text(
