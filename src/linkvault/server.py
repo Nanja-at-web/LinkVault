@@ -1170,6 +1170,11 @@ def index_html() -> str:
       border-color: var(--accent);
       color: #fff;
     }
+    .nav-group-end { margin-right: .75rem; }
+    #userbar { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; justify-content: flex-end; }
+    .userbar-link { background: none; border: none; padding: .25rem .3rem; color: var(--muted); font-size: .88rem; cursor: pointer; font: inherit; text-decoration: none; border-radius: 4px; }
+    .userbar-link:hover { color: var(--accent-strong); text-decoration: underline; }
+    .userbar-link.active { color: var(--accent-strong); font-weight: 700; text-decoration: none; }
     .workspace {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
@@ -1501,12 +1506,14 @@ def index_html() -> str:
 <div class="shell">
   <div class="toolbar">
     <div>
-      <h1>LinkVault MVP</h1>
-      <p class="subtitle">Links speichern, importieren, bearbeiten und Dubletten sicher zusammenfuehren.</p>
-      <p class="shortcut-hint">Shortcuts: Ctrl/Cmd+K Suche, N Schnell-Speichern, I Import, D Dubletten, B Bookmarks. <button type="button" class="link-btn" id="shortcut-help-btn" aria-label="Shortcut-Hilfe oeffnen">? Hilfe</button></p>
+      <h1>LinkVault</h1>
+      <p class="subtitle">Bookmarks speichern, organisieren und Dubletten sicher bereinigen.</p>
+      <p class="shortcut-hint">Tastatur: Ctrl/Cmd+K Suche &middot; N Neu &middot; I Import &middot; D Dubletten &middot; B Bookmarks. <button type="button" class="link-btn" id="shortcut-help-btn" aria-label="Shortcut-Hilfe oeffnen">Alle Shortcuts</button></p>
     </div>
     <div id="userbar" hidden>
       <button id="current-user" type="button" data-tab-trigger="profile" class="link-btn"></button>
+      <button type="button" data-tab-trigger="operations" class="userbar-link" id="system-userbar-btn">System</button>
+      <button type="button" data-tab-trigger="admin" class="userbar-link" id="admin-nav-btn" hidden>Admin</button>
       <button id="logout" type="button">Logout</button>
     </div>
   </div>
@@ -1532,15 +1539,14 @@ def index_html() -> str:
     <button type="button" id="quick-add-btn" class="quick-add-nav-btn" aria-label="Bookmark schnell speichern (N)">+ Neu</button>
     <button type="button" data-inbox-trigger aria-label="Inbox anzeigen">Inbox</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="bookmarks">Bookmarks</button>
-    <button type="button" role="tab" aria-selected="false" data-tab-trigger="favorites">Favoriten</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="favorites" class="nav-group-end">Favoriten</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="tags">Tags</button>
-    <button type="button" role="tab" aria-selected="false" data-tab-trigger="collections">Collections</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="collections" class="nav-group-end">Collections</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="dedup">Dubletten</button>
-    <button type="button" role="tab" aria-selected="false" data-tab-trigger="import">Import</button>
-    <button type="button" role="tab" aria-selected="false" data-tab-trigger="operations">System</button>
-    <button type="button" role="tab" aria-selected="false" data-tab-trigger="admin" id="admin-nav-btn" hidden>Admin</button>
-    <button type="button" role="tab" aria-selected="false" data-tab-trigger="profile">Profil</button>
-    <!-- Tabs accessible via Vollformular-Link / programmatic setActiveTab, not primary nav -->
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="import">Import &amp; Export</button>
+    <!-- Secondary / programmatic tabs — triggered via userbar or internal links, not primary nav -->
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="profile" hidden>Profil</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="operations" hidden>System</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="save" hidden>Speichern</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="archive" hidden>Archiv</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="settings" hidden>Einstellungen</button>
@@ -1587,7 +1593,7 @@ def index_html() -> str:
       </thead>
       <tbody>
         <tr><td class="kbd-cell"><kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>K</kbd></td><td>Suche fokussieren</td></tr>
-        <tr><td class="kbd-cell"><kbd>N</kbd></td><td>Bookmark schnell speichern (Quick-Add)</td></tr>
+        <tr><td class="kbd-cell"><kbd>N</kbd></td><td>Schnell-Speichern &mdash; Bookmark direkt in Inbox speichern</td></tr>
         <tr><td class="kbd-cell"><kbd>B</kbd></td><td>Bookmark-Liste anzeigen</td></tr>
         <tr><td class="kbd-cell"><kbd>I</kbd></td><td>Import-Tab oeffnen</td></tr>
         <tr><td class="kbd-cell"><kbd>D</kbd></td><td>Dubletten-Tab oeffnen</td></tr>

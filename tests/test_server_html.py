@@ -366,8 +366,9 @@ class ServerHtmlTest(unittest.TestCase):
     def test_index_html_has_system_tab(self):
         html = index_html()
 
-        # Nav label and panel heading renamed from "Betrieb" to "System"
-        self.assertIn('data-tab-trigger="operations">System', html)
+        # System tab accessible via data-tab-trigger="operations" (in nav hidden + userbar)
+        self.assertIn('data-tab-trigger="operations"', html)
+        self.assertIn('id="system-userbar-btn"', html)
         self.assertIn("<h2>System</h2>", html)
         # Subtitle updated
         self.assertIn("Health-Status", html)
@@ -384,6 +385,30 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("ops-code", html)
         # Settings tab points to System tab
         self.assertIn("System &amp; Backup", html)
+
+    def test_index_html_nav_is_bookmark_centric(self):
+        html = index_html()
+
+        # Title no longer shows "MVP"
+        self.assertIn("<h1>LinkVault</h1>", html)
+        self.assertNotIn("LinkVault MVP", html)
+        # Primary nav: core bookmark areas present
+        self.assertIn('data-tab-trigger="bookmarks"', html)
+        self.assertIn('data-tab-trigger="favorites"', html)
+        self.assertIn('data-tab-trigger="tags"', html)
+        self.assertIn('data-tab-trigger="collections"', html)
+        self.assertIn('data-tab-trigger="dedup"', html)
+        # Import nav label now matches panel heading
+        self.assertIn("Import &amp; Export", html)
+        # Visual grouping classes present in nav
+        self.assertIn("nav-group-end", html)
+        # Profile / System / Admin moved to userbar
+        self.assertIn('id="system-userbar-btn"', html)
+        self.assertIn('id="admin-nav-btn"', html)
+        # Userbar link styles defined
+        self.assertIn("userbar-link", html)
+        # Shortcut hint updated and present
+        self.assertIn("Alle Shortcuts", html)
 
     def test_index_html_settings_tab_has_useful_navigation(self):
         html = index_html()
