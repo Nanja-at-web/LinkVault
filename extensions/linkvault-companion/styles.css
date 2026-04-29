@@ -234,3 +234,33 @@ button.primary {
 .preview-decision {
   margin-top: .25rem;
 }
+
+/* Pill colour coding by action type */
+.pill.create { background: #d4edda; color: #1a5c2a; border-color: #8cad7a; }
+.pill.duplicate_existing,
+.pill.duplicate_in_import { background: #fff8f0; color: #8a5200; border-color: #f0c08a; }
+.pill.invalid_skipped { background: #fff5f5; color: #7f2020; border-color: #d79a9a; }
+.pill.skip_existing { background: #f0f0f0; color: #444; border-color: #ccc; }
+.pill.merge_existing { background: #e8f0fe; color: #1a4a8a; border-color: #8ab0e0; }
+.pill.update_existing { background: #e6f7ff; color: #0a5a7a; border-color: #7ac8e0; }
+.pill.folder_create { background: #f0f8ff; color: #1a3a6a; border-color: #a0c0e0; }
+.pill.reuse_existing_folder { background: #f4f8f0; color: #3a5a2a; border-color: #8ab08a; }
+.pill-warn { background: #fff8f0; color: #8a5200; border-color: #f0c08a; }
+
+/* Connection state line */
+.conn-state { font-size: .85rem; margin: .15rem 0 0; }
+.conn-ok { color: #16825f; }
+.conn-error { color: #7f2020; }
+.conn-missing { color: #8a5200; }
+
+/* Save tab duplicate preflight */
+.save-preflight { margin-top: .65rem; border: 1px solid #f0c08a; border-radius: 6px; padding: .6rem; background: #fff8f0; }
+.preflight-heading { margin: 0 0 .5rem; font-size: .88rem; font-weight: 650; }
+.preflight-match { padding-top: .45rem; border-top: 1px solid #f0c08a; margin-top: .45rem; }
+.preflight-match:first-of-type { padding-top: 0; border-top: none; margin-top: 0; }
+
+/* Step hint */
+.step-hint { font-size: .82rem; margin: .35rem 0; }
+
+/* Button loading state */
+button:disabled { opacity: .6; cursor: default; }

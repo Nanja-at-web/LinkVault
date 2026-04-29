@@ -165,6 +165,29 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("Schnell-Speichern", html)
         self.assertIn("quick-add-nav-btn", html)
 
+    def test_index_html_quick_add_has_ux_improvements(self):
+        html = index_html()
+
+        # Inbox hint visible in dialog
+        self.assertIn('id="qa-inbox-hint"', html)
+        self.assertIn("Inbox", html)
+        # Favorite star outside details
+        self.assertIn('id="qa-fav-star"', html)
+        self.assertIn("qa-fav-star", html)
+        self.assertIn('id="qa-fav-hidden"', html)
+        # Post-save feedback
+        self.assertIn('id="qa-save-feedback"', html)
+        self.assertIn("Bookmark gespeichert", html)
+        # Vollformular as secondary button
+        self.assertIn('id="qa-fullform"', html)
+        self.assertIn("secondary-sm", html)
+        # Preflight match type label
+        self.assertIn("matchTypeLabel", html)
+        self.assertIn("qa-preflight-match-type", html)
+        self.assertIn("qa-preflight-actions", html)
+        self.assertIn("Tags/Notizen aktualisieren", html)
+        self.assertIn("Trotzdem neu speichern", html)
+
     def test_index_html_has_archive_tab(self):
         html = index_html()
 
@@ -257,6 +280,16 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("Sofort testen", html)
         self.assertIn("data-focus-token-test", html)
 
+    def test_index_html_profile_has_companion_setup_guidance(self):
+        html = index_html()
+
+        # Companion Extension setup guidance in profile/token section
+        self.assertIn("Companion Extension", html)
+        self.assertIn("Extension einrichten", html)
+        # Setup steps reference token creation and options page
+        self.assertIn("Token unten erstellen", html)
+        self.assertIn("Token-Klartext kopieren", html)
+
 
     def test_index_html_has_shortcut_help(self):
         html = index_html()
@@ -290,6 +323,79 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertIn("/api/import/generic/columns", html)
         self.assertIn("BINARY_IMPORT_FORMATS", html)
         self.assertIn("GENERIC_IMPORT_FORMATS", html)
+
+    def test_index_html_import_panel_has_ux_improvements(self):
+        html = index_html()
+
+        # Step-based layout
+        self.assertIn("import-step-num", html)
+        self.assertIn("import-step-header", html)
+        # Format hint
+        self.assertIn('id="import-format-hint"', html)
+        self.assertIn("FORMAT_HINTS", html)
+        self.assertIn("updateImportFormatUi", html)
+        # Binary format notice
+        self.assertIn('id="import-binary-notice"', html)
+        self.assertIn("import-binary-notice", html)
+        # Separate submit button (not form submit)
+        self.assertIn('id="import-submit-btn"', html)
+        # Preview result and import result are separate
+        self.assertIn('id="import-preview-output"', html)
+        self.assertIn('id="import-result-output"', html)
+        # Result UX: go to inbox
+        self.assertIn("import-goto-inbox", html)
+        self.assertIn("Inbox anzeigen", html)
+        # Inline import history
+        self.assertIn("import-history-section", html)
+        self.assertIn("import-history-list", html)
+        self.assertIn("refreshImportHistory", html)
+
+    def test_index_html_has_export_section(self):
+        html = index_html()
+
+        # Export download link
+        self.assertIn("/api/export/bookmarks.html", html)
+        self.assertIn("export-bookmarks-link", html)
+        self.assertIn("linkvault-bookmarks.html", html)
+        # Export card UI
+        self.assertIn("export-card", html)
+        self.assertIn("Browser-HTML herunterladen", html)
+        self.assertIn("Bookmarks exportieren", html)
+
+
+    def test_index_html_has_system_tab(self):
+        html = index_html()
+
+        # Nav label and panel heading renamed from "Betrieb" to "System"
+        self.assertIn('data-tab-trigger="operations">System', html)
+        self.assertIn("<h2>System</h2>", html)
+        # Subtitle updated
+        self.assertIn("Health-Status", html)
+        self.assertIn("Aktivitaetsverlauf", html)
+        # Activity section moved up and has description
+        self.assertIn('id="activity-log"', html)
+        # Merge-Verlauf section
+        self.assertIn("Merge-Verlauf", html)
+        self.assertIn('id="merge-history"', html)
+        # Backup & Restore card
+        self.assertIn("ops-backup-info", html)
+        self.assertIn("backup-linkvault.sh", html)
+        self.assertIn("restore-linkvault.sh", html)
+        self.assertIn("ops-code", html)
+        # Settings tab points to System tab
+        self.assertIn("System &amp; Backup", html)
+
+    def test_index_html_settings_tab_has_useful_navigation(self):
+        html = index_html()
+
+        self.assertIn('id="settings"', html)
+        self.assertIn("Ansichtsoptionen", html)
+        self.assertIn("Konto &amp; API-Token", html)
+        self.assertIn("System &amp; Backup", html)
+        # All three cards link to other tabs
+        self.assertIn('data-tab-trigger="bookmarks"', html)
+        self.assertIn('data-tab-trigger="profile"', html)
+        self.assertIn('data-tab-trigger="operations"', html)
 
 
 if __name__ == "__main__":

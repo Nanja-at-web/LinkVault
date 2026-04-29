@@ -11,17 +11,17 @@
     <header class="popup-header">
       <div>
         <h1>LinkVault</h1>
-        <p id="connection-state" class="muted">Checking settings...</p>
+        <p id="connection-state" class="conn-state muted">Checking connection…</p>
       </div>
       <button id="open-options" type="button">Options</button>
     </header>
 
     <section class="panel">
-      <h2>Save current tab</h2>
+      <h2>Save bookmark</h2>
       <label>Tags
         <input id="save-tags" placeholder="browser, reading" value="browser">
       </label>
-      <label>Collections
+      <label>Collection
         <input id="save-collections" placeholder="Inbox" value="Inbox">
       </label>
       <label>Notes
@@ -31,13 +31,14 @@
         <label><input id="save-favorite" type="checkbox"> Favorite</label>
         <label><input id="save-pinned" type="checkbox"> Pin</label>
       </div>
-      <button id="save-current-tab" class="primary" type="button">Save tab</button>
+      <button id="save-current-tab" class="primary" type="button">Save bookmark</button>
+      <div id="save-tab-preflight" class="save-preflight" hidden></div>
     </section>
 
     <section class="panel">
-      <h2>Browser bookmarks</h2>
-      <p class="muted">Choose all browser bookmarks or one folder before sending them to LinkVault's import preview.</p>
-      <label>Import source
+      <h2>Import from Browser</h2>
+      <p class="muted">Choose a folder or all bookmarks, preview duplicates, then import into LinkVault.</p>
+      <label>Source folder
         <select id="bookmark-source">
           <option value="">All browser bookmarks</option>
         </select>
@@ -60,18 +61,19 @@
         </div>
         <button id="clear-bookmark-filters" type="button">Clear filters</button>
       </details>
+      <div class="step-hint muted">Step 1: Preview &rarr; Step 2: Import</div>
       <div class="actions">
-        <button id="refresh-bookmark-sources" type="button">Refresh folders</button>
-        <button id="preview-bookmarks" type="button">Preview import</button>
-        <button id="import-bookmarks" type="button">Import</button>
+        <button id="refresh-bookmark-sources" type="button">Refresh</button>
+        <button id="preview-bookmarks" type="button">Preview</button>
+        <button id="import-bookmarks" class="primary" type="button">Import</button>
       </div>
     </section>
 
     <section class="panel">
-      <h2>Import into browser</h2>
-      <p class="muted">Preview a LinkVault restore plan before creating or updating browser bookmarks. Nothing is deleted.</p>
+      <h2>Restore to Browser</h2>
+      <p class="muted">Preview the restore plan first. No browser bookmarks are deleted.</p>
       <details class="filter-panel">
-        <summary>LinkVault export filters</summary>
+        <summary>LinkVault filter (which bookmarks to restore)</summary>
         <label>Search
           <input id="linkvault-export-query" placeholder="github, docs, homelab">
         </label>
@@ -85,28 +87,29 @@
       </details>
       <label>Target
         <select id="browser-restore-target-mode">
-          <option value="new">New folder</option>
-          <option value="existing">Existing browser folder</option>
+          <option value="new">Create new folder</option>
+          <option value="existing">Use existing browser folder</option>
         </select>
       </label>
-      <label>New folder name
+      <label id="restore-new-folder-label">New folder name
         <input id="browser-restore-folder-name" placeholder="LinkVault Restore">
       </label>
-      <label>Existing target folder
+      <label id="restore-existing-folder-label" hidden>Existing target folder
         <select id="browser-restore-target-folder">
           <option value="">Choose a browser folder</option>
         </select>
       </label>
-      <label>Duplicate links
+      <label>When a link already exists in the browser
         <select id="browser-restore-duplicates">
-          <option value="skip">Skip existing links</option>
-          <option value="merge">Merge metadata safely</option>
-          <option value="update">Update existing links and move into target</option>
+          <option value="skip">Skip — keep existing unchanged</option>
+          <option value="merge">Merge — update title only, keep location</option>
+          <option value="update">Update — move into restore folder</option>
         </select>
       </label>
+      <div class="step-hint muted">Step 1: Preview plan &rarr; Step 2: Apply restore</div>
       <div class="actions">
-        <button id="preview-browser-restore" type="button">Preview restore</button>
-        <button id="import-into-browser" type="button">Run restore</button>
+        <button id="preview-browser-restore" type="button">Preview plan</button>
+        <button id="import-into-browser" class="primary" type="button">Apply restore</button>
       </div>
     </section>
 

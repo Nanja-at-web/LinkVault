@@ -14,10 +14,32 @@ const linkvaultExportQueryEl = document.querySelector("#linkvault-export-query")
 const linkvaultExportCollectionEl = document.querySelector("#linkvault-export-collection");
 const linkvaultExportFavoriteEl = document.querySelector("#linkvault-export-favorite");
 const linkvaultExportPinnedEl = document.querySelector("#linkvault-export-pinned");
-const PREVIEW_DETAIL_LIMIT = 30;
+const saveTabPreflightEl = document.querySelector("#save-tab-preflight");
+const restoreNewFolderLabel = document.querySelector("#restore-new-folder-label");
+const restoreExistingFolderLabel = document.querySelector("#restore-existing-folder-label");
+const PREVIEW_DETAIL_LIMIT = 15;
 let lastBrowserRestorePreview = null;
 let lastBrowserRestorePreviewKey = "";
 let lastBrowserRestoreDecisions = {};
+
+function setButtonLoading(btn, loading, loadingText) {
+  btn.disabled = loading;
+  if (loading) {
+    btn.dataset.originalText = btn.textContent;
+    btn.textContent = loadingText || "Loading…";
+  } else {
+    btn.textContent = btn.dataset.originalText || btn.textContent;
+  }
+}
+
+function updateRestoreTargetVisibility() {
+  const isNew = browserRestoreTargetModeEl.value === "new";
+  restoreNewFolderLabel.hidden = !isNew;
+  restoreExistingFolderLabel.hidden = isNew;
+}
+
+browserRestoreTargetModeEl.addEventListener("change", updateRestoreTargetVisibility);
+updateRestoreTargetVisibility();
 
 function showResult(message, kind = "info") {
   resultEl.textContent = message;
@@ -25,8 +47,14 @@ function showResult(message, kind = "info") {
 }
 
 function summarizePreview(payload) {
-  const invalid = payload.invalid_skipped ? `, ${payload.invalid_skipped} internal/invalid skipped` : "";
-  return `${payload.total} found, ${payload.create} new, ${payload.duplicate_existing} already in LinkVault, ${payload.duplicate_in_import} duplicates inside browser bookmarks${invalid}.`;
+  const parts = [
+    `${payload.total} found`,
+    `${payload.create} new`,
+    `${payload.duplicate_existing} already in LinkVault`,
+  ];
+  if (payload.duplicate_in_import) parts.push(`${payload.duplicate_in_import} duplicates in browser`);
+  if (payload.invalid_skipped) parts.push(`${payload.invalid_skipped} skipped (internal)`);
+  return parts.join(" · ");
 }
 
 function clearPreviewDetails() {
@@ -132,10 +160,20 @@ function previewActionLabel(action) {
 async function refreshConnectionState() {
   const settings = await getSettings();
   if (!settings.linkvaultUrl || !settings.apiToken) {
-    connectionState.textContent = "Open Options and add LinkVault URL plus API token.";
+    connectionState.textContent = "Open Options to add LinkVault URL and API token.";
+    connectionState.className = "conn-state conn-missing";
     return;
   }
-  connectionState.textContent = `Connected to ${settings.linkvaultUrl}`;
+  connectionState.textContent = `Connecting to ${settings.linkvaultUrl}…`;
+  connectionState.className = "conn-state muted";
+  try {
+    await linkvaultRequest("/api/me");
+    connectionState.textContent = `✓ ${settings.linkvaultUrl}`;
+    connectionState.className = "conn-state conn-ok";
+  } catch (error) {
+    connectionState.textContent = `✗ Cannot connect — check Options`;
+    connectionState.className = "conn-state conn-error";
+  }
 }
 
 async function refreshBookmarkSources() {
@@ -204,7 +242,16 @@ function browserRestoreOptionsKey(options) {
 }
 
 function summarizeBrowserRestorePreview(payload) {
-  return `${payload.total} from LinkVault, ${payload.create} new, ${payload.skip_existing} skipped, ${payload.merge_existing} merged, ${payload.update_existing} updated, ${payload.conflict_count || 0} conflicts, ${payload.structure_conflict_count || 0} folder conflicts, ${payload.decision_count || 0} decided.`;
+  const parts = [
+    `${payload.total} from LinkVault`,
+    `${payload.create} new`,
+    `${payload.skip_existing} skip`,
+    `${payload.merge_existing} merge`,
+    `${payload.update_existing} update`,
+  ];
+  if (payload.conflict_count) parts.push(`${payload.conflict_count} conflicts`);
+  if (payload.structure_conflict_count) parts.push(`${payload.structure_conflict_count} folder conflicts`);
+  return parts.join(" · ");
 }
 
 function renderBrowserRestorePreview(payload) {
@@ -401,56 +448,150 @@ document.querySelector("#clear-bookmark-filters").addEventListener("click", () =
 });
 
 document.querySelector("#save-current-tab").addEventListener("click", async () => {
+  const btn = document.querySelector("#save-current-tab");
+  saveTabPreflightEl.hidden = true;
+  saveTabPreflightEl.replaceChildren();
   try {
     clearPreviewDetails();
-    const bookmark = await saveCurrentTab({
+    setButtonLoading(btn, true, "Saving…");
+    const extra = {
       tags: document.querySelector("#save-tags").value,
       collections: document.querySelector("#save-collections").value,
       notes: document.querySelector("#save-notes").value,
       favorite: document.querySelector("#save-favorite").checked,
       pinned: document.querySelector("#save-pinned").checked
-    });
-    showResult(`Saved: ${bookmark.title || bookmark.url}`, "ok");
+    };
+    const bookmark = await saveCurrentTab(extra);
+    showResult(`✓ Saved: ${bookmark.title || bookmark.url}`, "ok");
   } catch (error) {
     if (error.status === 409 && error.payload?.preflight?.matches?.length) {
-      showResult("Possible duplicate found in LinkVault. Open LinkVault to decide whether to update or save separately.", "error");
-      return;
+      renderSaveTabPreflight(error.payload.preflight, {
+        tags: document.querySelector("#save-tags").value,
+        collections: document.querySelector("#save-collections").value,
+        notes: document.querySelector("#save-notes").value,
+        favorite: document.querySelector("#save-favorite").checked,
+        pinned: document.querySelector("#save-pinned").checked
+      });
+      showResult("Already in LinkVault — choose an action below.", "info");
+    } else {
+      showResult(error.message, "error");
     }
-    showResult(error.message, "error");
+  } finally {
+    setButtonLoading(btn, false);
   }
 });
 
+function renderSaveTabPreflight(preflight, extra) {
+  saveTabPreflightEl.hidden = false;
+  saveTabPreflightEl.replaceChildren();
+
+  const heading = document.createElement("p");
+  heading.className = "preflight-heading";
+  heading.textContent = "Already saved — what would you like to do?";
+  saveTabPreflightEl.append(heading);
+
+  for (const match of preflight.matches || []) {
+    const bm = match.bookmark;
+    const row = document.createElement("div");
+    row.className = "preflight-match";
+
+    const matchType = document.createElement("span");
+    matchType.className = "pill pill-warn";
+    matchType.textContent = match.match_type === "exact" ? "Exact match" : match.match_type === "normalized" ? "Normalized match" : "Similar";
+    row.append(matchType);
+
+    const title = document.createElement("strong");
+    title.textContent = ` ${bm.title || bm.url}`;
+    row.append(title);
+
+    const btnRow = document.createElement("div");
+    btnRow.className = "actions";
+
+    const openBtn = document.createElement("button");
+    openBtn.textContent = "Open in LinkVault";
+    openBtn.type = "button";
+    openBtn.addEventListener("click", async () => {
+      const settings = await getSettings();
+      linkvaultRuntime.tabs.create({url: `${settings.linkvaultUrl}/#bookmark-${bm.id}`});
+    });
+    btnRow.append(openBtn);
+
+    const saveAnywayBtn = document.createElement("button");
+    saveAnywayBtn.textContent = "Save anyway";
+    saveAnywayBtn.type = "button";
+    saveAnywayBtn.addEventListener("click", async () => {
+      try {
+        setButtonLoading(saveAnywayBtn, true, "Saving…");
+        const payload = await currentTabBookmarkPayload(extra);
+        payload.allow_duplicate = true;
+        const saved = await linkvaultRequest("/api/bookmarks", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        saveTabPreflightEl.hidden = true;
+        showResult(`✓ Saved as new bookmark: ${saved.title || saved.url}`, "ok");
+      } catch (err) {
+        showResult(err.message, "error");
+      } finally {
+        setButtonLoading(saveAnywayBtn, false);
+      }
+    });
+    btnRow.append(saveAnywayBtn);
+    row.append(btnRow);
+    saveTabPreflightEl.append(row);
+  }
+}
+
 document.querySelector("#preview-bookmarks").addEventListener("click", async () => {
+  const btn = document.querySelector("#preview-bookmarks");
   try {
-    showResult("Reading browser bookmarks...");
+    setButtonLoading(btn, true, "Previewing…");
+    showResult("Reading browser bookmarks…");
     const preview = await previewBrowserBookmarks(selectedBookmarkSource());
     showResult(summarizePreview(preview), "ok");
     renderPreviewDetails(preview);
   } catch (error) {
     clearPreviewDetails();
     showResult(error.message, "error");
+  } finally {
+    setButtonLoading(btn, false);
   }
 });
 
 document.querySelector("#import-bookmarks").addEventListener("click", async () => {
+  const btn = document.querySelector("#import-bookmarks");
   try {
-    clearPreviewDetails();
-    showResult("Importing browser bookmarks...");
+    setButtonLoading(btn, true, "Importing…");
+    showResult("Importing browser bookmarks…");
     const result = await importBrowserBookmarks(selectedBookmarkSource());
-    const invalid = result.invalid_skipped ? `, ${result.invalid_skipped} internal/invalid skipped` : "";
-    showResult(`${result.created} imported, ${result.duplicates_skipped} duplicates skipped${invalid}.`, "ok");
+    const invalid = result.invalid_skipped ? `, ${result.invalid_skipped} skipped` : "";
+    showResult(`✓ ${result.created} new bookmarks imported. ${result.duplicates_skipped} already existed${invalid}.`, "ok");
+    clearPreviewDetails();
   } catch (error) {
     showResult(error.message, "error");
+  } finally {
+    setButtonLoading(btn, false);
   }
 });
 
 document.querySelector("#import-into-browser").addEventListener("click", async () => {
+  const btn = document.querySelector("#import-into-browser");
   try {
-    showResult("Restoring LinkVault bookmarks into this browser...");
     const options = selectedBrowserRestoreOptions();
     if (options.targetMode === "existing" && !options.targetFolderId) {
-      throw new Error("Choose an existing browser folder or switch target to new folder.");
+      showResult("Choose an existing browser folder, or switch target to 'Create new folder'.", "error");
+      return;
     }
+    if (!lastBrowserRestorePreview) {
+      showResult("Preview the restore plan first before applying.", "error");
+      return;
+    }
+    const totalNew = lastBrowserRestorePreview.create || 0;
+    if (totalNew > 30 && !confirm(`This will create ${totalNew} new browser bookmarks. Continue?`)) {
+      return;
+    }
+    setButtonLoading(btn, true, "Applying…");
+    showResult("Restoring LinkVault bookmarks into this browser…");
     const result = await importLinkVaultIntoBrowser({
       ...options,
       preview: lastBrowserRestorePreviewKey === browserRestoreOptionsKey(options) ? lastBrowserRestorePreview : null
@@ -458,16 +599,21 @@ document.querySelector("#import-into-browser").addEventListener("click", async (
     lastBrowserRestorePreview = null;
     lastBrowserRestorePreviewKey = "";
     lastBrowserRestoreDecisions = {};
-    const syncNote = result.restore_session_sync_failed ? ` Restore session sync failed: ${result.restore_session_sync_error}.` : "";
-    showResult(`${result.created} created, ${result.skipped_existing} skipped, ${result.merged_existing} merged, ${result.updated_existing} updated in ${result.root_title}.${syncNote}`, result.restore_session_sync_failed ? "error" : "ok");
+    clearPreviewDetails();
+    const syncNote = result.restore_session_sync_failed ? ` (Session sync failed: ${result.restore_session_sync_error}.)` : "";
+    showResult(`✓ ${result.created} created, ${result.skipped_existing} skipped, ${result.merged_existing} merged, ${result.updated_existing} updated in "${result.root_title}".${syncNote}`, result.restore_session_sync_failed ? "error" : "ok");
   } catch (error) {
     showResult(error.message, "error");
+  } finally {
+    setButtonLoading(btn, false);
   }
 });
 
 document.querySelector("#preview-browser-restore").addEventListener("click", async () => {
+  const btn = document.querySelector("#preview-browser-restore");
   try {
-    showResult("Building browser restore preview...");
+    setButtonLoading(btn, true, "Building preview…");
+    showResult("Building browser restore preview…");
     const options = selectedBrowserRestoreOptions();
     lastBrowserRestorePreview = await previewLinkVaultBrowserImport({
       ...options,
@@ -481,6 +627,8 @@ document.querySelector("#preview-browser-restore").addEventListener("click", asy
     lastBrowserRestorePreviewKey = "";
     clearPreviewDetails();
     showResult(error.message, "error");
+  } finally {
+    setButtonLoading(btn, false);
   }
 });
 

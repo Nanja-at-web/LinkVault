@@ -244,6 +244,17 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
                     filters=filters_from_query(params),
                 )
             )
+        elif path == "/api/export/bookmarks.html":
+            if not self.require_auth(auth_store):
+                return
+            html_content = store.export_netscape_html()
+            body = html_content.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="linkvault-bookmarks.html"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         elif path == "/api/tokens":
             user = self.require_session_auth(auth_store)
             if not user:
@@ -1117,6 +1128,8 @@ def index_html() -> str:
     button:hover { border-color: var(--accent); color: var(--accent-strong); }
     button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
     button.primary:hover { background: var(--accent-strong); color: #fff; }
+    button.secondary-sm { font-size: .85rem; padding: .28rem .7rem; background: var(--card); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); cursor: pointer; }
+    button.secondary-sm:hover { background: var(--bg-alt); }
     pre { background: #edf0ea; padding: 1rem; overflow: auto; border-radius: 6px; }
     label { display: block; font-weight: 650; }
     label.check {
@@ -1415,6 +1428,31 @@ def index_html() -> str:
     .fav-unfavorite:hover { color: #c53030; background: #fee; border-color: transparent; }
     .empty { color: var(--muted); border: 1px dashed #aeb7a6; border-radius: 8px; padding: 1rem; background: #fafbf8; }
     .shortcut-hint { color: var(--muted); margin: .35rem 0 0; font-size: .9rem; }
+    .import-step-header { display: flex; align-items: baseline; gap: .6rem; margin: 1.1rem 0 .5rem; }
+    .import-step-num { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--accent); color: #fff; font-size: .8rem; font-weight: 700; flex-shrink: 0; }
+    .import-step-header h3 { margin: 0; font-size: 1rem; }
+    .import-format-hint { font-size: .84rem; color: var(--muted); margin: .15rem 0 .5rem; padding: .3rem .6rem; background: var(--bg-alt); border-left: 3px solid var(--line); border-radius: 0 4px 4px 0; }
+    .import-binary-notice { font-size: .88rem; color: #8a5200; background: #fff8f0; border: 1px solid #f0c08a; border-radius: 6px; padding: .4rem .75rem; margin: .3rem 0; }
+    .import-result-box { border-radius: 8px; padding: .85rem 1rem; margin: .5rem 0; }
+    .import-result-success { background: #d4edda; border: 1px solid #8cad7a; }
+    .import-result-warn { background: #fff8f0; border: 1px solid #f0c08a; }
+    .import-result-counts { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; margin: .5rem 0 .75rem; font-size: .93rem; }
+    .import-count-new { color: #1a5c2a; font-weight: 600; }
+    .import-count-skip { color: var(--muted); }
+    .import-count-bad { color: #7a1a20; }
+    .import-result-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
+    .import-preview-summary { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin: .35rem 0 .75rem; font-size: .9rem; }
+    .preview-new { color: #1a5c2a; font-weight: 600; }
+    .preview-exists { color: var(--muted); }
+    .preview-bad { color: #7a1a20; }
+    .export-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .export-card h3 { margin: 0 0 .3rem; font-size: 1rem; }
+    .export-card p { margin: 0 0 .7rem; font-size: .9rem; color: var(--muted); }
+    .import-history-section { margin-top: 1.5rem; border-top: 2px solid var(--line); padding-top: 1rem; }
+    .import-history-section h3 { margin: 0 0 .5rem; font-size: .95rem; color: var(--muted); font-weight: 600; }
+    .import-session-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .6rem .85rem; margin-bottom: .5rem; font-size: .88rem; }
+    .import-session-counts { display: flex; flex-wrap: wrap; gap: .3rem .8rem; margin-top: .2rem; font-size: .85rem; }
+    .ops-code { display: block; font-family: monospace; font-size: .87rem; background: var(--bg-alt); border: 1px solid var(--line); border-radius: 5px; padding: .3rem .6rem; margin: .25rem 0 .5rem; overflow-x: auto; white-space: nowrap; }
     .quick-add-nav-btn { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
     .quick-add-nav-btn:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
     dialog { border: none; border-radius: 12px; padding: 1.5rem; max-width: 520px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
@@ -1426,9 +1464,20 @@ def index_html() -> str:
     .qa-more summary::before { content: '+ '; }
     .qa-more[open] summary::before { content: '- '; }
     .qa-more[open] summary { margin-bottom: .5rem; }
-    .qa-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .5rem; }
+    .qa-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .5rem; align-items: center; }
+    .qa-inbox-hint { font-size: .82rem; color: var(--muted); margin: -.1rem 0 .35rem; }
+    .qa-fav-row { display: flex; align-items: center; gap: .5rem; margin: .2rem 0 .4rem; }
+    .qa-fav-star { background: none; border: 1px solid var(--line); border-radius: 6px; padding: .25rem .55rem; font-size: 1rem; cursor: pointer; line-height: 1; color: var(--muted); transition: color .15s, border-color .15s; }
+    .qa-fav-star.active { color: #d4a000; border-color: #d4a000; }
+    .qa-fav-star:hover { border-color: #d4a000; color: #d4a000; }
+    .qa-save-feedback { background: #d4edda; color: #1a5c2a; border-radius: 6px; padding: .3rem .7rem; font-size: .9rem; font-weight: 600; margin-top: .4rem; }
     .qa-preflight { background: #fff8f0; border: 1px solid #f0c08a; border-radius: 8px; padding: .75rem; margin: .5rem 0; font-size: .93rem; }
-    .qa-preflight h4 { margin: 0 0 .4rem; font-size: .95rem; }
+    .qa-preflight h4 { margin: 0 0 .25rem; font-size: .95rem; }
+    .qa-preflight-match-type { display: inline-block; font-size: .78rem; font-weight: 600; padding: .1rem .45rem; border-radius: 999px; background: #fde8c2; color: #8a5200; margin-bottom: .3rem; }
+    .qa-preflight-row { margin-top: .5rem; padding-top: .5rem; border-top: 1px solid #f0c08a; }
+    .qa-preflight-url { margin: .1rem 0; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qa-preflight-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .4rem; }
+    .qa-preflight-actions button { font-size: .88rem; padding: .25rem .6rem; }
     kbd { display: inline-block; background: #f0f0f0; border: 1px solid #ccc; border-bottom-width: 2px; border-radius: 4px; padding: .1rem .4rem; font-family: monospace; font-size: .85rem; line-height: 1.4; white-space: nowrap; }
     .kbd-cell { padding: .3rem .5rem; white-space: nowrap; }
     .shortcut-table tbody tr:hover td { background: var(--bg-alt); }
@@ -1488,7 +1537,7 @@ def index_html() -> str:
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="collections">Collections</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="dedup">Dubletten</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="import">Import</button>
-    <button type="button" role="tab" aria-selected="false" data-tab-trigger="operations">Betrieb</button>
+    <button type="button" role="tab" aria-selected="false" data-tab-trigger="operations">System</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="admin" id="admin-nav-btn" hidden>Admin</button>
     <button type="button" role="tab" aria-selected="false" data-tab-trigger="profile">Profil</button>
     <!-- Tabs accessible via Vollformular-Link / programmatic setActiveTab, not primary nav -->
@@ -1501,21 +1550,27 @@ def index_html() -> str:
     <h3 style="margin:0 0 .85rem;">Bookmark speichern</h3>
     <form id="qa-form" class="qa-form">
       <label>URL <input name="url" type="url" required placeholder="https://…" autocomplete="url"></label>
+      <p class="qa-inbox-hint" id="qa-inbox-hint">Ziel: <strong>Inbox</strong> — ohne Collection-Angabe automatisch</p>
       <label>Titel <input name="title" placeholder="Optional – wird automatisch geladen"></label>
+      <div class="qa-fav-row">
+        <button type="button" id="qa-fav-star" class="qa-fav-star" aria-label="Als Favorit markieren" title="Favorit">&#9733;</button>
+        <input name="favorite" type="checkbox" id="qa-fav-hidden" style="display:none">
+        <span style="font-size:.9rem;color:var(--muted);">Favorit</span>
+      </div>
       <details class="qa-more">
         <summary>Mehr Felder</summary>
         <label>Tags <input name="tags" placeholder="proxmox, homelab"></label>
         <label>Collections <input name="collections" placeholder="Homelab/Proxmox"></label>
         <label>Notizen <textarea name="notes" rows="2" placeholder="Optional"></textarea></label>
         <div style="margin:.2rem 0 .4rem;">
-          <label class="check"><input name="favorite" type="checkbox"> Favorit</label>
           <label class="check"><input name="pinned" type="checkbox"> Pin</label>
         </div>
       </details>
       <div id="qa-preflight" class="qa-preflight" hidden></div>
+      <div id="qa-save-feedback" class="qa-save-feedback" hidden>&#10003; Bookmark gespeichert</div>
       <div class="qa-actions">
         <button type="button" id="qa-cancel">Abbrechen</button>
-        <button type="button" id="qa-fullform" class="link-btn" style="font-size:.85rem;margin-left:.25rem;" title="Vollformular oeffnen">Vollformular</button>
+        <button type="button" id="qa-fullform" class="secondary-sm" title="Vollformular oeffnen">Vollformular</button>
         <button type="submit" class="primary" id="qa-submit">Speichern</button>
       </div>
     </form>
@@ -1588,32 +1643,74 @@ def index_html() -> str:
   </section>
 
   <section id="import" class="panel tab-panel" data-tab-panel="import" hidden>
-    <h2>Browser-Bookmarks importieren</h2>
+    <div class="panel-header">
+      <div>
+        <h2>Import &amp; Export</h2>
+        <p class="subtitle">Bookmarks aus Browsern und anderen Tools importieren oder als Browser-HTML exportieren.</p>
+      </div>
+    </div>
+
+    <div class="export-card">
+      <h3>Bookmarks exportieren</h3>
+      <p>Alle aktiven Bookmarks als Standard-Browser-HTML herunterladen &mdash; importierbar in Chrome, Firefox, Safari, Edge und andere Browser.</p>
+      <a id="export-bookmarks-link" href="/api/export/bookmarks.html" download="linkvault-bookmarks.html" class="primary" style="display:inline-block;padding:.35rem .9rem;border-radius:6px;text-decoration:none;font-size:.93rem;">&#11123; Browser-HTML herunterladen</a>
+    </div>
+
     <form id="import-form">
+      <div class="import-step-header">
+        <span class="import-step-num">1</span>
+        <h3>Format und Quelldatei</h3>
+      </div>
       <label>Format
-        <select name="format">
-          <option value="browser-html">Browser-HTML / Netscape</option>
-          <option value="chromium-json">Chromium-JSON: Chrome, Edge, Brave, Vivaldi, Opera</option>
-          <option value="firefox-json">Firefox-JSON: Bookmarks-Backup (.json)</option>
-          <option value="firefox-jsonlz4">Firefox-JSONLZ4: Bookmarks-Backup (.jsonlz4)</option>
-          <option value="linkding-json">linkding-JSON: API-Export oder UI-Export</option>
-          <option value="safari-zip">Safari-ZIP: Archiv mit Bookmarks.html</option>
-          <option value="generic-csv">Generisch CSV: beliebiges Bookmark-Tool</option>
-          <option value="generic-json">Generisch JSON: beliebiges Bookmark-Tool</option>
+        <select name="format" id="import-format-select">
+          <option value="browser-html">Browser-HTML / Netscape (alle Browser)</option>
+          <option value="chromium-json">Chromium-JSON &mdash; Chrome, Edge, Brave, Vivaldi, Opera</option>
+          <option value="firefox-json">Firefox-JSON &mdash; Bookmarks-Backup (.json)</option>
+          <option value="firefox-jsonlz4">Firefox-JSONLZ4 &mdash; Bookmarks-Backup (.jsonlz4, komprimiert)</option>
+          <option value="linkding-json">linkding-JSON &mdash; API-Export oder UI-Export</option>
+          <option value="safari-zip">Safari-ZIP &mdash; Archiv mit Bookmarks.html</option>
+          <option value="generic-csv">Generisch CSV &mdash; beliebiges Bookmark-Tool</option>
+          <option value="generic-json">Generisch JSON &mdash; beliebiges Bookmark-Tool</option>
         </select>
       </label>
-      <label class="full">Importdatei <input name="file" type="file"></label>
-      <label class="full">Importdaten <textarea name="data" rows="8" placeholder="Bookmark-HTML, Chromium-JSON oder Firefox-JSON hier einfuegen. Safari-ZIP und Firefox-JSONLZ4 bitte als Datei auswaehlen."></textarea></label>
+      <p id="import-format-hint" class="import-format-hint">Browser-Bookmarks exportieren und die HTML-Datei hier hochladen oder den Inhalt einfuegen.</p>
+      <div id="import-file-area">
+        <label class="full">Importdatei <input name="file" type="file" id="import-file-input"></label>
+        <label id="import-textarea-label" class="full">Oder Daten einfuegen <textarea name="data" rows="6" placeholder="Bookmark-HTML oder JSON hier einfuegen"></textarea></label>
+        <p id="import-binary-notice" class="import-binary-notice" hidden>Dieses Format muss als Datei hochgeladen werden &mdash; bitte oben auswaehlen.</p>
+      </div>
       <div id="generic-mapping-ui" hidden>
         <p class="muted">Spalten werden nach dem Laden erkannt. Bitte zuerst Vorschau pruefen.</p>
         <div id="generic-mapping-fields" class="inline-actions" style="flex-wrap:wrap;gap:.5rem;"></div>
       </div>
+
+      <div class="import-step-header" style="margin-top:1.2rem;">
+        <span class="import-step-num">2</span>
+        <h3>Vorschau pruefen</h3>
+      </div>
+      <p class="muted" style="margin:.1rem 0 .6rem;font-size:.88rem;">Vorschau zeigt: wie viele Bookmarks neu sind, wie viele schon existieren und ob Dubletten im Import enthalten sind &mdash; vor dem eigentlichen Import.</p>
       <div class="inline-actions">
-        <button id="import-preview-button" type="button">Vorschau pruefen</button>
-        <button>Importieren</button>
+        <button id="import-preview-button" type="button">Vorschau laden</button>
+      </div>
+
+      <div id="import-preview-output" hidden></div>
+
+      <div class="import-step-header" style="margin-top:1.2rem;">
+        <span class="import-step-num">3</span>
+        <h3>Importieren</h3>
+      </div>
+      <p class="muted" style="margin:.1rem 0 .6rem;font-size:.88rem;">Neue Bookmarks werden in die Inbox angelegt. Existierende Bookmarks werden standardmaessig uebersprungen.</p>
+      <div class="inline-actions">
+        <button id="import-submit-btn" class="primary">Importieren</button>
       </div>
     </form>
-    <section id="import-preview-output" class="notice" hidden></section>
+
+    <div id="import-result-output" hidden></div>
+
+    <div class="import-history-section" id="import-history-section" hidden>
+      <h3>Letzte Importe</h3>
+      <div id="import-history-list"></div>
+    </div>
   </section>
 
   <section id="bookmarks-panel" class="panel tab-panel" data-tab-panel="bookmarks" hidden>
@@ -1847,17 +1944,21 @@ def index_html() -> str:
     <div class="panel-header">
       <div>
         <h2>Einstellungen</h2>
-        <p class="subtitle">Kontoeinstellungen und Anzeigeoptionen.</p>
+        <p class="subtitle">Uebersicht aller Konfigurationsbereiche.</p>
       </div>
     </div>
     <div class="stack">
       <section class="mini-card">
-        <h3>Anzeigeoptionen</h3>
+        <h3>Ansichtsoptionen</h3>
         <p class="muted">Ansicht, Felder und gespeicherte Ansichten findest du im <button type="button" class="link-btn" data-tab-trigger="bookmarks">Bookmarks-Tab</button> unter Ansichtsoptionen.</p>
       </section>
       <section class="mini-card">
-        <h3>Konto</h3>
-        <p class="muted">Passwort und API-Token findest du unter <button type="button" class="link-btn" data-tab-trigger="profile">Profil</button>.</p>
+        <h3>Konto &amp; API-Token</h3>
+        <p class="muted">Passwort aendern, API-Token erstellen und Companion Extension einrichten: <button type="button" class="link-btn" data-tab-trigger="profile">Profil</button>.</p>
+      </section>
+      <section class="mini-card">
+        <h3>System &amp; Backup</h3>
+        <p class="muted">Health-Status, Aktivitaetsverlauf, Import-History und Backup-Befehle: <button type="button" class="link-btn" data-tab-trigger="operations">System</button>.</p>
       </section>
     </div>
   </section>
@@ -1905,18 +2006,38 @@ def index_html() -> str:
   <section id="operations" class="panel tab-panel" data-tab-panel="operations" hidden>
     <div class="panel-header">
       <div>
-        <h2>Betrieb</h2>
-        <p class="subtitle">Gesundheit, Setup-Status, Import-Sessions und letzte Aktionen an einem Ort.</p>
+        <h2>System</h2>
+        <p class="subtitle">Health-Status, Aktivitaetsverlauf, Import-History und Betriebsinfos.</p>
       </div>
       <button id="refresh-operations" type="button">Aktualisieren</button>
     </div>
     <div class="stack">
       <div class="mini-grid" id="operations-status"></div>
       <section class="mini-card">
+        <h3>Aktivitaetsverlauf</h3>
+        <p class="muted">Importe, Bulk-Aktionen, Merges und andere Ereignisse &mdash; neueste zuerst.</p>
+        <div id="activity-log" class="history-list"></div>
+      </section>
+      <section class="mini-card">
+        <h3>Merge-Verlauf</h3>
+        <p class="muted">Nicht-destruktive Merge-Historie mit Undo-Option pro Eintrag.</p>
+        <div id="merge-history" class="history-list"></div>
+      </section>
+      <section class="mini-card">
+        <h3>Letzte Import-Sessions</h3>
+        <p class="muted">Datei- und Companion-Importe &mdash; je mit Vorschau und Ergebnis.</p>
+        <div id="import-sessions" class="history-list"></div>
+      </section>
+      <section class="mini-card">
+        <h3>Restore-Sessions</h3>
+        <p class="muted">Browser-Rueckimport mit Vorschau, Abschluss und Konfliktlage.</p>
+        <div id="restore-sessions" class="history-list"></div>
+      </section>
+      <section class="mini-card">
         <div class="panel-header">
           <div>
             <h3>Conflict Center</h3>
-        <p class="muted">Import-, Merge- und spaeter Sync-Konflikte an einer Stelle.</p>
+            <p class="muted">Import-, Merge- und spaeter Sync-Konflikte an einer Stelle.</p>
           </div>
           <label>Filter
             <select id="conflict-state-filter">
@@ -1931,27 +2052,18 @@ def index_html() -> str:
         <div id="conflict-center" class="history-list"></div>
       </section>
       <section class="mini-card">
-        <h3>Letzte Import-Sessions</h3>
-        <div id="import-sessions" class="history-list"></div>
-      </section>
-      <section class="mini-card">
-        <h3>Restore-Sessions</h3>
-        <p class="muted">Vorschau, Abschluss und Konfliktlage fuer Browser-Rueckimporte.</p>
-        <div id="restore-sessions" class="history-list"></div>
-      </section>
-      <section class="mini-card">
         <h3>Browser-Sync-Status</h3>
         <p class="muted">Drift-Erkennung: vergleicht aktuellen Browser-Stand mit dem letzten Snapshot.</p>
         <div id="sync-snapshot-status"></div>
         <div id="sync-drift-result" hidden></div>
       </section>
-      <section class="mini-card">
-        <h3>Aktivitaet</h3>
-        <div id="activity-log" class="history-list"></div>
-      </section>
-      <section class="mini-card">
-        <h3>Letzte Merge-Aktionen</h3>
-        <div id="merge-history" class="history-list"></div>
+      <section class="mini-card" id="ops-backup-info">
+        <h3>Backup &amp; Restore</h3>
+        <p class="muted">Datenbank-Backup im laufenden Betrieb (kein Stop notwendig):</p>
+        <code class="ops-code">sudo ./scripts/backup-linkvault.sh</code>
+        <p class="muted">Restore aus Backup-Archiv:</p>
+        <code class="ops-code">sudo ./scripts/restore-linkvault.sh &lt;backup.tar.gz&gt;</code>
+        <p class="muted">Healthcheck: <a href="/healthz" target="_blank" rel="noopener">/healthz</a> &middot; Standard-Port: 3080 &middot; Daten: <code>/var/lib/linkvault/</code></p>
       </section>
     </div>
   </section>
@@ -1969,8 +2081,19 @@ def index_html() -> str:
         <div id="profile-info" class="mini-grid"></div>
       </section>
       <section class="mini-card">
-        <h3>API-Token</h3>
-        <p class="muted">Token erlauben Import und Automatisierung ohne Browser-Login. Der Klartext wird nur einmal angezeigt.</p>
+        <h3>Companion Extension &amp; API-Token</h3>
+        <p class="muted">Die Companion Extension verbindet den Browser direkt mit LinkVault &mdash; fuer schnelles Speichern, Browser-Import und sicheren Rückimport.</p>
+        <div style="background:var(--bg-alt);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;margin:.5rem 0;">
+          <p style="margin:0 0 .4rem;font-weight:600;font-size:.93rem;">Extension einrichten:</p>
+          <ol style="margin:.2rem 0;padding-left:1.3rem;font-size:.9rem;line-height:1.6;">
+            <li>Token unten erstellen &mdash; Namen wie „Firefox Homelab" vergeben</li>
+            <li>Token-Klartext kopieren (nur einmal sichtbar)</li>
+            <li>Extension installieren und in den Options &mdash; URL + Token eintragen</li>
+            <li>Verbindung testen &mdash; dann Bookmarks importieren oder speichern</li>
+          </ol>
+          <p style="margin:.4rem 0 0;font-size:.84rem;" class="muted">Token werden nur gehasht gespeichert. Klartext erscheint nur direkt nach dem Erstellen.</p>
+        </div>
+        <p class="muted" style="margin:.5rem 0 .35rem;font-size:.88rem;">Neuen Token erstellen:</p>
         <form id="api-token-form" class="inline-actions">
           <label>Name <input name="name" placeholder="Firefox auf MacBook" required></label>
           <button>Token erstellen</button>
@@ -2042,6 +2165,9 @@ def index_html() -> str:
     const duplicatePreflight = document.querySelector('#duplicate-preflight');
     const categorySuggestions = document.querySelector('#category-suggestions');
     const importPreviewOutput = document.querySelector('#import-preview-output');
+    const importResultOutput = document.querySelector('#import-result-output');
+    const importHistorySection = document.querySelector('#import-history-section');
+    const importHistoryList = document.querySelector('#import-history-list');
     const authPanel = document.querySelector('#auth-panel');
     const authTitle = document.querySelector('#auth-title');
     const authHelp = document.querySelector('#auth-help');
@@ -2078,6 +2204,10 @@ def index_html() -> str:
     const quickAddDialog = document.querySelector('#quick-add-dialog');
     const qaForm = document.querySelector('#qa-form');
     const qaPreflight = document.querySelector('#qa-preflight');
+    const qaSubmitBtn = document.querySelector('#qa-submit');
+    const qaFavStar = document.querySelector('#qa-fav-star');
+    const qaFavHidden = document.querySelector('#qa-fav-hidden');
+    const qaSaveFeedback = document.querySelector('#qa-save-feedback');
     const syncSnapshotStatusEl = document.querySelector('#sync-snapshot-status');
     const syncDriftResultEl = document.querySelector('#sync-drift-result');
     const selectedIds = new Set();
@@ -2285,6 +2415,7 @@ def index_html() -> str:
       if (tab === 'tags') refreshTags();
       if (tab === 'collections') refreshCollections();
       if (tab === 'dedup') refreshDedupPanel();
+      if (tab === 'import') refreshImportHistory();
     }
 
     function clearBookmarkFilters() {
@@ -2738,34 +2869,59 @@ def index_html() -> str:
     function openQuickAdd(prefillUrl = '') {
       qaForm.reset();
       qaPreflight.hidden = true;
+      qaSaveFeedback.hidden = true;
+      qaSubmitBtn.hidden = false;
+      qaFavHidden.checked = false;
+      qaFavStar.classList.remove('active');
       if (prefillUrl) qaForm.elements['url'].value = prefillUrl;
       quickAddDialog.showModal();
       qaForm.elements['url'].focus();
     }
 
     async function saveAndCloseQuickAdd(data) {
-      await fetch('/api/bookmarks', {
+      const resp = await fetch('/api/bookmarks', {
         method: 'POST',
         headers: {'content-type': 'application/json'},
         body: JSON.stringify(data)
       });
-      quickAddDialog.close();
-      await refreshAll();
+      if (resp.ok) {
+        qaPreflight.hidden = true;
+        qaSubmitBtn.hidden = true;
+        qaSaveFeedback.hidden = false;
+        setTimeout(() => {
+          quickAddDialog.close();
+          refreshAll();
+        }, 700);
+      } else {
+        quickAddDialog.close();
+        await refreshAll();
+      }
+    }
+
+    function matchTypeLabel(matchType) {
+      if (matchType === 'exact') return 'Exakte URL';
+      if (matchType === 'normalized') return 'Normalisierte URL (UTM entfernt)';
+      if (matchType === 'domain') return 'Aehnliche URL auf gleicher Domain';
+      return matchType || 'Aehnlich';
     }
 
     function renderQaPreflight(preflight, formData) {
+      qaSubmitBtn.hidden = true;
       qaPreflight.hidden = false;
-      qaPreflight.innerHTML = `<h4>Moegliche Dublette gefunden</h4>
-        <p class="muted" style="margin:.2rem 0 .5rem;">${escapeHtml(preflight.normalized_url)}</p>`;
+      qaPreflight.innerHTML = `<h4>Moegliche Dublette gefunden</h4>`;
       for (const match of preflight.matches) {
         const bm = match.bookmark;
         const row = document.createElement('div');
-        row.style.cssText = 'margin-top:.5rem;padding-top:.5rem;border-top:1px solid #f0c08a;';
+        row.className = 'qa-preflight-row';
         row.innerHTML = `
+          <span class="qa-preflight-match-type">${escapeHtml(matchTypeLabel(match.match_type))}</span>
           <strong>${escapeHtml(bm.title || bm.url)}</strong>
-          <p style="margin:.1rem 0;font-size:.88rem;"><a href="${escapeAttr(bm.url)}" target="_blank" rel="noopener">${escapeHtml(bm.url)}</a></p>
-          <button type="button" data-action="open">Oeffnen</button>
-          <button type="button" data-action="update">Aktualisieren</button>
+          <p class="qa-preflight-url"><a href="${escapeAttr(bm.url)}" target="_blank" rel="noopener">${escapeHtml(bm.url)}</a></p>
+          <div class="qa-preflight-actions">
+            <button type="button" data-action="open">Oeffnen</button>
+            <button type="button" data-action="update">Tags/Notizen aktualisieren</button>
+            <button type="button" data-action="new">Trotzdem neu speichern</button>
+          </div>
         `;
         row.querySelector('[data-action="open"]').addEventListener('click', () => {
           quickAddDialog.close();
@@ -2773,20 +2929,16 @@ def index_html() -> str:
         });
         row.querySelector('[data-action="update"]').addEventListener('click', async () => {
           await patchBookmark(bm.id, formData);
-          quickAddDialog.close();
-          await refreshAll();
+          qaSaveFeedback.textContent = '✓ Bookmark aktualisiert';
+          qaSaveFeedback.hidden = false;
+          setTimeout(() => { quickAddDialog.close(); refreshAll(); }, 700);
+        });
+        row.querySelector('[data-action="new"]').addEventListener('click', async () => {
+          formData.allow_duplicate = true;
+          await saveAndCloseQuickAdd(formData);
         });
         qaPreflight.appendChild(row);
       }
-      const saveAnyway = document.createElement('button');
-      saveAnyway.type = 'button';
-      saveAnyway.style.cssText = 'margin-top:.6rem;display:block;';
-      saveAnyway.textContent = 'Trotzdem neu speichern';
-      saveAnyway.addEventListener('click', async () => {
-        formData.allow_duplicate = true;
-        await saveAndCloseQuickAdd(formData);
-      });
-      qaPreflight.appendChild(saveAnyway);
     }
 
     document.querySelector('#quick-add-btn').addEventListener('click', () => openQuickAdd());
@@ -2795,6 +2947,12 @@ def index_html() -> str:
       quickAddDialog.close();
       setActiveTab('save');
     });
+
+    qaFavStar.addEventListener('click', () => {
+      const isActive = qaFavStar.classList.toggle('active');
+      qaFavHidden.checked = isActive;
+    });
+
     document.getElementById('shortcut-help-btn').addEventListener('click', openShortcutHelp);
     document.getElementById('shortcut-help-close').addEventListener('click', closeShortcutHelp);
     shortcutHelpDialog.addEventListener('click', (event) => {
@@ -2805,11 +2963,12 @@ def index_html() -> str:
     qaForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.target));
-      data.favorite = data.favorite === 'on';
+      data.favorite = qaFavHidden.checked;
       data.pinned = data.pinned === 'on';
       qaPreflight.hidden = true;
-      const qaSubmit = document.querySelector('#qa-submit');
-      qaSubmit.disabled = true;
+      qaSaveFeedback.hidden = true;
+      qaSubmitBtn.hidden = false;
+      qaSubmitBtn.disabled = true;
       try {
         const preflight = await duplicatePreflightFor(data.url);
         if (preflight.has_matches) {
@@ -2818,7 +2977,7 @@ def index_html() -> str:
         }
         await saveAndCloseQuickAdd(data);
       } finally {
-        qaSubmit.disabled = false;
+        qaSubmitBtn.disabled = false;
       }
     });
 
@@ -3099,50 +3258,109 @@ def index_html() -> str:
     function renderImportPreview(payload) {
       importPreviewOutput.hidden = false;
       if (!payload.total) {
-        importPreviewOutput.innerHTML = '<strong>Keine Bookmarks im HTML gefunden.</strong>';
+        importPreviewOutput.innerHTML = '<p class="muted" style="margin:.5rem 0;">Keine Bookmarks in der Datei gefunden.</p>';
         return;
       }
 
+      const actionLabel = {
+        create: 'Neu',
+        duplicate_existing: 'Existiert bereits',
+        duplicate_in_import: 'Doppelt im Import',
+        invalid_skipped: 'Uebersprungen'
+      };
+      const actionClass = {
+        create: 'preview-new',
+        duplicate_existing: 'preview-exists',
+        duplicate_in_import: 'preview-exists',
+        invalid_skipped: 'preview-bad'
+      };
+
       const rows = payload.records.map((record) => {
-        const status = {
-          create: 'Neu',
-          duplicate_existing: 'Existiert schon',
-          duplicate_in_import: 'Doppelt im Import',
-          invalid_skipped: 'Uebersprungen'
-        }[record.action] || record.action;
-        const suggestionTags = (record.suggestions?.suggested_tags || []).map((tag) => `#${escapeHtml(tag)}`).join(' ');
-        const suggestionCollections = (record.suggestions?.suggested_collections || []).map(escapeHtml).join(', ');
-        const duplicateHint = record.duplicate_bookmark
-          ? `<p class="muted">Vorhanden: ${escapeHtml(record.duplicate_bookmark.title)} · ${escapeHtml(record.duplicate_bookmark.url)}</p>`
+        const label = actionLabel[record.action] || record.action;
+        const cls = actionClass[record.action] || '';
+        const dupHint = record.duplicate_bookmark
+          ? `<span class="muted"> &mdash; vorhanden als: ${escapeHtml(record.duplicate_bookmark.title || record.duplicate_bookmark.url)}</span>`
           : record.duplicate_of_index
-            ? `<p class="muted">Doppelt zu Import-Zeile ${record.duplicate_of_index}</p>`
+            ? `<span class="muted"> &mdash; Duplikat von Zeile ${record.duplicate_of_index} im Import</span>`
             : '';
-        const errorHint = record.error ? `<p class="muted">Grund: ${escapeHtml(record.error)}</p>` : '';
+        const errorHint = record.error ? `<span class="muted"> &mdash; ${escapeHtml(record.error)}</span>` : '';
+        const tags = (record.tags || []).map(t => `<span class="tag-chip-small">#${escapeHtml(t)}</span>`).join('');
         return `
-          <div class="mini-card">
-            <p><strong>${escapeHtml(status)}</strong> · ${escapeHtml(record.title || record.url)}</p>
-            <p><a href="${escapeAttr(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a></p>
-            <p class="muted">${escapeHtml(record.domain || '-')} · Collections: ${escapeHtml((record.collections || []).join(', ') || '-')} · Tags: ${escapeHtml((record.tags || []).join(', ') || '-')}</p>
-            ${duplicateHint}
-            ${errorHint}
-            <p class="muted">Vorschlaege: ${suggestionTags || 'keine neuen Tags'} · ${suggestionCollections || 'keine neuen Collections'}</p>
+          <div class="mini-card" style="padding:.5rem .75rem;">
+            <p style="margin:0 0 .15rem;"><span class="${cls}" style="font-size:.8rem;font-weight:700;text-transform:uppercase;margin-right:.4rem;">${escapeHtml(label)}</span><strong>${escapeHtml(record.title || record.url)}</strong>${dupHint}${errorHint}</p>
+            <p class="muted" style="margin:0;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><a href="${escapeAttr(record.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.url)}</a></p>
+            ${tags ? `<p style="margin:.2rem 0 0;font-size:.82rem;">${tags}</p>` : ''}
           </div>
         `;
       }).join('');
 
       importPreviewOutput.innerHTML = `
-        <h3>Import-Vorschau</h3>
-        <p>${payload.total} gefunden · ${payload.create} neu · ${payload.duplicate_existing} existieren schon · ${payload.duplicate_in_import} doppelt im Import · ${payload.invalid_skipped || 0} ungueltig/intern uebersprungen</p>
-        <div class="stack">${rows}</div>
+        <div style="margin:.75rem 0 .5rem;">
+          <strong>Vorschau: ${payload.total} Eintraege gefunden</strong>
+          <div class="import-preview-summary">
+            <span class="preview-new">&#10003; ${payload.create} neu</span>
+            <span class="preview-exists">${payload.duplicate_existing} existieren bereits</span>
+            <span class="preview-exists">${payload.duplicate_in_import} doppelt im Import</span>
+            ${payload.invalid_skipped ? `<span class="preview-bad">${payload.invalid_skipped} uebersprungen</span>` : ''}
+          </div>
+        </div>
+        <details style="margin-bottom:.5rem;">
+          <summary style="cursor:pointer;color:var(--accent-strong);font-size:.9rem;">Details anzeigen (${payload.total} Eintraege)</summary>
+          <div class="stack" style="margin-top:.5rem;">${rows}</div>
+        </details>
       `;
     }
 
     function renderImportResult(payload) {
-      importPreviewOutput.hidden = false;
-      importPreviewOutput.innerHTML = `
-        <h3>Import abgeschlossen</h3>
-        <p>${payload.created} neue Bookmarks importiert. ${payload.duplicates_skipped} Dubletten uebersprungen. ${payload.invalid_skipped || 0} ungueltige/interne URLs uebersprungen.</p>
+      importResultOutput.hidden = false;
+      const hasNew = payload.created > 0;
+      const boxClass = hasNew ? 'import-result-success' : 'import-result-warn';
+      importResultOutput.innerHTML = `
+        <div class="import-result-box ${boxClass}">
+          <strong>${hasNew ? '&#10003; Import abgeschlossen' : 'Import abgeschlossen &mdash; keine neuen Bookmarks'}</strong>
+          <div class="import-result-counts">
+            <span class="import-count-new">&#10003; ${payload.created} neu importiert</span>
+            <span class="import-count-skip">${payload.duplicates_skipped} uebersprungen (existierten bereits)</span>
+            ${payload.invalid_skipped ? `<span class="import-count-bad">${payload.invalid_skipped} ungueltig/intern</span>` : ''}
+          </div>
+          ${hasNew ? `<div class="import-result-actions">
+            <button type="button" id="import-goto-inbox" class="primary">Inbox anzeigen</button>
+          </div>` : ''}
+        </div>
       `;
+      if (hasNew) {
+        document.querySelector('#import-goto-inbox')?.addEventListener('click', () => {
+          showInbox();
+        });
+      }
+      refreshImportHistory();
+    }
+
+    async function refreshImportHistory() {
+      try {
+        const resp = await fetch('/api/import/sessions');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const sessions = data.sessions || [];
+        if (!sessions.length) {
+          importHistorySection.hidden = true;
+          return;
+        }
+        importHistorySection.hidden = false;
+        importHistoryList.innerHTML = sessions.slice(0, 8).map((s) => `
+          <div class="import-session-card">
+            <strong>${escapeHtml(s.source_name || s.source_format)}</strong>
+            <span class="muted" style="font-size:.82rem;margin-left:.5rem;">${escapeHtml(s.imported_at?.slice(0, 16) || '')}</span>
+            <div class="import-session-counts">
+              <span class="import-count-new">+${s.created_count} neu</span>
+              <span class="import-count-skip">${s.duplicate_count} uebersprungen</span>
+              ${s.conflict_count ? `<span class="import-count-bad">${s.conflict_count} Konflikte</span>` : ''}
+              ${s.invalid_count ? `<span class="import-count-bad">${s.invalid_count} ungueltig</span>` : ''}
+              <span class="muted">${escapeHtml(s.source_file_name || '')}</span>
+            </div>
+          </div>
+        `).join('');
+      } catch { /* ignore */ }
     }
 
     function importEndpoint(format, preview = false) {
@@ -3278,7 +3496,7 @@ def index_html() -> str:
           <p class="muted">Browser-Rueckimport mit Vorschau und Abschlussstatus</p>
         </div>
         <div class="mini-card">
-          <h3>Aktivitaet</h3>
+          <h3>Verlauf</h3>
           <p><strong>${activityEvents.length}</strong> Ereignisse</p>
           <p class="muted">Importe, Bulk, Merge, Loeschen</p>
         </div>
@@ -4576,6 +4794,37 @@ def index_html() -> str:
       await loadCategorySuggestions(document.querySelector('#bookmark-form'));
     });
 
+    // Format hint texts for the import format dropdown
+    const FORMAT_HINTS = {
+      'browser-html': 'Browser-Bookmarks als HTML exportieren (alle Browser: Chrome, Firefox, Safari, Edge, Brave …) und hier hochladen oder einfuegen.',
+      'chromium-json': 'Nur fuer Chromium-basierte Browser (Chrome, Edge, Brave, Vivaldi, Opera). Datei: Bookmarks (JSON, keine Endung) aus dem Profil-Ordner.',
+      'firefox-json': 'Firefox Bookmark-Backup als .json Datei (Lesezeichen &rarr; Sichern). Reicher als HTML: enthaelt GUIDs, Zeitstempel und Ordnerstruktur.',
+      'firefox-jsonlz4': 'Komprimiertes Firefox-Backup (.jsonlz4) aus dem bookmarkbackups-Ordner im Profil. Muss als Datei hochgeladen werden.',
+      'linkding-json': 'JSON-Export aus linkding (API-Export oder UI-Download). URL, Titel, Tags, Beschreibung und Notizen werden uebernommen.',
+      'safari-zip': 'Safari-Archiv als ZIP mit Bookmarks.html. Muss als Datei hochgeladen werden.',
+      'generic-csv': 'CSV aus beliebigem Bookmark-Tool. Spalten werden automatisch erkannt. Bitte zuerst Vorschau laden, dann Zuordnung pruefen.',
+      'generic-json': 'JSON-Array aus beliebigem Bookmark-Tool. Felder werden automatisch erkannt. Bitte zuerst Vorschau laden.',
+    };
+
+    function updateImportFormatUi(fmt) {
+      const hintEl = document.querySelector('#import-format-hint');
+      const textareaLabel = document.querySelector('#import-textarea-label');
+      const binaryNotice = document.querySelector('#import-binary-notice');
+      const isBinary = BINARY_IMPORT_FORMATS.has(fmt);
+      if (hintEl) hintEl.textContent = FORMAT_HINTS[fmt] || '';
+      if (textareaLabel) textareaLabel.hidden = isBinary;
+      if (binaryNotice) binaryNotice.hidden = !isBinary;
+    }
+
+    document.querySelector('#import-format-select')?.addEventListener('change', (event) => {
+      updateImportFormatUi(event.target.value);
+      // Reset outputs when format changes
+      importPreviewOutput.hidden = true;
+      importResultOutput.hidden = true;
+    });
+    // Init on load
+    updateImportFormatUi(document.querySelector('#import-format-select')?.value || 'browser-html');
+
     document.querySelector('#import-preview-button').addEventListener('click', async () => {
       const form = document.querySelector('#import-form');
       const fmt = form.elements.format?.value || '';
@@ -4583,25 +4832,44 @@ def index_html() -> str:
         await detectGenericColumns(form);
       }
       const data = await importPayloadFromForm(form);
-      const response = await fetch(importEndpoint(data.format, true), {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify(data)
-      });
-      renderImportPreview(await response.json());
+      const btn = document.querySelector('#import-preview-button');
+      btn.disabled = true;
+      btn.textContent = 'Laedt…';
+      try {
+        const response = await fetch(importEndpoint(data.format, true), {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        importResultOutput.hidden = true;
+        renderImportPreview(await response.json());
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Vorschau laden';
+      }
     });
 
-    document.querySelector('#import-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const data = await importPayloadFromForm(event.target);
-      const response = await fetch(importEndpoint(data.format), {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify(data)
-      });
-      renderImportResult(await response.json());
-      event.target.reset();
-      await refreshAll();
+    document.querySelector('#import-submit-btn').addEventListener('click', async (event) => {
+      const form = document.querySelector('#import-form');
+      const data = await importPayloadFromForm(form);
+      const btn = document.querySelector('#import-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Importiert…';
+      try {
+        const response = await fetch(importEndpoint(data.format), {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        importPreviewOutput.hidden = true;
+        renderImportResult(await response.json());
+        form.reset();
+        updateImportFormatUi('browser-html');
+        await refreshAll();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Importieren';
+      }
     });
 
     document.querySelector('#refresh').addEventListener('click', refreshBookmarks);

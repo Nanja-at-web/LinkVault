@@ -1697,6 +1697,61 @@ class StoreTest(unittest.TestCase):
             score_values = [s["score"] for s in scores]
             self.assertEqual(score_values, sorted(score_values))
 
+    # ------------------------------------------------------------------
+    # export_netscape_html tests
+    # ------------------------------------------------------------------
+
+    def test_export_netscape_html_returns_valid_html(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://example.com", "title": "Example", "tags": "test,demo", "collections": "Homelab"})
+
+            html = store.export_netscape_html()
+
+            self.assertIn("DOCTYPE NETSCAPE-Bookmark-file-1", html)
+            self.assertIn("https://example.com", html)
+            self.assertIn("Example", html)
+            self.assertIn("Homelab", html)
+            self.assertIn("TAGS=", html)
+            # Tags are sorted alphabetically (clean_list sorts)
+            self.assertIn("demo", html)
+            self.assertIn("test", html)
+
+    def test_export_netscape_html_groups_by_collection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.com", "title": "A", "collections": "Dev"})
+            store.add({"url": "https://b.com", "title": "B", "collections": "Research"})
+            store.add({"url": "https://c.com", "title": "C"})  # no collection -> Inbox -> Alle Bookmarks
+
+            html = store.export_netscape_html()
+
+            self.assertIn("Dev", html)
+            self.assertIn("Research", html)
+            self.assertIn("https://a.com", html)
+            self.assertIn("https://b.com", html)
+            self.assertIn("https://c.com", html)
+
+    def test_export_netscape_html_excludes_merged_duplicates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = BookmarkStore(Path(tmp) / "linkvault.sqlite3", metadata_fetcher=None)
+            store.add({"url": "https://a.com?utm_source=nl", "title": "A"})
+            store.add({"url": "https://a.com", "title": "B"})
+            dry = store.dedup_dry_run()
+            group = dry["groups"][0]
+            store.merge_duplicates({
+                "winner_id": group["merge_plan"]["winner_id"],
+                "loser_ids": group["merge_plan"]["loser_ids"],
+            })
+
+            html = store.export_netscape_html()
+
+            # Only active bookmarks included — merged loser URL only appears once
+            # (the winner keeps the canonical URL https://a.com)
+            self.assertIn("https://a.com", html)
+            # UTM variant should not appear as separate line
+            self.assertNotIn("utm_source=nl", html)
+
 
 from linkvault.store import (
     parse_linkding_json,

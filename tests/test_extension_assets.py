@@ -102,6 +102,45 @@ class ExtensionAssetsTest(unittest.TestCase):
         self.assertIn("subnetPrefixFromUrl", options)
         self.assertIn("testLinkVaultConnection", options)
 
+    def test_extension_popup_has_ux_improvements(self):
+        popup = (EXTENSION_DIR / "popup.js").read_text(encoding="utf-8")
+        popup_html = (EXTENSION_DIR / "popup.html").read_text(encoding="utf-8")
+        styles = (EXTENSION_DIR / "styles.css").read_text(encoding="utf-8")
+
+        # Active connection check (pings /api/me)
+        self.assertIn("/api/me", popup)
+        self.assertIn("conn-ok", popup)
+        self.assertIn("conn-error", popup)
+        # Inline duplicate handling on save
+        self.assertIn("save-tab-preflight", popup_html)
+        self.assertIn("renderSaveTabPreflight", popup)
+        self.assertIn("Open in LinkVault", popup)
+        self.assertIn("Save anyway", popup)
+        self.assertIn("allow_duplicate", popup)
+        # Loading states
+        self.assertIn("setButtonLoading", popup)
+        self.assertIn("Saving…", popup)
+        self.assertIn("Importing…", popup)
+        self.assertIn("Applying…", popup)
+        # Conditional restore target fields
+        self.assertIn("updateRestoreTargetVisibility", popup)
+        self.assertIn("restore-new-folder-label", popup_html)
+        self.assertIn("restore-existing-folder-label", popup_html)
+        # Import guard (require preview before apply)
+        self.assertIn("Preview the restore plan first", popup)
+        # Clearer section titles
+        self.assertIn("Save bookmark", popup_html)
+        self.assertIn("Import from Browser", popup_html)
+        self.assertIn("Restore to Browser", popup_html)
+        # Step hints
+        self.assertIn("step-hint", popup_html)
+        self.assertIn("step-hint", styles)
+        # Pill colour coding
+        self.assertIn(".pill.create", styles)
+        self.assertIn(".pill.merge_existing", styles)
+        self.assertIn(".conn-ok", styles)
+        self.assertIn(".save-preflight", styles)
+
 
 if __name__ == "__main__":
     unittest.main()

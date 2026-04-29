@@ -2690,6 +2690,44 @@ class BookmarkStore:
             "roots": clean_roots,
         }
 
+    def export_netscape_html(self) -> str:
+        """Export all active bookmarks as Netscape Bookmark HTML (browser-importable)."""
+        import html as html_mod
+
+        bookmarks = self.list(filters=BookmarkFilters(status="active"))
+        date_str = datetime.now(UTC).date().isoformat()
+
+        # Group by top-level collection (first collection or "Alle Bookmarks")
+        groups: dict[str, list[Bookmark]] = {}
+        for bm in bookmarks:
+            key = bm.collections[0] if bm.collections else "Alle Bookmarks"
+            groups.setdefault(key, []).append(bm)
+
+        lines = [
+            "<!DOCTYPE NETSCAPE-Bookmark-file-1>",
+            "<!-- This is an automatically generated file. -->",
+            "<!-- It will be read and overwritten — DO NOT EDIT! -->",
+            '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
+            f"<TITLE>LinkVault Export {date_str}</TITLE>",
+            f"<H1>LinkVault Export {date_str}</H1>",
+            "<DL><p>",
+        ]
+        for folder, bms in sorted(groups.items()):
+            lines.append(f"    <DT><H3>{html_mod.escape(folder)}</H3>")
+            lines.append("    <DL><p>")
+            for bm in bms:
+                tag_attr = ""
+                if bm.tags:
+                    tag_attr = f' TAGS="{html_mod.escape(",".join(bm.tags))}"'
+                title = html_mod.escape(bm.title or bm.url)
+                url = html_mod.escape(bm.url)
+                lines.append(f'        <DT><A HREF="{url}"{tag_attr}>{title}</A>')
+                if bm.description:
+                    lines.append(f"        <DD>{html_mod.escape(bm.description)}")
+            lines.append("    </DL><p>")
+        lines.append("</DL><p>")
+        return "\n".join(lines)
+
     def sync_search_index(self, connection: sqlite3.Connection) -> None:
         bookmark_count = connection.execute("SELECT COUNT(*) FROM bookmarks WHERE status = 'active'").fetchone()[0]
         fts_count = connection.execute("SELECT COUNT(*) FROM bookmarks_fts").fetchone()[0]
