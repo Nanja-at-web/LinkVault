@@ -262,7 +262,7 @@ Diese Themen sind nicht verboten, aber sie dürfen den Bookmark-Kern nicht verdr
 | Import / Migration | mittel | strategisch richtig, noch ausbauen |
 | Sync-nahe Flows | mittel | hilfreich, aber Kernziel nicht überlagern |
 | Archivierung | niedrig | bewusst nachrangig |
-| Admin / Profile / Betrieb | mittel bis hoch | wichtig, aber nicht die Produktmitte |
+| Admin / Profile / System | mittel bis hoch | wichtig, aber nicht die Produktmitte; System-Tab umbenannt und verbessert |
 | Frontend-Navigation / GUI | kritisch offen | aktuell größte sichtbare Lücke |
 
 ---
