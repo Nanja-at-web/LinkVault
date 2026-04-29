@@ -38,6 +38,16 @@ install -d -o root -g root "${CONFIG_DIR}"
 
 python3 -m venv "${APP_DIR}/.venv"
 "${APP_DIR}/.venv/bin/python" -m pip install --upgrade pip
+
+# Write build metadata so the installed package knows its commit and date.
+BUILD_COMMIT="$(git -C "${SOURCE_DIR}" rev-parse --short HEAD 2>/dev/null || echo 'dev')"
+BUILD_DATE="$(date -u +%Y-%m-%d)"
+cat > "${SOURCE_DIR}/src/linkvault/_build.py" <<EOF
+# Generated at install time by install-debian.sh. Do not edit manually.
+__build_commit__ = "${BUILD_COMMIT}"
+__build_date__ = "${BUILD_DATE}"
+EOF
+
 "${APP_DIR}/.venv/bin/pip" install "${SOURCE_DIR}"
 chown -R "${APP_USER}:${APP_GROUP}" "${APP_DIR}" "${DATA_DIR}"
 

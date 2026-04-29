@@ -1,6 +1,7 @@
 import unittest
 
 from linkvault.server import index_html, linkvault_identity
+from linkvault import __version__, __build_commit__, __build_date__, __display_version__
 
 
 class ServerHtmlTest(unittest.TestCase):
@@ -10,6 +11,31 @@ class ServerHtmlTest(unittest.TestCase):
         self.assertEqual(identity["app"], "LinkVault")
         self.assertEqual(identity["health"], "/healthz")
         self.assertIn("version", identity)
+        # Build metadata present in identity response
+        self.assertIn("build_commit", identity)
+        self.assertIn("build_date", identity)
+        self.assertIn("display_version", identity)
+
+    def test_build_metadata_is_consistent(self):
+        # __init__ exports all build fields
+        self.assertIsNotNone(__version__)
+        self.assertIsNotNone(__build_commit__)
+        self.assertIsNotNone(__build_date__)
+        self.assertIsNotNone(__display_version__)
+        # display_version always starts with the release version
+        self.assertTrue(
+            __display_version__.startswith(__version__),
+            f"display_version {__display_version__!r} does not start with {__version__!r}",
+        )
+        # In dev/test context build_commit is either "dev" or a short hash string
+        self.assertIsInstance(__build_commit__, str)
+        self.assertGreater(len(__build_commit__), 0)
+
+    def test_index_html_shows_display_version_in_system_tab(self):
+        html = index_html()
+        # JS uses display_version from healthz response in the System tab health card
+        self.assertIn("display_version", html)
+        self.assertIn("health.display_version", html)
 
     def test_index_html_documents_keyboard_shortcuts(self):
         html = index_html()

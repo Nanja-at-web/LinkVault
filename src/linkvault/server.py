@@ -7,7 +7,7 @@ from http.cookies import SimpleCookie
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import __version__
+from . import __version__, __build_commit__, __build_date__, __display_version__
 from .auth import AuthStore, User
 from .config import load_config
 from .store import BookmarkFilters, BookmarkStore, checksum_for_text
@@ -60,6 +60,9 @@ def linkvault_identity() -> dict[str, Any]:
     return {
         "app": "LinkVault",
         "version": __version__,
+        "build_commit": __build_commit__,
+        "build_date": __build_date__,
+        "display_version": __display_version__,
         "health": "/healthz",
     }
 
@@ -166,7 +169,7 @@ def named_bookmark_views_payload(store: BookmarkStore, user_id: str) -> dict[str
 
 
 class LinkVaultHandler(BaseHTTPRequestHandler):
-    server_version = f"LinkVault/{__version__}"
+    server_version = f"LinkVault/{__display_version__}"
 
     def do_OPTIONS(self) -> None:
         self.send_response(HTTPStatus.NO_CONTENT)
@@ -181,7 +184,13 @@ class LinkVaultHandler(BaseHTTPRequestHandler):
         path = parsed_url.path
 
         if path == "/healthz":
-            self.send_json({"ok": True, "version": __version__})
+            self.send_json({
+                "ok": True,
+                "version": __version__,
+                "build_commit": __build_commit__,
+                "build_date": __build_date__,
+                "display_version": __display_version__,
+            })
         elif path == "/.well-known/linkvault":
             self.send_json(linkvault_identity())
         elif path == "/api/setup/status":
@@ -3474,7 +3483,7 @@ def index_html() -> str:
         <div class="mini-card">
           <h3>Health</h3>
           <p><strong>${health.ok ? 'OK' : 'Fehler'}</strong></p>
-          <p class="muted">Version ${escapeHtml(health.version || '-')}</p>
+          <p class="muted">${escapeHtml(health.display_version || health.version || '-')}</p>
         </div>
         <div class="mini-card">
           <h3>Setup</h3>

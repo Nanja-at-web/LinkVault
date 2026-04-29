@@ -67,6 +67,20 @@ healthcheck() {
   echo
 }
 
+show_version() {
+  local response ver
+  if ! response="$(curl -fsS "${HEALTH_URL}" 2>/dev/null)"; then
+    echo "Service not available." >&2
+    return 1
+  fi
+  ver="$(echo "${response}" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+print(d.get('display_version', d.get('version', '?')))
+" 2>/dev/null || echo "?")"
+  echo "LinkVault ${ver}"
+}
+
 show_token() {
   if [[ ! -f "${CONFIG_FILE}" ]]; then
     echo "Config file not found: ${CONFIG_FILE}" >&2
@@ -148,7 +162,8 @@ Commands:
   overview   Show paths and service state.
   status     Show systemd service status.
   logs       Show recent journal logs.
-  health     Run the local healthcheck.
+  health     Run the local healthcheck (full JSON).
+  version    Show the installed LinkVault version.
   backup     Create a LinkVault backup.
   restore    Restore a backup archive. Optional: linkvault-helper restore /path/archive.tar.gz
   update     Update LinkVault from the configured Git source.
@@ -200,6 +215,7 @@ case "${command}" in
   status) show_status ;;
   logs) show_logs ;;
   health) healthcheck ;;
+  version) show_version ;;
   backup) run_backup ;;
   restore) shift || true; run_restore "${1:-}" ;;
   update) run_update ;;
